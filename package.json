@@ -1,0 +1,22 @@
+{
+  "name": "wafina",
+  "private": true,
+  "version": "0.0.1",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --workspace=packages/shared",
+    "dev:api": "npm run build:shared && npm run dev --workspace=apps/api",
+    "dev:web": "npm run build:shared && npm run dev --workspace=apps/web",
+    "dev:mobile": "npm run build:shared && npm run start --workspace=apps/mobile",
+    "build": "npm run build:shared && npm run build --workspaces --if-present",
+    "lint": "eslint .",
+    "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "eslint": "^9.14.0",
+    "typescript-eslint": "^8.13.0"
+  }
+}

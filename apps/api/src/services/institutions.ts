@@ -1,0 +1,111 @@
+import { randomUUID } from 'node:crypto';
+import type { Institution } from '@wafina/shared';
+import { SHEET_TABS } from '../config/sheet-tabs';
+import { fromSheetBool, fromSheetLatLong, toSheetBool, toSheetLatLong } from '../config/sheet-values';
+import { appendRow, findRow, getRows } from '../config/sheets';
+import { sumDeliveredQuantityForInstitution } from './donations';
+import { ValidationError } from './validation-error';
+
+const MIN_NAME_LENGTH = 2;
+
+/**
+ * All profile fields lock automatically on verification (spec 4.2.4). Real
+ * per-field unlocking only happens when Admin grants a temporary exception
+ * during a Change Request (spec 11.5) — if the live sheet has a Locked_Fields
+ * column reflecting that, we honor it; otherwise fall back to this all-or-
+ * nothing default, since the column doesn't exist there yet (spec 5.2 gap).
+ */
+const ALL_PROFILE_FIELDS = ['Name', 'Type', 'Location', 'Needs_List', 'Logo'];
+
+async function rowToInstitution(row: Record<string, string>): Promise<Institution> {
+  const verified = fromSheetBool(row.Verified ?? '');
+  const lockedFields = row.Locked_Fields
+    ? row.Locked_Fields.split(',')
+        .map((f) => f.trim())
+        .filter(Boolean)
+    : verified
+      ? ALL_PROFILE_FIELDS
+      : [];
+
+  return {
+    Institution_ID: row.Institution_ID,
+    User_ID: row.User_ID,
+    Name: row.Name,
+    Logo: row.Logo || null,
+    Type: row.Type,
+    Location: fromSheetLatLong(row.Location ?? '') ?? { lat: 0, lng: 0 },
+    Needs_List: row.Needs_List || null,
+    Verified: verified,
+    Rejection_Reason: row.Rejection_Reason || null,
+    Total_Items_Received: await sumDeliveredQuantityForInstitution(row.Institution_ID),
+    Locked_Fields: lockedFields,
+  };
+}
+
+export interface CreateInstitutionInput {
+  Name: string;
+  Type: string;
+  Location: { lat: number; lng: number };
+  Needs_List?: string;
+}
+
+/**
+ * Institution registration (spec 13.3). Always creates Verified=FALSE — there
+ * is deliberately no update function in this service: once verified, fields
+ * lock automatically, and the only path to changing them is a Change Request
+ * that Admin acts on in AppSheet (spec 4.2.4, 11.5). Enforcing the lock by
+ * never exposing a write path is simpler and more robust than checking a flag.
+ */
+export async function createInstitution(
+  userId: string,
+  input: CreateInstitutionInput,
+): Promise<Institution> {
+  if (!input.Name || input.Name.trim().length < MIN_NAME_LENGTH) {
+    throw new ValidationError(`Name must be at least ${MIN_NAME_LENGTH} characters`);
+  }
+  if (!input.Type) throw new ValidationError('Type is required');
+  if (
+    !Number.isFinite(input.Location?.lat) ||
+    !Number.isFinite(input.Location?.lng) ||
+    (input.Location.lat === 0 && input.Location.lng === 0)
+  ) {
+    throw new ValidationError('Location must be a valid, non-zero coordinate pair');
+  }
+
+  const existing = await findRow(SHEET_TABS.institutions, (r) => r.User_ID === userId);
+  if (existing) {
+    throw new ValidationError('This user already has an Institution profile');
+  }
+
+  const row = {
+    Institution_ID: randomUUID(),
+    User_ID: userId,
+    Name: input.Name,
+    Type: input.Type,
+    Location: toSheetLatLong(input.Location),
+    Verified: toSheetBool(false),
+    Needs_List: input.Needs_List ?? '',
+    Logo: '',
+    Rejection_Reason: '',
+  };
+
+  await appendRow(SHEET_TABS.institutions, row);
+  return rowToInstitution(row);
+}
+
+export async function getInstitutionByUserId(userId: string): Promise<Institution | null> {
+  const row = await findRow(SHEET_TABS.institutions, (r) => r.User_ID === userId);
+  return row ? rowToInstitution(row) : null;
+}
+
+export async function getInstitutionById(institutionId: string): Promise<Institution | null> {
+  const row = await findRow(SHEET_TABS.institutions, (r) => r.Institution_ID === institutionId);
+  return row ? rowToInstitution(row) : null;
+}
+
+/** Donor-facing read-only browse (spec 3.2, 4.1). */
+export async function listVerifiedInstitutions(): Promise<Institution[]> {
+  const rows = await getRows(SHEET_TABS.institutions);
+  const verifiedRows = rows.filter((row) => fromSheetBool(row.Verified ?? ''));
+  return Promise.all(verifiedRows.map(rowToInstitution));
+}

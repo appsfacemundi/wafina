@@ -1,0 +1,20 @@
+node_modules/
+dist/
+build/
+.next/
+.expo/
+*.tsbuildinfo
+
+.env
+.env.local
+!.env.example
+
+*.log
+.DS_Store
+
+# Service account credentials — never commit
+*service-account*.json
+credentials/
+
+# Personal/local tool permissions, not shared config
+.claude/settings.local.json
