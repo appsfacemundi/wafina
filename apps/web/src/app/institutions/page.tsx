@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Card, EmptyState } from '@wafina/ui';
 import { AppShell } from '@/components/AppShell';
-import { Card } from '@/components/ui/Card';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
 

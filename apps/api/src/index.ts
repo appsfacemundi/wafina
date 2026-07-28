@@ -3,10 +3,13 @@ import express from 'express';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error-handler';
 import { authRouter } from './routes/auth';
+import { changeRequestsRouter } from './routes/change-requests';
+import { disputesRouter } from './routes/disputes';
 import { donationsRouter } from './routes/donations';
 import { donorRouter } from './routes/donor';
 import { healthRouter } from './routes/health';
 import { institutionsRouter } from './routes/institutions';
+import { notificationsRouter } from './routes/notifications';
 
 const app = express();
 
@@ -17,6 +20,9 @@ app.use(authRouter);
 app.use(donationsRouter);
 app.use(institutionsRouter);
 app.use(donorRouter);
+app.use(notificationsRouter);
+app.use(disputesRouter);
+app.use(changeRequestsRouter);
 app.use(errorHandler);
 
 app.listen(env.port, () => {

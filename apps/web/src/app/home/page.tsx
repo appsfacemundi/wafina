@@ -1,9 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Button, Card } from '@wafina/ui';
 import { AppShell } from '@/components/AppShell';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { useRequireSession } from '@/context/AuthContext';
 
 export default function HomePage() {

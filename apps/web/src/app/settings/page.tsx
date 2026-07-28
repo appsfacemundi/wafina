@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import { Button, Card, Input } from '@wafina/ui';
 import { AppShell } from '@/components/AppShell';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
 

@@ -6,3 +6,4 @@ export * from './institution';
 export * from './dispute';
 export * from './change-request';
 export * from './session';
+export * from './notification';

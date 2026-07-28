@@ -3,6 +3,7 @@ import type { Donation, DonationStatus } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetLatLong, nowIso, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
+import { createNotification } from './notifications';
 import { listUserIdsByCorporateAccount } from './users';
 import { ValidationError } from './validation-error';
 
@@ -124,6 +125,14 @@ export async function listAvailableDonations(): Promise<Donation[]> {
   return rows.filter((row) => row.Status === 'Pending').map(rowToDonation);
 }
 
+/** "Claimed by Me" (spec 9.2) — includes both Claimed and Delivered so history isn't lost. */
+export async function listDonationsClaimedByInstitution(institutionId: string): Promise<Donation[]> {
+  const rows = await getRows(SHEET_TABS.donations);
+  return rows
+    .filter((row) => row.Claimed_By_Institution_ID === institutionId)
+    .map(rowToDonation);
+}
+
 /** Donor may edit their own donation only while it's still Pending (spec 11.1.2). */
 export async function editDonation(
   donorId: string,
@@ -171,6 +180,14 @@ export async function claimDonation(institutionId: string, donationId: string): 
 
   const updated = await getDonation(donationId);
   if (!updated) throw new Error('Donation vanished after claim');
+
+  // Spec 19 — "Donation claimed" notifies the donor, in-app.
+  await createNotification(
+    updated.Donor_ID,
+    `A sua doação de ${updated.Item_Type} foi reclamada por uma instituição.`,
+    updated.Donation_ID,
+  );
+
   return updated;
 }
 
@@ -189,6 +206,14 @@ export async function confirmDelivery(institutionId: string, donationId: string)
 
   const updated = await getDonation(donationId);
   if (!updated) throw new Error('Donation vanished after confirming delivery');
+
+  // Spec 19 — "Donation delivered" notifies the donor, in-app.
+  await createNotification(
+    updated.Donor_ID,
+    `A sua doação de ${updated.Item_Type} foi entregue.`,
+    updated.Donation_ID,
+  );
+
   return updated;
 }
 

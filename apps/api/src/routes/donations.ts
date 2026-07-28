@@ -2,15 +2,27 @@ import { Router } from 'express';
 import multer from 'multer';
 import { uploadPhoto } from '../config/drive';
 import { asyncHandler } from '../middleware/async-handler';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { requireAuth, requireRole, requireVerified } from '../middleware/auth';
 import {
   assertValidDonationFields,
+  claimDonation,
+  confirmDelivery,
   createDonation,
   editDonation,
+  listAvailableDonations,
   listDonationsByCorporateAccount,
   listDonationsByDonor,
+  listDonationsClaimedByInstitution,
 } from '../services/donations';
+import { getInstitutionByUserId } from '../services/institutions';
 import { ValidationError } from '../services/validation-error';
+
+/** Every claim/deliver/browse action is keyed by Institution_ID, not the caller's User_ID. */
+async function requireOwnInstitutionId(userId: string): Promise<string> {
+  const institution = await getInstitutionByUserId(userId);
+  if (!institution) throw new ValidationError('No Institution profile for this account');
+  return institution.Institution_ID;
+}
 
 export const donationsRouter = Router();
 
@@ -76,5 +88,50 @@ donationsRouter.patch(
   asyncHandler(async (req, res) => {
     const donation = await editDonation(req.user!.userId, req.params.id, req.body);
     res.json(donation);
+  }),
+);
+
+/** "Available Donations" (spec 9.2) — Pending only, verified institutions only. */
+donationsRouter.get(
+  '/donations/available',
+  requireAuth,
+  requireRole('Institution'),
+  requireVerified,
+  asyncHandler(async (_req, res) => {
+    res.json(await listAvailableDonations());
+  }),
+);
+
+/** "Claimed by Me" (spec 9.2). */
+donationsRouter.get(
+  '/donations/claimed-by-me',
+  requireAuth,
+  requireRole('Institution'),
+  requireVerified,
+  asyncHandler(async (req, res) => {
+    const institutionId = await requireOwnInstitutionId(req.user!.userId);
+    res.json(await listDonationsClaimedByInstitution(institutionId));
+  }),
+);
+
+donationsRouter.post(
+  '/donations/:id/claim',
+  requireAuth,
+  requireRole('Institution'),
+  requireVerified,
+  asyncHandler(async (req, res) => {
+    const institutionId = await requireOwnInstitutionId(req.user!.userId);
+    res.json(await claimDonation(institutionId, req.params.id));
+  }),
+);
+
+donationsRouter.post(
+  '/donations/:id/deliver',
+  requireAuth,
+  requireRole('Institution'),
+  requireVerified,
+  asyncHandler(async (req, res) => {
+    const institutionId = await requireOwnInstitutionId(req.user!.userId);
+    res.json(await confirmDelivery(institutionId, req.params.id));
   }),
 );

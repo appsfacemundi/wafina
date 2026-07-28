@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=apps/web"],
       "port": 3000
+    },
+    {
+      "name": "institution",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=apps/institution"],
+      "port": 3001
     }
   ]
 }

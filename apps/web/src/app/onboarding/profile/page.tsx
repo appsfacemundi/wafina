@@ -1,10 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Button, Card, Input } from '@wafina/ui';
 import { useState, type FormEvent } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
 

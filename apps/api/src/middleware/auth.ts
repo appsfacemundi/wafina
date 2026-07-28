@@ -2,7 +2,9 @@ import type { NextFunction, Request, Response } from 'express';
 import type { AuthenticatedUser, Role } from '@wafina/shared';
 import { ConfigurationError } from '../config/configuration-error';
 import { getFirebaseAuth } from '../config/firebase';
+import { getInstitutionByUserId } from '../services/institutions';
 import { findUserByEmail, toAuthenticatedUser } from '../services/users';
+import { asyncHandler } from './async-handler';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -67,3 +69,24 @@ export function requireRole(...roles: Role[]) {
     next();
   };
 }
+
+/**
+ * Spec 11.2 — Institutions are fully blocked from donation actions until
+ * Admin verifies them. Use after requireAuth on action endpoints (browse,
+ * claim, deliver, dispute) — never on the registration/status endpoints
+ * themselves, since those are exactly what an unverified institution needs.
+ *
+ * Checks Institutions.Verified directly rather than the session's `verified`
+ * flag (which mirrors Users.Verified): Admin approves institutions by editing
+ * the Institutions row in AppSheet, and there's no automation keeping a
+ * Users.Verified copy in sync. Institutions.Verified is the single source of
+ * truth here — checking it directly avoids depending on that sync existing.
+ */
+export const requireVerified = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const institution = req.user ? await getInstitutionByUserId(req.user.userId) : null;
+  if (!institution?.Verified) {
+    res.status(403).json({ error: 'Account is not yet verified' });
+    return;
+  }
+  next();
+});

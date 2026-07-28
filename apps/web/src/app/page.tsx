@@ -1,9 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Button, Card } from '@wafina/ui';
 import { useEffect } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/context/AuthContext';
 
 export default function WelcomePage() {

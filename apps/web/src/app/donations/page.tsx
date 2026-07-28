@@ -1,16 +1,12 @@
 'use client';
 
-import type { Donation } from '@wafina/shared';
+import { DONATION_STATUS_LABEL, DONATION_STATUS_TONE, type Donation } from '@wafina/shared';
+import { Badge, Button, Card, EmptyState } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
-import { DONATION_STATUS_LABEL, DONATION_STATUS_TONE } from '@/lib/status';
 
 export default function DonationsPage() {
   const session = useRequireSession();
@@ -18,6 +14,17 @@ export default function DonationsPage() {
   const router = useRouter();
   const [donations, setDonations] = useState<Donation[] | null>(null);
   const [error, setError] = useState('');
+
+  const stats = useMemo(() => {
+    if (!donations) return null;
+    return {
+      total: donations.length,
+      quantity: donations.reduce((sum, d) => sum + d.Quantity, 0),
+      pending: donations.filter((d) => d.Status === 'Pending').length,
+      claimed: donations.filter((d) => d.Status === 'Claimed').length,
+      delivered: donations.filter((d) => d.Status === 'Delivered').length,
+    };
+  }, [donations]);
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -37,6 +44,30 @@ export default function DonationsPage() {
     <AppShell>
       <div className="stack">
         <h1 style={{ fontSize: 24 }}>Minhas Doações</h1>
+        {session.corporateAccountId && stats && (
+          <div className="stats-grid">
+            <Card className="stack">
+              <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.total}</p>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Doações da empresa</p>
+            </Card>
+            <Card className="stack">
+              <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.quantity}</p>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Itens doados (total)</p>
+            </Card>
+            <Card className="stack">
+              <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.pending}</p>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Pendentes</p>
+            </Card>
+            <Card className="stack">
+              <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.claimed}</p>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Reclamadas</p>
+            </Card>
+            <Card className="stack">
+              <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.delivered}</p>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Entregues</p>
+            </Card>
+          </div>
+        )}
         {error && <div className="banner banner-error">{error}</div>}
         {!error && donations === null && (
           <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>

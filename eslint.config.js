@@ -13,4 +13,11 @@ module.exports = tseslint.config(
     ],
   },
   ...tseslint.configs.recommended,
+  {
+    // expo-font's useFonts needs static require() calls for Metro to bundle the assets.
+    files: ['apps/mobile-donor/App.tsx', 'apps/mobile-institution/App.tsx'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
 );

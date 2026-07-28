@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Wafina Instituição",
+    "slug": "wafina-institution",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.wafina.institution",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "A Wafina usa a sua localização para registar a localização da sua instituição."
+      }
+    },
+    "android": {
+      "package": "org.wafina.institution",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    }
+  }
+}

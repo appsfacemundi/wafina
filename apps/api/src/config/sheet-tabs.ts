@@ -9,4 +9,5 @@ export const SHEET_TABS = {
   disputes: 'Disputes',
   corporateAccounts: 'Corporate_Accounts',
   changeRequests: 'Change_Requests',
+  notifications: 'Notifications',
 } as const;

@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Wafina Doador",
+    "slug": "wafina-donor",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.wafina.donor",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "A Wafina usa a sua localização para registar onde a doação pode ser recolhida.",
+        "NSPhotoLibraryUsageDescription": "A Wafina precisa de acesso às suas fotografias para anexar uma imagem da doação."
+      }
+    },
+    "android": {
+      "package": "org.wafina.donor",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    }
+  }
+}
