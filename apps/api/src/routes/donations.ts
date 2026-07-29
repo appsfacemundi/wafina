@@ -16,12 +16,13 @@ import {
 } from '../services/donations';
 import { getInstitutionByUserId } from '../services/institutions';
 import { ValidationError } from '../services/validation-error';
+import type { Institution } from '@wafina/shared';
 
 /** Every claim/deliver/browse action is keyed by Institution_ID, not the caller's User_ID. */
-async function requireOwnInstitutionId(userId: string): Promise<string> {
+async function requireOwnInstitution(userId: string): Promise<Institution> {
   const institution = await getInstitutionByUserId(userId);
   if (!institution) throw new ValidationError('No Institution profile for this account');
-  return institution.Institution_ID;
+  return institution;
 }
 
 export const donationsRouter = Router();
@@ -61,7 +62,10 @@ donationsRouter.post(
       req.file.mimetype,
     );
 
-    const donation = await createDonation(req.user!.userId, { ...fields, Photo: photoUrl });
+    const donation = await createDonation(req.user!.userId, req.user!.activeCountryId, {
+      ...fields,
+      Photo: photoUrl,
+    });
     res.status(201).json(donation);
   }),
 );
@@ -91,14 +95,18 @@ donationsRouter.patch(
   }),
 );
 
-/** "Available Donations" (spec 9.2) — Pending only, verified institutions only. */
+/**
+ * "Available Donations" (spec 9.2) — Pending only, verified institutions only.
+ * Phase 3A Module 1: scoped to the institution's own operating country.
+ */
 donationsRouter.get(
   '/donations/available',
   requireAuth,
   requireRole('Institution'),
   requireVerified,
-  asyncHandler(async (_req, res) => {
-    res.json(await listAvailableDonations());
+  asyncHandler(async (req, res) => {
+    const institution = await requireOwnInstitution(req.user!.userId);
+    res.json(await listAvailableDonations(institution.Country_ID));
   }),
 );
 
@@ -109,8 +117,8 @@ donationsRouter.get(
   requireRole('Institution'),
   requireVerified,
   asyncHandler(async (req, res) => {
-    const institutionId = await requireOwnInstitutionId(req.user!.userId);
-    res.json(await listDonationsClaimedByInstitution(institutionId));
+    const institution = await requireOwnInstitution(req.user!.userId);
+    res.json(await listDonationsClaimedByInstitution(institution.Institution_ID));
   }),
 );
 
@@ -120,8 +128,8 @@ donationsRouter.post(
   requireRole('Institution'),
   requireVerified,
   asyncHandler(async (req, res) => {
-    const institutionId = await requireOwnInstitutionId(req.user!.userId);
-    res.json(await claimDonation(institutionId, req.params.id));
+    const institution = await requireOwnInstitution(req.user!.userId);
+    res.json(await claimDonation(institution.Institution_ID, req.params.id));
   }),
 );
 
@@ -131,7 +139,7 @@ donationsRouter.post(
   requireRole('Institution'),
   requireVerified,
   asyncHandler(async (req, res) => {
-    const institutionId = await requireOwnInstitutionId(req.user!.userId);
-    res.json(await confirmDelivery(institutionId, req.params.id));
+    const institution = await requireOwnInstitution(req.user!.userId);
+    res.json(await confirmDelivery(institution.Institution_ID, req.params.id));
   }),
 );

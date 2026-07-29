@@ -24,4 +24,12 @@ export interface Donation {
   Date_Submitted: string;
   Date_Claimed: string | null;
   Date_Delivered: string | null;
+  /**
+   * Phase 3A Module 1 — a permanent snapshot of the donor's Active_Country_ID at
+   * the moment this donation was created. Deliberately NOT derived live from
+   * Donor_ID -> Users.Active_Country_ID: a donor's Active Country can change
+   * later (e.g. after traveling), and a donation must never silently "move" to
+   * another country in reports just because the donor's current setting changed.
+   */
+  Country_ID: string;
 }

@@ -30,6 +30,7 @@ function rowToDonation(row: Record<string, string>): Donation {
     Date_Submitted: row.Date_Submitted,
     Date_Claimed: row.Date_Claimed || null,
     Date_Delivered: row.Date_Delivered || null,
+    Country_ID: row.Country_ID,
   };
 }
 
@@ -74,13 +75,24 @@ export function assertValidDonationFields(
   assertValidLocation(input.Location);
 }
 
-/** Submission per spec 11.1.1 / 12.1 — Donor_ID always comes from the caller, never the body. */
+/**
+ * Submission per spec 11.1.1 / 12.1 — Donor_ID always comes from the caller,
+ * never the body. Phase 3A Module 1: activeCountryId is likewise always the
+ * caller's own session value, never client-supplied — it becomes a permanent
+ * snapshot on Country_ID and must never be re-derived later (see the field
+ * comment on Donation.Country_ID for why: a donor's Active Country can change
+ * after travel, and a past donation must not silently "move" countries with it).
+ */
 export async function createDonation(
   donorId: string,
+  activeCountryId: string | null,
   input: CreateDonationInput,
 ): Promise<Donation> {
   assertValidDonationFields(input);
   if (!input.Photo) throw new ValidationError('Photo is required');
+  if (!activeCountryId) {
+    throw new ValidationError('Complete your profile (including country) before donating');
+  }
 
   const row = {
     Donation_ID: randomUUID(),
@@ -96,6 +108,7 @@ export async function createDonation(
     Date_Claimed: '',
     Claimed_By_Institution_ID: '',
     Date_Delivered: '',
+    Country_ID: activeCountryId,
   };
 
   await appendRow(SHEET_TABS.donations, row);
@@ -119,10 +132,20 @@ export async function listDonationsByCorporateAccount(corporateAccountId: string
   return rows.filter((row) => donorIds.has(row.Donor_ID)).map(rowToDonation);
 }
 
-/** "Available Donations" browse for verified institutions (spec 9.2). */
-export async function listAvailableDonations(): Promise<Donation[]> {
+/**
+ * "Available Donations" browse for verified institutions (spec 9.2). Phase 3A
+ * Module 1: scoped to the claiming institution's own operating country
+ * (Institutions.Country_ID) — an Angola institution has no reason to see, and
+ * shouldn't see, a donation submitted in Portugal. Institution-side scoping
+ * uses the institution's Country_ID rather than a personal Active Country,
+ * since an institution's operating country is a fixed operational fact, not
+ * something the browsing user should toggle.
+ */
+export async function listAvailableDonations(countryId?: string): Promise<Donation[]> {
   const rows = await getRows(SHEET_TABS.donations);
-  return rows.filter((row) => row.Status === 'Pending').map(rowToDonation);
+  return rows
+    .filter((row) => row.Status === 'Pending' && (!countryId || row.Country_ID === countryId))
+    .map(rowToDonation);
 }
 
 /** "Claimed by Me" (spec 9.2) — includes both Claimed and Delivered so history isn't lost. */

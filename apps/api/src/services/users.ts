@@ -1,21 +1,30 @@
 import { randomUUID } from 'node:crypto';
-import type { AuthenticatedUser, DonorSubtype, RegistrableRole, Role } from '@wafina/shared';
+import type {
+  AuthenticatedUser,
+  DonorSubtype,
+  RegistrableRole,
+  Role,
+  SwitchPreference,
+} from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso, toSheetBool } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
+import { isActiveCountry } from './geo-regions';
 import { ValidationError } from './validation-error';
 
 export interface UserRow {
   User_ID: string;
   Name: string;
   Phone: string;
-  Country: string;
   Role: string;
   Donor_Subtype: string;
   Corporate_Account_ID: string;
   Verified: string;
   Date_Joined: string;
   Email: string;
+  Home_Country_ID: string;
+  Active_Country_ID: string;
+  Switch_Preference: string;
 }
 
 export async function findUserByEmail(email: string): Promise<UserRow | null> {
@@ -26,17 +35,16 @@ export async function findUserByEmail(email: string): Promise<UserRow | null> {
 
 /**
  * Bootstraps the minimal Users row a brand-new sign-in needs to exist at all
- * (spec 13: Sign In happens before profile completion). Name/Phone/Country
- * and any Institution profile are filled in later by Modules 4/5 — not here.
- * New Donors default to Donor_Subtype=Individual; joining a corporate account
- * happens afterward via linkCorporateAccount (spec 13.2).
+ * (spec 13: Sign In happens before profile completion). Name/Phone/Home_Country_ID
+ * and any Institution profile are filled in later — not here. New Donors default
+ * to Donor_Subtype=Individual; joining a corporate account happens afterward via
+ * linkCorporateAccount (spec 13.2).
  */
 export async function createUser(email: string, role: RegistrableRole): Promise<UserRow> {
   const row: UserRow = {
     User_ID: randomUUID(),
     Name: '',
     Phone: '',
-    Country: '',
     Role: role,
     Donor_Subtype: role === 'Donor' ? 'Individual' : '',
     Corporate_Account_ID: '',
@@ -44,6 +52,9 @@ export async function createUser(email: string, role: RegistrableRole): Promise<
     Verified: toSheetBool(role !== 'Institution'),
     Date_Joined: nowIso(),
     Email: email,
+    Home_Country_ID: '',
+    Active_Country_ID: '',
+    Switch_Preference: 'Always_Ask',
   };
 
   await appendRow(SHEET_TABS.users, row as unknown as Record<string, string>);
@@ -66,26 +77,56 @@ export async function findUserById(userId: string): Promise<UserRow | null> {
 export interface ProfileInput {
   Name: string;
   Phone: string;
-  Country: string;
+  /** Phase 3A Module 1 — must reference a real, currently-launched country. */
+  Home_Country_ID: string;
 }
 
 /**
- * Spec 13.1 — "Sign In → Basic profile → immediate full access." Module 2's
- * bootstrap deliberately left these blank; this is where a brand-new Donor
- * fills them in.
+ * Spec 13.1 — "Sign In → Basic profile → immediate full access." The bootstrap
+ * in createUser deliberately left these blank; this is where a brand-new Donor
+ * fills them in. Also reused by Settings edits (same endpoint), which matters
+ * for one deliberate behavior: Active_Country_ID is seeded from Home_Country_ID
+ * only on the very first completion (when Active_Country_ID is still empty).
+ * On every later edit — including changing Home_Country_ID itself — Active
+ * Country is left untouched, so a user who deliberately switched it while
+ * traveling doesn't get silently reset back just by editing their phone number.
+ * Only updateActiveCountry (an explicit switch action) ever changes it after that.
  */
 export async function completeProfile(userId: string, input: ProfileInput): Promise<ProfileInput> {
   if (!input.Name || !input.Name.trim()) throw new ValidationError('Name is required');
   if (!input.Phone || !input.Phone.trim()) throw new ValidationError('Phone is required');
-  if (!input.Country || !input.Country.trim()) throw new ValidationError('Country is required');
+  if (!input.Home_Country_ID || !(await isActiveCountry(input.Home_Country_ID))) {
+    throw new ValidationError('A valid, currently-supported country is required');
+  }
+
+  const existing = await findUserById(userId);
+  const isFirstCompletion = !existing?.Active_Country_ID?.trim();
 
   await updateRow(SHEET_TABS.users, 'User_ID', userId, {
     Name: input.Name,
     Phone: input.Phone,
-    Country: input.Country,
+    Home_Country_ID: input.Home_Country_ID,
+    ...(isFirstCompletion ? { Active_Country_ID: input.Home_Country_ID } : {}),
   });
 
   return input;
+}
+
+/**
+ * Phase 3A Module 1 — the only path that changes Active_Country_ID. Always an
+ * explicit user action (Settings, or "Switch now" on the GPS prompt); GPS
+ * detection alone never reaches this function on its own.
+ */
+export async function updateActiveCountry(userId: string, countryId: string): Promise<void> {
+  if (!(await isActiveCountry(countryId))) {
+    throw new ValidationError('Country is not currently supported');
+  }
+  await updateRow(SHEET_TABS.users, 'User_ID', userId, { Active_Country_ID: countryId });
+}
+
+/** Governs only whether the switch-country prompt is offered — never triggers a switch itself. */
+export async function updateSwitchPreference(userId: string, preference: SwitchPreference): Promise<void> {
+  await updateRow(SHEET_TABS.users, 'User_ID', userId, { Switch_Preference: preference });
 }
 
 /** Spec 13.2 — joining a company via an Admin-issued invite code. */
@@ -106,6 +147,9 @@ export function toAuthenticatedUser(uid: string, row: UserRow): AuthenticatedUse
     verified: row.Verified === 'TRUE',
     donorSubtype: (row.Donor_Subtype as DonorSubtype) || null,
     corporateAccountId: row.Corporate_Account_ID || null,
-    profileComplete: Boolean(row.Name?.trim() && row.Phone?.trim() && row.Country?.trim()),
+    profileComplete: Boolean(row.Name?.trim() && row.Phone?.trim() && row.Home_Country_ID?.trim()),
+    homeCountryId: row.Home_Country_ID || null,
+    activeCountryId: row.Active_Country_ID || null,
+    switchPreference: (row.Switch_Preference as SwitchPreference) || null,
   };
 }

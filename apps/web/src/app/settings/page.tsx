@@ -1,7 +1,8 @@
 'use client';
 
+import type { GeoRegion, SwitchPreference } from '@wafina/shared';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Button, Card, Input } from '@wafina/ui';
+import { Button, Card, Input, Select } from '@wafina/ui';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
@@ -9,12 +10,14 @@ import { apiFetch, ApiError } from '@/lib/api';
 interface ProfileData {
   Name: string;
   Phone: string;
-  Country: string;
+  Home_Country_ID: string;
 }
 
 export default function SettingsPage() {
   const session = useRequireSession();
   const { firebaseUser, refreshSession } = useAuth();
+
+  const [countries, setCountries] = useState<GeoRegion[] | null>(null);
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [profileError, setProfileError] = useState('');
@@ -26,12 +29,21 @@ export default function SettingsPage() {
   const [corporateSuccess, setCorporateSuccess] = useState(false);
   const [joiningCorporate, setJoiningCorporate] = useState(false);
 
+  const [countryError, setCountryError] = useState('');
+  const [countrySuccess, setCountrySuccess] = useState(false);
+  const [switchingCountry, setSwitchingCountry] = useState(false);
+
   useEffect(() => {
     if (!firebaseUser) return;
     (async () => {
       try {
         const idToken = await firebaseUser.getIdToken();
-        setProfile(await apiFetch<ProfileData>('/donor/profile', { idToken }));
+        const [profileData, countryList] = await Promise.all([
+          apiFetch<ProfileData>('/donor/profile', { idToken }),
+          apiFetch<GeoRegion[]>('/geo-regions/countries', { idToken }),
+        ]);
+        setProfile(profileData);
+        setCountries(countryList);
       } catch {
         setProfileError('Não foi possível carregar o seu perfil.');
       }
@@ -46,6 +58,8 @@ export default function SettingsPage() {
     setSavingProfile(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
+      // Editing Home Country here deliberately does NOT change Active Country —
+      // that's the separate, explicit action below. See api/services/users.ts.
       await apiFetch('/donor/profile', { method: 'PATCH', idToken, body: profile });
       setProfileSuccess(true);
     } catch (err) {
@@ -73,6 +87,32 @@ export default function SettingsPage() {
     }
   }
 
+  async function onChangeActiveCountry(countryId: string) {
+    setCountryError('');
+    setCountrySuccess(false);
+    setSwitchingCountry(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/users/me/active-country', { method: 'PATCH', idToken, body: { countryId } });
+      await refreshSession();
+      setCountrySuccess(true);
+    } catch (err) {
+      setCountryError(err instanceof ApiError ? err.message : 'Não foi possível mudar de país.');
+    } finally {
+      setSwitchingCountry(false);
+    }
+  }
+
+  async function onChangeSwitchPreference(preference: SwitchPreference) {
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/users/me/switch-preference', { method: 'PATCH', idToken, body: { preference } });
+      await refreshSession();
+    } catch {
+      // Non-critical — the prompt simply keeps showing if this silently fails.
+    }
+  }
+
   if (!session) return null;
 
   return (
@@ -86,7 +126,7 @@ export default function SettingsPage() {
             <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>
           )}
           {profileError && !profile && <div className="banner banner-error">{profileError}</div>}
-          {profile && (
+          {profile && countries && (
             <form onSubmit={onSaveProfile} className="stack">
               <Input
                 label="Nome"
@@ -100,18 +140,58 @@ export default function SettingsPage() {
                 value={profile.Phone}
                 onChange={(e) => setProfile({ ...profile, Phone: e.target.value })}
               />
-              <Input
-                label="País"
+              <Select
+                label="País de origem"
                 required
-                value={profile.Country}
-                onChange={(e) => setProfile({ ...profile, Country: e.target.value })}
-              />
+                value={profile.Home_Country_ID}
+                onChange={(e) => setProfile({ ...profile, Home_Country_ID: e.target.value })}
+              >
+                {countries.map((c) => (
+                  <option key={c.Region_ID} value={c.Region_ID}>
+                    {c.Name}
+                  </option>
+                ))}
+              </Select>
               {profileError && <div className="banner banner-error">{profileError}</div>}
               {profileSuccess && <div className="banner banner-success">Perfil atualizado.</div>}
               <Button type="submit" disabled={savingProfile}>
                 {savingProfile ? 'A guardar…' : 'Guardar alterações'}
               </Button>
             </form>
+          )}
+        </Card>
+
+        <Card className="stack">
+          <p style={{ fontWeight: 600 }}>País ativo</p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
+            Determina quais as instituições e doações que vê. Mudar de país nunca altera doações já
+            submetidas.
+          </p>
+          {countries && session.activeCountryId && (
+            <div className="stack">
+              <Select
+                label="País ativo"
+                value={session.activeCountryId}
+                onChange={(e) => onChangeActiveCountry(e.target.value)}
+                disabled={switchingCountry}
+              >
+                {countries.map((c) => (
+                  <option key={c.Region_ID} value={c.Region_ID}>
+                    {c.Name}
+                  </option>
+                ))}
+              </Select>
+              {countryError && <div className="banner banner-error">{countryError}</div>}
+              {countrySuccess && <div className="banner banner-success">País ativo atualizado.</div>}
+              <Select
+                label="Sugerir mudança ao detetar viagem?"
+                value={session.switchPreference ?? 'Always_Ask'}
+                onChange={(e) => onChangeSwitchPreference(e.target.value as SwitchPreference)}
+              >
+                <option value="Always_Ask">Perguntar sempre</option>
+                <option value="Never_Ask_Automatically">Nunca perguntar automaticamente</option>
+              </Select>
+            </div>
           )}
         </Card>
 

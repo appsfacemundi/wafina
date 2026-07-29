@@ -24,4 +24,16 @@ export interface Institution {
    * Lists the field names currently locked (all fields lock automatically on verification).
    */
   Locked_Fields: string[];
+  /**
+   * Phase 3A Module 1 — the institution's actual operating country, independent
+   * of whoever registered it. Required: verified institutions are only visible
+   * to donors whose Active Country matches this.
+   */
+  Country_ID: string;
+  /** Province/Municipality/District, once that depth of data exists for the country. */
+  Region_ID: string | null;
+  /** Optional radius in km, for future donor/institution matching. Kept simple by design. */
+  Service_Radius_Km: number | null;
+  /** Optional free-text description of the area served, e.g. "all of Luanda province". */
+  Coverage_Area: string | null;
 }

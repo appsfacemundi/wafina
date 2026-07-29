@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { SwitchCountryPrompt } from '@/components/SwitchCountryPrompt';
 import { useAuth } from '@/context/AuthContext';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
@@ -11,6 +12,7 @@ export function HomeScreen() {
 
   return (
     <View style={styles.screen}>
+      <SwitchCountryPrompt />
       <View style={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
         <Text style={styles.title}>Bem-vindo(a)</Text>
         <Card>

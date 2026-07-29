@@ -7,9 +7,11 @@ import { changeRequestsRouter } from './routes/change-requests';
 import { disputesRouter } from './routes/disputes';
 import { donationsRouter } from './routes/donations';
 import { donorRouter } from './routes/donor';
+import { geoRegionsRouter } from './routes/geo-regions';
 import { healthRouter } from './routes/health';
 import { institutionsRouter } from './routes/institutions';
 import { notificationsRouter } from './routes/notifications';
+import { usersRouter } from './routes/users';
 
 const app = express();
 
@@ -17,6 +19,8 @@ app.use(cors({ origin: env.allowedOrigins }));
 app.use(express.json());
 app.use(healthRouter);
 app.use(authRouter);
+app.use(geoRegionsRouter);
+app.use(usersRouter);
 app.use(donationsRouter);
 app.use(institutionsRouter);
 app.use(donorRouter);

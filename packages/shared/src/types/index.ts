@@ -1,4 +1,5 @@
 export * from './geo-point';
+export * from './geo-region';
 export * from './user';
 export * from './corporate-account';
 export * from './donation';

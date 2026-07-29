@@ -7,7 +7,7 @@ import { ValidationError } from '../services/validation-error';
 
 export const donorRouter = Router();
 
-/** Settings screen — Name/Phone/Country aren't part of the session, so this backs the edit form. */
+/** Settings screen — Name/Phone/Home_Country_ID aren't part of the session, so this backs the edit form. */
 donorRouter.get(
   '/donor/profile',
   requireAuth,
@@ -15,11 +15,11 @@ donorRouter.get(
   asyncHandler(async (req, res) => {
     const row = await findUserById(req.user!.userId);
     if (!row) throw new ValidationError('User not found');
-    res.json({ Name: row.Name, Phone: row.Phone, Country: row.Country });
+    res.json({ Name: row.Name, Phone: row.Phone, Home_Country_ID: row.Home_Country_ID });
   }),
 );
 
-/** Spec 13.1 — fills in Name/Phone/Country right after a brand-new sign-in (also reused by Settings edits). */
+/** Spec 13.1 — fills in Name/Phone/Home_Country_ID right after a brand-new sign-in (also reused by Settings edits). */
 donorRouter.patch(
   '/donor/profile',
   requireAuth,

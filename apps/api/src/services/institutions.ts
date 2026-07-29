@@ -3,6 +3,7 @@ import type { Institution } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetBool, fromSheetLatLong, toSheetBool, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows } from '../config/sheets';
+import { isActiveCountry } from './geo-regions';
 import { sumDeliveredQuantityForInstitution } from './donations';
 import { ValidationError } from './validation-error';
 
@@ -39,6 +40,10 @@ async function rowToInstitution(row: Record<string, string>): Promise<Institutio
     Rejection_Reason: row.Rejection_Reason || null,
     Total_Items_Received: await sumDeliveredQuantityForInstitution(row.Institution_ID),
     Locked_Fields: lockedFields,
+    Country_ID: row.Country_ID,
+    Region_ID: row.Region_ID || null,
+    Service_Radius_Km: row.Service_Radius_Km ? Number(row.Service_Radius_Km) : null,
+    Coverage_Area: row.Coverage_Area || null,
   };
 }
 
@@ -47,6 +52,12 @@ export interface CreateInstitutionInput {
   Type: string;
   Location: { lat: number; lng: number };
   Needs_List?: string;
+  /** Phase 3A Module 1 — the institution's actual operating country, required. */
+  Country_ID: string;
+  /** Province/Municipality/District, optional until that depth of data exists. */
+  Region_ID?: string;
+  Service_Radius_Km?: number;
+  Coverage_Area?: string;
 }
 
 /**
@@ -71,6 +82,15 @@ export async function createInstitution(
   ) {
     throw new ValidationError('Location must be a valid, non-zero coordinate pair');
   }
+  if (!input.Country_ID || !(await isActiveCountry(input.Country_ID))) {
+    throw new ValidationError('A valid, currently-supported country is required');
+  }
+  if (
+    input.Service_Radius_Km !== undefined &&
+    (!Number.isFinite(input.Service_Radius_Km) || input.Service_Radius_Km <= 0)
+  ) {
+    throw new ValidationError('Service_Radius_Km must be a positive number');
+  }
 
   const existing = await findRow(SHEET_TABS.institutions, (r) => r.User_ID === userId);
   if (existing) {
@@ -87,6 +107,10 @@ export async function createInstitution(
     Needs_List: input.Needs_List ?? '',
     Logo: '',
     Rejection_Reason: '',
+    Country_ID: input.Country_ID,
+    Region_ID: input.Region_ID ?? '',
+    Service_Radius_Km: input.Service_Radius_Km !== undefined ? String(input.Service_Radius_Km) : '',
+    Coverage_Area: input.Coverage_Area ?? '',
   };
 
   await appendRow(SHEET_TABS.institutions, row);
@@ -103,9 +127,17 @@ export async function getInstitutionById(institutionId: string): Promise<Institu
   return row ? rowToInstitution(row) : null;
 }
 
-/** Donor-facing read-only browse (spec 3.2, 4.1). */
-export async function listVerifiedInstitutions(): Promise<Institution[]> {
+/**
+ * Donor-facing read-only browse (spec 3.2, 4.1). Phase 3A Module 1: scoped to
+ * the donor's Active Country by default — this is the "which institutions are
+ * visible" rule the Active Country concept exists to enforce. Passing no
+ * countryId returns every verified institution worldwide, which no route uses
+ * today but is kept available for a future explicit "browse all countries" view.
+ */
+export async function listVerifiedInstitutions(countryId?: string): Promise<Institution[]> {
   const rows = await getRows(SHEET_TABS.institutions);
-  const verifiedRows = rows.filter((row) => fromSheetBool(row.Verified ?? ''));
+  const verifiedRows = rows.filter(
+    (row) => fromSheetBool(row.Verified ?? '') && (!countryId || row.Country_ID === countryId),
+  );
   return Promise.all(verifiedRows.map(rowToInstitution));
 }

@@ -1,8 +1,8 @@
 # Project Status - WAFINA Platform
 
 **Last updated:** 2026-07-29
-**Updated by:** Claude Code, after completing the Phase 3 architecture & business logic review
-**Current state:** Donor + Institution fully verified on Web, iOS, and Android. Phase 3 review complete and delivered (`PHASE3_ARCHITECTURE_REVIEW.md`) — Minor items implemented and committed; all Medium/Major recommendations awaiting stakeholder approval before any implementation begins.
+**Updated by:** Claude Code, after completing Phase 3A Module 1 (Global Multi-Country & Geographic Architecture)
+**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Module 1 (the permanent geographic/country data model) is designed, approved, implemented, and verified against the real production Sheet. Module 2 (Notification Architecture) design is being revised to include newly-requested events before implementation.
 
 ---
 
@@ -130,6 +130,93 @@ post-V1 items). Waiting on stakeholder approval before touching any of them.
 **Explicit constraint honored:** Admin Panel (AppSheet) was not touched or scoped for redesign — reviewed
 only where its behavior affects the Donor/Institution apps' workflows, per instruction. That rebuild
 begins only after Phase 3's Medium/Major items are approved and (at least Phase 3a) implemented.
+
+---
+
+## Phase 3A — Foundation Hardening & Global Platform Architecture
+
+**Status:** IN PROGRESS. Working module by module per stakeholder's explicit process: design → explain →
+approval (Medium/Major) → implement → report → update this file, before starting the next module.
+
+### Module 1 — Global Multi-Country & Geographic Architecture: COMPLETE
+
+**What changed:**
+- New permanent data model: a single self-referencing `Geo_Regions` tab (`Region_ID`, `Name`, `Level`,
+  `Parent_Region_ID`, `Country_ID` [denormalized ancestor pointer], `ISO_Code`, `Active`) instead of
+  fixed Country/Province/Municipality tables — supports any country's real administrative depth without
+  a schema change. Seeded with 5 countries: Angola (`Active=TRUE`), Portugal/Brazil/Moçambique/Cabo Verde
+  (`Active=FALSE`, ready to launch by flipping one flag).
+- `Users`: added `Home_Country_ID`, `Active_Country_ID`, `Switch_Preference` (`Always_Ask` /
+  `Never_Ask_Automatically`). Replaced the old free-text `Country` field entirely (was already only
+  test data — one row even had `Country="Luanda"`, a province, not a country, which is exactly the drift
+  a real FK prevents). "Current GPS Country" is deliberately **not stored** — computed client-side each
+  session, see `packages/shared/src/lib/geo-detect.ts`.
+- `Institutions`: added `Country_ID` (required), `Region_ID` (optional, for future Province/Municipality/
+  District), `Service_Radius_Km`, `Coverage_Area`.
+- `Donations`: added `Country_ID` — a **permanent snapshot** of the donor's Active Country at submission
+  time, not a live join. This was a deliberate correction to my own earlier Phase 3 recommendation (which
+  suggested deriving it live) once Active Country became a real, user-changeable concept — a live join
+  would let a donation silently "move" countries if the donor later travels. Flagged and explained rather
+  than silently changed.
+- New API: `GET /geo-regions/countries`, `GET /geo-regions/:id/children`, `PATCH /users/me/active-country`,
+  `PATCH /users/me/switch-preference`. `listVerifiedInstitutions`/`listAvailableDonations` now take an
+  optional country filter; Donor-side browsing filters by the donor's Active Country, Institution-side
+  browsing filters by the institution's own `Country_ID` (its operating country, not a personal toggle).
+- New client UX: real country pickers (replacing free text) on Donor onboarding, Donor Settings, and
+  Institution registration; a "País ativo" section in Donor Settings (view/change Active Country, set
+  switch preference); a GPS-assisted switch-country prompt (mobile + web) that runs once per session on
+  Home, using free on-device bounding-box country inference — never auto-switches, always requires an
+  explicit tap.
+
+**Why:** This is the foundational data model every other multi-country capability (institutions, reports,
+notifications, dashboards, maps, future payment/transport/government integrations) depends on. Building
+it first, correctly, means nothing downstream needs to be redesigned later.
+
+**Benefits:** Wafina can now, in principle, launch a second country by seeding `Geo_Regions` data and
+flipping `Active=TRUE` — no redeploy, no schema change. Donors and institutions are cleanly scoped to
+the right country by default. A user who travels stays in control: nothing switches without an explicit
+tap, and past donations never retroactively move.
+
+**Database implications:** One new tab (`Geo_Regions`, 5 rows today). Additive-only column changes to
+`Users`/`Institutions`/`Donations` — existing columns were never removed, reordered, or overwritten, so
+AppSheet/Admin views bound to the current layout are unaffected. All 7 existing Users, 4 Institutions, and
+23 Donations rows were backfilled to Angola (the only launched market) and verified row-by-row.
+
+**A pre-existing bug surfaced during backfill (not introduced by this module):** `Institutions` has a
+duplicate `Institution_ID="bdecb4ed"` — exactly the issue already documented in `MASTER_SPECIFICATION.md`'s
+Appendix (item 1) as a known reference-implementation problem requiring production uniqueness enforcement.
+It made the key-based `updateRow` helper only reach the first of the two rows during backfill; fixed by
+targeting the second row's actual sheet position instead of its (ambiguous) ID. The underlying
+duplicate-key problem itself is unresolved — that's the uniqueness-enforcement hardening work already
+queued in the Phase 3 report (`DB-1`/general uniqueness gaps), not something patched here.
+
+**Verified:** `npm run typecheck` and `npm run lint` clean across all 7 workspaces. Real HTTP smoke test
+(new routes return proper 401s when unauthenticated, confirming middleware wiring). Real service-layer
+smoke tests against the live, migrated data: country filtering returns correct institution/donation counts
+and empty results for a nonexistent country; `createInstitution`/`createDonation` correctly reject
+missing, unknown, and inactive countries. No stray test data left behind (row counts confirmed unchanged
+after validation tests, which are designed to throw before any write).
+
+**Not done in this module (explicitly deferred):**
+- Country-scoped Admin — deferred to the future Admin Panel rebuild, per instruction not to touch it yet.
+- Province/Municipality/District data — schema supports it (`Region_ID`, arbitrary `Level` depth), but no
+  rows exist below Country level yet. Pure future data entry, no code change needed.
+- Country Configuration (language/currency/transport partners/etc. per country) — explicitly deferred per
+  instruction; `Country_ID` is the extension point a future `Country_Config` table would key off.
+
+### Module 2 — Notification Architecture: DESIGN IN PROGRESS
+
+Original design (2 wired events → complete 7-event matrix) was approved. The same approval message added
+significant new scope (dispute created, change request submitted/approved, corporate invitation
+accepted/member joined, transport volunteer accepted/completed, success story published → notify donor).
+Two of these (transport volunteer, success story) depend on features that don't exist yet in the codebase
+at all (no Transport/Volunteer entity, no Success Stories entity) — revising the design to sequence what's
+immediately buildable against what needs its underlying feature built first, before implementing anything,
+consistent with how BL-1 (the Admin bridge) was already identified as a prerequisite for several events.
+
+### Modules 3–7: not yet started
+Database hardening, security hardening, UX pass — sequenced after Module 2's design is settled, per the
+stakeholder's explicit module-by-module process.
 
 ---
 

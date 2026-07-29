@@ -1,8 +1,9 @@
 'use client';
 
+import type { GeoRegion } from '@wafina/shared';
 import { useRouter } from 'next/navigation';
-import { Button, Card, Input } from '@wafina/ui';
-import { useState, type FormEvent } from 'react';
+import { Button, Card, Input, Select } from '@wafina/ui';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
 
@@ -11,9 +12,23 @@ export default function ProfilePage() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [country, setCountry] = useState('Angola');
+  const [countries, setCountries] = useState<GeoRegion[] | null>(null);
+  const [homeCountryId, setHomeCountryId] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const idToken = await firebaseUser?.getIdToken();
+        const list = await apiFetch<GeoRegion[]>('/geo-regions/countries', { idToken });
+        setCountries(list);
+        if (list[0]) setHomeCountryId(list[0].Region_ID);
+      } catch {
+        setError('Não foi possível carregar a lista de países.');
+      }
+    })();
+  }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -24,7 +39,7 @@ export default function ProfilePage() {
       await apiFetch('/donor/profile', {
         method: 'PATCH',
         idToken,
-        body: { Name: name, Phone: phone, Country: country },
+        body: { Name: name, Phone: phone, Home_Country_ID: homeCountryId },
       });
       await refreshSession();
       router.replace('/home');
@@ -50,14 +65,20 @@ export default function ProfilePage() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
-          <Input
+          <Select
             label="País"
             required
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-          />
+            value={homeCountryId}
+            onChange={(e) => setHomeCountryId(e.target.value)}
+          >
+            {countries?.map((c) => (
+              <option key={c.Region_ID} value={c.Region_ID}>
+                {c.Name}
+              </option>
+            ))}
+          </Select>
           {error && <div className="banner banner-error">{error}</div>}
-          <Button type="submit" fullWidth disabled={submitting}>
+          <Button type="submit" fullWidth disabled={submitting || !homeCountryId}>
             {submitting ? 'A guardar…' : 'Continuar'}
           </Button>
         </form>

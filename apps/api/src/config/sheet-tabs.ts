@@ -10,4 +10,6 @@ export const SHEET_TABS = {
   corporateAccounts: 'Corporate_Accounts',
   changeRequests: 'Change_Requests',
   notifications: 'Notifications',
+  /** Phase 3A Module 1 — the permanent geographic model. See packages/shared/src/types/geo-region.ts. */
+  geoRegions: 'Geo_Regions',
 } as const;

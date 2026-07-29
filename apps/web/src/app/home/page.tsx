@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { Button, Card } from '@wafina/ui';
 import { AppShell } from '@/components/AppShell';
+import { SwitchCountryPrompt } from '@/components/SwitchCountryPrompt';
 import { useRequireSession } from '@/context/AuthContext';
 
 export default function HomePage() {
@@ -12,6 +13,7 @@ export default function HomePage() {
 
   return (
     <AppShell>
+      <SwitchCountryPrompt />
       <div className="stack">
         <h1 style={{ fontSize: 24 }}>Bem-vindo(a)</h1>
         <Card className="stack">

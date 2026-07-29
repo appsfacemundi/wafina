@@ -1,3 +1,4 @@
+import { detectSupportedCountryFromCoords, type GeoRegion } from '@wafina/shared';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,6 +7,7 @@ import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
+import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError, apiFetch } from '@/lib/api';
 import { colors, fonts, spacing } from '@/theme/tokens';
@@ -26,6 +28,12 @@ export function RegisterScreen({ onRegistered }: Props) {
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('capturing');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
+
+  const [countries, setCountries] = useState<GeoRegion[] | null>(null);
+  const [countryId, setCountryId] = useState('');
+  const [serviceRadiusKm, setServiceRadiusKm] = useState('');
+  const [coverageArea, setCoverageArea] = useState('');
+
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -47,6 +55,28 @@ export function RegisterScreen({ onRegistered }: Props) {
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const idToken = await firebaseUser?.getIdToken();
+        const list = await apiFetch<GeoRegion[]>('/geo-regions/countries', { idToken });
+        setCountries(list);
+        if (list[0]) setCountryId(list[0].Region_ID);
+      } catch {
+        setError('Não foi possível carregar a lista de países.');
+      }
+    })();
+  }, []);
+
+  // Once GPS resolves, use it as a smart default for the country picker —
+  // reusing the coordinates already captured for Location, no extra permission ask.
+  useEffect(() => {
+    if (locationStatus !== 'captured' || !countries) return;
+    const isoCode = detectSupportedCountryFromCoords(Number(lat), Number(lng));
+    const match = countries.find((c) => c.ISO_Code === isoCode);
+    if (match) setCountryId(match.Region_ID);
+  }, [locationStatus, lat, lng, countries]);
+
   const hasValidLocation =
     lat !== '' && lng !== '' && !(Number(lat) === 0 && Number(lng) === 0) && !Number.isNaN(Number(lat));
 
@@ -60,6 +90,10 @@ export function RegisterScreen({ onRegistered }: Props) {
       setError('É necessária uma localização válida. Ative o GPS ou introduza as coordenadas.');
       return;
     }
+    if (!countryId) {
+      setError('Selecione o país onde a instituição opera.');
+      return;
+    }
     setSubmitting(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
@@ -71,6 +105,9 @@ export function RegisterScreen({ onRegistered }: Props) {
           Type: type,
           Location: { lat: Number(lat), lng: Number(lng) },
           Needs_List: needsList || undefined,
+          Country_ID: countryId,
+          Service_Radius_Km: serviceRadiusKm ? Number(serviceRadiusKm) : undefined,
+          Coverage_Area: coverageArea || undefined,
         },
       });
       await onRegistered();
@@ -96,11 +133,34 @@ export function RegisterScreen({ onRegistered }: Props) {
             value={type}
             onChangeText={setType}
           />
+          {countries ? (
+            <Select
+              label="País"
+              value={countryId}
+              onValueChange={setCountryId}
+              options={countries.map((c) => ({ label: c.Name, value: c.Region_ID }))}
+            />
+          ) : (
+            <Text style={styles.hint}>A carregar países…</Text>
+          )}
           <Input
             label="Necessidades (opcional)"
             hint="Ex: Roupas, Alimentos"
             value={needsList}
             onChangeText={setNeedsList}
+          />
+          <Input
+            label="Raio de cobertura em km (opcional)"
+            hint="Ajuda a associar doadores próximos no futuro"
+            keyboardType="number-pad"
+            value={serviceRadiusKm}
+            onChangeText={setServiceRadiusKm}
+          />
+          <Input
+            label="Área de cobertura (opcional)"
+            hint="Ex: toda a província de Luanda"
+            value={coverageArea}
+            onChangeText={setCoverageArea}
           />
 
           <View style={{ gap: spacing[1] }}>

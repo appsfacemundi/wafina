@@ -5,3 +5,5 @@ export * from './dispute-status';
 export * from './registrable-role';
 export * from './item-type';
 export * from './condition';
+export * from './geo-level';
+export * from './switch-preference';
