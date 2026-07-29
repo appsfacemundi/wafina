@@ -59,7 +59,7 @@ export default function MyDisputesPage() {
                     Resposta: {d.Resolution_Notes}
                   </p>
                 )}
-                <p className="time">{new Date(d.Date_Raised).toLocaleString('pt-PT')}</p>
+                <p className="time">{new Date(d.Date_Raised).toLocaleString()}</p>
               </Card>
             ))}
           </div>

@@ -60,7 +60,7 @@ export function DisputesListScreen() {
             </View>
             <Text style={styles.body}>{item.Issue_Description}</Text>
             {item.Resolution_Notes && <Text style={styles.hint}>Resposta: {item.Resolution_Notes}</Text>}
-            <Text style={styles.time}>{new Date(item.Date_Raised).toLocaleString('pt-PT')}</Text>
+            <Text style={styles.time}>{new Date(item.Date_Raised).toLocaleString()}</Text>
           </Card>
         )}
       />

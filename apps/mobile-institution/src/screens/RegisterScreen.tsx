@@ -89,7 +89,7 @@ export function RegisterScreen({ onRegistered }: Props) {
           <Text style={styles.subtitle}>
             Após o envio, a sua instituição fica pendente de verificação pelo Admin.
           </Text>
-          <Input label="Nome da instituição" value={name} onChangeText={setName} />
+          <Input label="Nome da instituição" autoCapitalize="words" value={name} onChangeText={setName} />
           <Input
             label="Tipo"
             hint="Ex: ONG, orfanato, igreja, escola, centro comunitário"

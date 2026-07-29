@@ -44,7 +44,7 @@ export function OnboardingProfileScreen() {
         <Card style={styles.card}>
           <Text style={styles.title}>Complete o seu perfil</Text>
           <Text style={styles.subtitle}>Só mais um passo antes de poder doar.</Text>
-          <Input label="Nome" value={name} onChangeText={setName} />
+          <Input label="Nome" autoCapitalize="words" value={name} onChangeText={setName} />
           <Input label="Telefone" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
           <Input label="País" value={country} onChangeText={setCountry} />
           {error ? <ErrorBanner message={error} /> : null}

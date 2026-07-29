@@ -1,8 +1,8 @@
 # Project Status - WAFINA Platform
 
 **Last updated:** 2026-07-29
-**Updated by:** Claude Code, after recovering and closing out prior Android verification work
-**Current state:** Donor + Institution fully verified on Web, iOS, and Android. Ready to begin Phase 3.
+**Updated by:** Claude Code, after completing the Phase 3 architecture & business logic review
+**Current state:** Donor + Institution fully verified on Web, iOS, and Android. Phase 3 review complete and delivered (`PHASE3_ARCHITECTURE_REVIEW.md`) — Minor items implemented and committed; all Medium/Major recommendations awaiting stakeholder approval before any implementation begins.
 
 ---
 
@@ -91,43 +91,56 @@ Low risk; flagged here rather than silently assumed away.
 
 ## Phase 3 — Complete Architecture & Business Logic Review
 
-**Status:** Not started. This is the next milestone.
+**Status:** COMPLETE. Full report at `PHASE3_ARCHITECTURE_REVIEW.md` (project root) — read that file for
+the full findings, not this summary.
 
-**Scope, in order to be worked through:**
-- Business logic
-- User journeys
-- Google Sheets database structure & table relationships
-- Permissions and security
-- Notifications
-- Workflows
-- Reports
-- Validation rules
-- Edge cases
-- Performance
-- Scalability
-- UI/UX consistency
-- Data integrity
+**Method used:** Full re-read of `MASTER_SPECIFICATION.md` (all 32 sections) + `DEVELOPMENT_RULES.md`,
+5 parallel deep-research passes (backend/DB/API, notifications, Donor mobile UX, Institution mobile UX,
+both web apps), plus direct first-hand verification of every headline claim against actual source code —
+not taken on a sub-agent's word alone.
 
-**Method:** Don't just review code — critically evaluate whether each workflow is intuitive,
-efficient, scalable, and production-suitable. Identify simplification/modernization opportunities
-that preserve business objectives (per `DEVELOPMENT_RULES.md` — never change business logic without
-approval).
+**Headline findings (see the full report for all ~30 classified recommendations):**
+1. **[MAJOR]** No bridge from Admin actions (AppSheet) back into the app — institutions currently have
+   no way to learn they've been verified/rejected except repeatedly reopening the app. 4 of 7 spec'd
+   notification events can never fire under the current architecture.
+2. **[MAJOR]** N+1 performance pattern on the Institutions browse screen — every institution's stats
+   trigger a full re-read of the entire Donations tab. No caching/pagination/retry anywhere in the
+   Sheets access layer.
+3. **[MAJOR]** Multi-country is not yet a data concept — `Users.Country` exists but is used nowhere;
+   Institutions/Donations have no country field at all.
+4. **[MAJOR]** Zero automated tests exist, despite spec §31 requiring them.
+5. **[MAJOR]** Zero i18n scaffolding and zero accessibility props anywhere, despite dev rules requiring
+   i18n-readiness from day one.
 
-**Classification & approval gate:**
-- **Minor** → implement automatically
-- **Medium** → explain impact, wait for approval
-- **Major** → explain impact, wait for approval
+**Production readiness score:** ~64% for a controlled Angola pilot (the near-term goal per spec's own
+phased rollout); ~34% for the stated long-term goal of a multi-country platform serving millions — these
+are two different bars and the report scores both separately rather than blending them into one
+misleading number.
 
-**Explicit constraint:** Do not rebuild the Admin Panel during Phase 3. That begins only after
-Phase 3 is completed and approved.
+**Minor items — implemented and committed this session:**
+- Removed hardcoded `pt-PT` locale from 6 date-formatting call sites (now uses device default)
+- Deleted a stale, schema-mismatched dead script (`tmp-seed-donation.ts`)
+- Fixed forced `autoCapitalize="none"` on 3 proper-noun name fields
+
+**Medium/Major recommendations:** NOT implemented. All ~27 remaining items are documented in the full
+report with impact/DB implications, classified, and organized into a 5-phase roadmap (Phase 3a pre-launch
+hardening → 3b post-launch hardening → Phase 4 multi-country → Phase 5 growth features → deferred
+post-V1 items). Waiting on stakeholder approval before touching any of them.
+
+**Explicit constraint honored:** Admin Panel (AppSheet) was not touched or scoped for redesign — reviewed
+only where its behavior affects the Donor/Institution apps' workflows, per instruction. That rebuild
+begins only after Phase 3's Medium/Major items are approved and (at least Phase 3a) implemented.
 
 ---
 
 ## Next Steps
 
-1. Begin Phase 3 review (see scope above)
-2. As findings are classified, implement Minor items directly; present Medium/Major items for approval before touching code
-3. Keep this file updated after each major milestone (Phase 3 kickoff, each approved batch of changes, Phase 3 close-out)
+1. Stakeholder reviews `PHASE3_ARCHITECTURE_REVIEW.md` and approves/adjusts which Medium/Major items to
+   implement and in what order (the report proposes a 5-phase roadmap as a starting point, not a mandate).
+2. Implement approved items in the agreed order, updating this file after each phase closes.
+3. Only after Phase 3a (pre-launch hardening) is implemented and approved should a production launch be
+   considered ready per this review's own findings.
+4. Admin Panel redesign begins only after Phase 3 is fully approved (per explicit instruction).
 
 ---
 

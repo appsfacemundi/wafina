@@ -72,7 +72,7 @@ export default function NotificationsPage() {
                   >
                     {n.Message}
                   </div>
-                  <div className="time">{new Date(n.Date_Created).toLocaleString('pt-PT')}</div>
+                  <div className="time">{new Date(n.Date_Created).toLocaleString()}</div>
                 </div>
               </button>
             ))}

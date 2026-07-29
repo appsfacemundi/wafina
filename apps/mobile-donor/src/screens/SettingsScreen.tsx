@@ -85,7 +85,12 @@ export function SettingsScreen() {
           {profileError && !profile && <ErrorBanner message={profileError} />}
           {profile && (
             <>
-              <Input label="Nome" value={profile.Name} onChangeText={(v) => setProfile({ ...profile, Name: v })} />
+              <Input
+                label="Nome"
+                autoCapitalize="words"
+                value={profile.Name}
+                onChangeText={(v) => setProfile({ ...profile, Name: v })}
+              />
               <Input
                 label="Telefone"
                 keyboardType="phone-pad"

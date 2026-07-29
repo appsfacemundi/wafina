@@ -75,7 +75,7 @@ export function NotificationsScreen({ navigation }: Props) {
               <Text style={[styles.message, { color: item.Read ? colors.textMuted : colors.text }]}>
                 {item.Message}
               </Text>
-              <Text style={styles.time}>{new Date(item.Date_Created).toLocaleString('pt-PT')}</Text>
+              <Text style={styles.time}>{new Date(item.Date_Created).toLocaleString()}</Text>
             </View>
           </Pressable>
         )}
