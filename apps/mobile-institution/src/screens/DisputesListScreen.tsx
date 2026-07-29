@@ -53,7 +53,7 @@ export function DisputesListScreen() {
         renderItem={({ item }) => (
           <Card style={{ marginBottom: spacing[3], gap: spacing[2] }}>
             <View style={styles.row}>
-              <Text style={styles.mono}>Doação {item.Donation_ID}</Text>
+              <Text style={[styles.mono, styles.monoId]}>Doação {item.Donation_ID}</Text>
               <Badge tone={item.Status === 'Open' ? 'warning' : 'success'}>
                 {item.Status === 'Open' ? 'Aberta' : 'Resolvida'}
               </Badge>
@@ -102,11 +102,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: spacing[2],
   },
   mono: {
     fontFamily: fonts.mono,
     fontSize: 12,
     color: colors.textFaint,
+  },
+  monoId: {
+    flex: 1,
+    flexWrap: 'wrap',
   },
   body: {
     fontFamily: 'WorkSans-400',

@@ -75,6 +75,7 @@ export function RootNavigator() {
             tabBarInactiveTintColor: colors.textFaint,
             tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
             tabBarLabelStyle: { fontFamily: 'WorkSans-600', fontSize: 10 },
+            tabBarIcon: () => null,
           }}
         >
           <AppTab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: tabLabel('Início') }} />
