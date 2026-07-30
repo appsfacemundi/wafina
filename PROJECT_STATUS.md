@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-07-30
 **Updated by:** Claude Code, after completing Phase 3A Module 3 (Country Expansion + Selector UX)
-**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1, 2, and 3 are implemented; Module 3 is fully verified on Web, mobile (`mobile-donor`) verification still outstanding pending Xcode/Simulator setup on this machine. The stakeholder issued a "master prompt" substantially expanding Phase 3A's scope (Modules 3–9) and, separately the same day, a **Permanent Rules Update** (`DEVELOPMENT_RULES.md` §14) that retires AppSheet from the long-term architecture and tightens the module-completion process (live end-to-end testing of every affected app is now mandatory, not just typecheck/lint). That update supersedes two of the three master-prompt decisions already made — see "Permanent Rules Update" below before starting Module 5 or 8.
+**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1, 2, and 3 are implemented; Module 3 is fully verified on Web, mobile (`mobile-donor`) verification still outstanding pending Xcode/Simulator setup on this machine. The stakeholder issued a "master prompt" substantially expanding Phase 3A's scope (Modules 3–9) and, separately the same day, a **Permanent Rules Update** (`DEVELOPMENT_RULES.md` §14) that retires AppSheet from the long-term architecture and tightens the module-completion process (live end-to-end testing of every affected app is now mandatory, not just typecheck/lint). That update supersedes two of the three master-prompt decisions already made — see "Permanent Rules Update" below. Module 4 (Admin Web App Foundation) is now COMPLETE, inserted ahead of the original Module 4 (renumbered to Module 5) per the stakeholder's explicit sequencing choice.
 
 ---
 
@@ -299,18 +299,19 @@ was a real fork found by reading the actual current implementation, not a hypoth
 1. **Donation short codes** — `Donation_ID` (UUID) stays the internal primary key, untouched. New
    `Public_Donation_Code` field, format `<CountryCode>-<SequentialNumber>` (e.g. `AO-000001`), unique and
    never reused per country, shown everywhere user-facing; UUID hidden from normal users. *(Not yet
-   implemented — scheduled for Module 6.)*
+   implemented — scheduled for Module 7.)*
 2. **Corporate invitations** — ~~native AppSheet bulk-generation action~~ **SUPERSEDED 2026-07-30, see
    "Permanent Rules Update" below** — cryptographically random codes, single-use by default but configurable
    to multi-use, written into a new `Corporate_Invitations` tab, generation now needs a small new Admin-
    facing REST endpoint instead of an AppSheet action (AppSheet gets no new logic from this date forward).
    Still a real deviation from `MASTER_SPECIFICATION.md` §13.2 (one shared company-wide code today) — needs
-   a matching spec update alongside the Module 8 implementation. *(Not yet implemented.)*
+   a matching spec update alongside the Module 9 implementation. Now unblocked — the Admin Web App
+   foundation (Module 4) provides exactly the REST surface this needs. *(Not yet implemented.)*
 3. **Success Stories Admin approval** — institution publishes → `Status=Pending` (not shown to the donor
    yet) → Admin approves. ~~Admin flips it to `Approved` directly in the `Success_Stories` Sheet tab
    (AppSheet)~~ **SUPERSEDED 2026-07-30** — the approval mechanism itself is now an open question (see
    "Permanent Rules Update" below) since it can no longer be a new AppSheet action. *(Not yet implemented —
-   scheduled for Module 5, along with the richer story fields §7 asks for: multiple before/after photos,
+   scheduled for Module 6, along with the richer story fields §7 asks for: multiple before/after photos,
    thank-you message, institution logo/name on the story card.)*
 
 ### Permanent Rules Update (stakeholder instruction, 2026-07-30)
@@ -322,34 +323,37 @@ this status file explains the *consequences* for in-flight planning.
 automations/APIs, all new development targets a future custom Admin Web App) directly supersedes two
 decisions made earlier the same day, before either was implemented:**
 
-- Module 8 (corporate invitations) can no longer use "a native AppSheet bulk-generation action" — bulk
+- Module 9 (corporate invitations) can no longer use "a native AppSheet bulk-generation action" — bulk
   code generation now needs a small new Admin-facing REST endpoint on our own API instead. This is actually
   now the *more* correct choice under the new architecture (a real REST endpoint is forward-compatible with
   the future Admin Web App and PostgreSQL; an AppSheet Bot was never going to survive that migration
-  anyway), so this resolves cleanly — no new ambiguity, just a corrected implementation path.
-- Module 5 (Success Stories approval) is a genuinely open question again: "Admin flips Status in the
-  Success_Stories Sheet tab via AppSheet" was the whole mechanism, and it's now off the table for *new*
-  logic. Nothing today replaces it, because the future Admin Web App doesn't exist yet either. **Not
-  resolved in this update** — needs a stakeholder decision on sequencing (see below) before Module 5 can
-  implement approval gating.
+  anyway), so this resolves cleanly — no new ambiguity, just a corrected implementation path. **Now
+  unblocked** — Module 4 (Admin Web App Foundation, below) provides exactly this REST surface.
+- Module 6 (Success Stories approval) was a genuinely open question — resolved by the stakeholder choosing
+  to build a dedicated Admin Web App foundation module immediately (see Module 4 below) rather than defer.
 
-**Wider ripple not caused by these two decisions, but surfaced by them:** every Admin action in the
-*existing, already-shipped* product — institution verification, dispute resolution, change-request
-approval — happens in AppSheet today, per `MASTER_SPECIFICATION.md`'s current Admin model. Those keep
-working exactly as-is (nothing is being removed), but the same "no new AppSheet logic" constraint means
-none of them can gain new capability (e.g. the still-unbuilt Admin→app notification bridge, Phase 3's BL-1)
-without a REST-based Admin surface existing first. Per the stakeholder's own Scope Discipline rule, this is
-recorded here as a Known Issue rather than acted on — no Admin Web App work has been started.
+**RESOLVED, 2026-07-30 (same day):** the "should a dedicated Admin Web App foundation module be scheduled"
+question below was answered — stakeholder chose "foundation module now." Module 4 (Admin Web App
+Foundation) was built the same day, ahead of the original Module 4 (Active-Country filtering audit, now
+renumbered to Module 5) per that explicit instruction. See Module 4's own entry below for what was built.
+
+**Wider ripple, only partially addressed by Module 4:** every *other* Admin action in the existing,
+already-shipped product — dispute resolution, change-request approval — still happens in AppSheet today,
+per `MASTER_SPECIFICATION.md`'s current Admin model. Those keep working exactly as-is; Module 4 only moved
+institution verification off AppSheet, since that was the concrete, immediate need. Moving the rest is not
+scoped into any current module — recorded here as a Known Issue, not acted on speculatively.
 
 **Known Issues / Deferred Items:**
-- *Open question for the stakeholder:* should a dedicated "Admin Web App foundation" module be scheduled
-  (and if so, where in the sequence — before Module 4, or interleaved once Modules 5/8 actually need it),
-  or should the Admin-dependent parts of Modules 5 and 8 simply stay deferred/recorded here until a
-  foundation module is explicitly approved? No module has been resequenced yet pending this answer.
+- Dispute resolution and change-request approval remain AppSheet-only. Per the architecture update these
+  can gain no *new* capability (e.g. Phase 3's BL-1 notification bridge for those two events) without also
+  moving to the Admin Web App — not scheduled into any module yet, revisit when there's a concrete need.
 - `MASTER_SPECIFICATION.md` §13.2 (corporate invite code) and the Admin model sections describing AppSheet
   as the permanent Admin surface are now stale relative to the new architecture direction — need a matching
-  update once the Admin Web App's shape is decided, not before (updating them prematurely risks documenting
-  a design that hasn't been approved yet).
+  update once Module 9 (corporate invitations) is built, not before.
+- The pre-existing duplicate-`Institution_ID` bug ("bdecb4ed", flagged in Module 1) surfaced again while
+  reviewing pending institutions for Module 4's verification pass (one of the two rows sharing that ID —
+  "AJAPRAZ" — has an orphaned `User_ID` with no matching Users row). Not touched; still queued as DB-1
+  hardening work, unchanged from Module 1's original note.
 
 ### Module 3 — Country Expansion + Selector UX: COMPLETE
 
@@ -401,14 +405,65 @@ mirror the verified web implementation line-for-line and typecheck clean, but we
 simulator this pass — recommended before moving on, per `DEVELOPMENT_RULES.md` §12.
 
 **Not done in this module (scheduled for later modules per the breakdown above):** Active-Country filtering
-audit across Success Stories/Notifications/future Search-Maps-Statistics (Module 4), Success Stories v2 +
-Admin approval (Module 5), donation short codes (Module 6), institution logos everywhere (Module 7),
-corporate secure invitations (Module 8), corporate dashboard (Module 9).
+audit across Success Stories/Notifications/future Search-Maps-Statistics (Module 5), Success Stories v2 +
+Admin approval (Module 6), donation short codes (Module 7), institution logos everywhere (Module 8),
+corporate secure invitations (Module 9), corporate dashboard (Module 10).
 
-### Modules 4–9: not yet started
-Sequenced next per the breakdown above. Module 4 should start only after the stakeholder has personally
-tested Module 3 (Web confirmed by Claude this session; iOS/Android and final stakeholder sign-off still
-outstanding) per `DEVELOPMENT_RULES.md` §12.
+### Module 4 — Admin Web App Foundation: COMPLETE
+
+Inserted ahead of the original Module 4 (Active-Country filtering audit, renumbered to Module 5) per the
+stakeholder's explicit instruction, triggered by needing to approve a real pending institution to unblock
+their own Institution app end-to-end testing. Deliberately narrow, per Scope Discipline — institution
+verification only; Success Story approval and corporate invitations will extend this same app when Modules
+6 and 9 are built, not duplicate it.
+
+**What was implemented:**
+- New `apps/admin` Next.js workspace (port 3002), mirroring `apps/institution`'s structure exactly (same
+  Firebase auth, `packages/ui` tokens, fonts). Sign-in only — no sign-up screen, since Admin accounts are
+  always provisioned directly (spec 3.1) and can never self-register. `useRequireAdminSession` redirects
+  and signs out anyone whose session role isn't `Admin`.
+- Reused existing infrastructure rather than building new: `ROLES` already included `'Admin'`
+  (`packages/shared/src/enums/role.ts`), and `requireAuth`/`requireRole('Admin')` already worked generically
+  from the Users sheet — no new auth system needed, just a new surface on top of what existed.
+- New `apps/api/src/services/institutions.ts` functions: `listPendingInstitutions()`, `verifyInstitution()`,
+  `rejectInstitution()`. Both actions fire the `institution_approved`/`institution_rejected` notifications
+  Module 2 designed but left unwired pending "the Admin bridge" (Phase 3's BL-1) — **this module is that
+  bridge**, for institution verification specifically.
+- New `apps/api/src/routes/admin.ts`: `GET /admin/institutions/pending`, `POST /admin/institutions/:id/verify`,
+  `POST /admin/institutions/:id/reject` (body `{ reason }`) — all `requireAuth` + `requireRole('Admin')`.
+- First Super Admin account provisioned directly for `apps.facemundi@gmail.com`: Firebase user created
+  email-only (no password ever chosen or seen by Claude), a password-reset link generated and sent to the
+  stakeholder so they set their own password, and a Users row created directly with `Role='Admin'` —
+  bypassing the normal self-serve bootstrap entirely, matching spec 3.1.
+- `.env`/`ALLOWED_ORIGINS` and `.claude/launch.json` updated for the new port 3002.
+
+**Database implications:** No schema change — reuses the existing `Users.Role` and `Institutions.Verified`/
+`Rejection_Reason` columns. No new Sheet tab.
+
+**Verified (live, per the new module-completion rule):** API, Web Donor, Web Institution, and the new Admin
+app all started and exercised together. `npm run typecheck` and `npm run lint` clean across all 8 workspaces
+(including the new `@wafina/admin`). Full live walkthrough: signed into the Admin app with a disposable test
+Admin account, saw a disposable test pending institution render correctly, rejected it with a reason
+(confirmed `Rejection_Reason` persisted and `institution_rejected` notification fired), then approved it
+(confirmed `Verified` flipped to `TRUE`, fields locked, `institution_approved` notification fired). Switched
+to the Institution app signed in as that same test institution's owner — confirmed the full dashboard
+unlocked (no longer gated on "Por verificar") and both notifications appeared correctly in its inbox. All
+disposable test accounts/rows deleted afterward; confirmed real data back to exactly 5 real Institutions
+rows and 10 real Users rows. Then used the same verified `verifyInstitution()` function to approve the
+stakeholder's actual real pending institution, **Finangest** (`3400bff6-249a-4dcd-8603-5b7deecff077`, owner
+`instituicao@zuinder.com`) — confirmed via a direct Sheet check. The other pending institution, "AJAPRAZ",
+was deliberately left untouched (see Known Issues above — orphaned owner, part of the pre-existing
+duplicate-ID bug, not confirmed to belong to the stakeholder).
+
+**Not done in this module:** Success Story approval and corporate invitation generation don't yet have
+screens in `apps/admin` — those arrive with Modules 6 and 9. No broader Admin capability (dispute
+resolution, change-request approval, institution edit) was added — deliberately out of scope.
+
+### Modules 5–10: not yet started
+Sequenced next per the breakdown above. Module 5 should start only after the stakeholder has personally
+tested Module 3 (Web confirmed by Claude; iOS/Android and final stakeholder sign-off still outstanding) and
+Module 4 (Admin Web App Foundation, live-tested by Claude this session per the process above) per
+`DEVELOPMENT_RULES.md` §14.
 
 ---
 

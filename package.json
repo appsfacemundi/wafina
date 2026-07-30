@@ -13,6 +13,7 @@
     "dev:api": "npm run build:libs && npm run dev --workspace=apps/api",
     "dev:web": "npm run build:libs && npm run dev --workspace=apps/web",
     "dev:institution": "npm run build:libs && npm run dev --workspace=apps/institution",
+    "dev:admin": "npm run build:libs && npm run dev --workspace=apps/admin",
     "dev:mobile-donor": "npm run build:libs && npm run start --workspace=apps/mobile-donor",
     "dev:mobile-institution": "npm run build:libs && npm run start --workspace=apps/mobile-institution",
     "build": "npm run build:libs && npm run build --workspaces --if-present",

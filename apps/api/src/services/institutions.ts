@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto';
 import type { Institution } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetBool, fromSheetLatLong, toSheetBool, toSheetLatLong } from '../config/sheet-values';
-import { appendRow, findRow, getRows } from '../config/sheets';
+import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { isActiveCountry } from './geo-regions';
 import { sumDeliveredQuantityForInstitution } from './donations';
+import { createNotification } from './notifications';
 import { ValidationError } from './validation-error';
 
 const MIN_NAME_LENGTH = 2;
@@ -140,4 +141,65 @@ export async function listVerifiedInstitutions(countryId?: string): Promise<Inst
     (row) => fromSheetBool(row.Verified ?? '') && (!countryId || row.Country_ID === countryId),
   );
   return Promise.all(verifiedRows.map(rowToInstitution));
+}
+
+/** Admin Web App foundation — institutions awaiting verification (spec 11.2). */
+export async function listPendingInstitutions(): Promise<Institution[]> {
+  const rows = await getRows(SHEET_TABS.institutions);
+  const pendingRows = rows.filter((row) => !fromSheetBool(row.Verified ?? ''));
+  return Promise.all(pendingRows.map(rowToInstitution));
+}
+
+/**
+ * Admin Web App foundation — the first Admin action moved off AppSheet. Sets
+ * Verified=TRUE (fields lock automatically from that point per rowToInstitution's
+ * ALL_PROFILE_FIELDS fallback) and notifies the owning user — this is exactly
+ * the "institution_approved" event Module 2 designed but left unwired pending
+ * an Admin bridge (Phase 3's BL-1). This function *is* that bridge.
+ */
+export async function verifyInstitution(institutionId: string): Promise<Institution> {
+  const row = await findRow(SHEET_TABS.institutions, (r) => r.Institution_ID === institutionId);
+  if (!row) throw new ValidationError('Institution not found');
+
+  await updateRow(SHEET_TABS.institutions, 'Institution_ID', institutionId, {
+    Verified: toSheetBool(true),
+    Rejection_Reason: '',
+  });
+
+  await createNotification({
+    recipientUserId: row.User_ID,
+    notificationType: 'institution_approved',
+    entityType: 'Institution',
+    entityId: institutionId,
+    message: 'A sua instituição foi verificada! Já pode reclamar doações.',
+  });
+
+  const institution = await getInstitutionById(institutionId);
+  if (!institution) throw new Error('Institution vanished after verification');
+  return institution;
+}
+
+/** Admin Web App foundation — rejects with a reason; institution stays unverified and can be re-reviewed. */
+export async function rejectInstitution(institutionId: string, reason: string): Promise<Institution> {
+  if (!reason || !reason.trim()) throw new ValidationError('A rejection reason is required');
+
+  const row = await findRow(SHEET_TABS.institutions, (r) => r.Institution_ID === institutionId);
+  if (!row) throw new ValidationError('Institution not found');
+
+  await updateRow(SHEET_TABS.institutions, 'Institution_ID', institutionId, {
+    Verified: toSheetBool(false),
+    Rejection_Reason: reason.trim(),
+  });
+
+  await createNotification({
+    recipientUserId: row.User_ID,
+    notificationType: 'institution_rejected',
+    entityType: 'Institution',
+    entityId: institutionId,
+    message: `O seu registo não foi aprovado: ${reason.trim()}`,
+  });
+
+  const institution = await getInstitutionById(institutionId);
+  if (!institution) throw new Error('Institution vanished after rejection');
+  return institution;
 }

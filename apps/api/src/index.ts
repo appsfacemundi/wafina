@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error-handler';
+import { adminRouter } from './routes/admin';
 import { authRouter } from './routes/auth';
 import { changeRequestsRouter } from './routes/change-requests';
 import { disputesRouter } from './routes/disputes';
@@ -29,6 +30,7 @@ app.use(notificationsRouter);
 app.use(disputesRouter);
 app.use(changeRequestsRouter);
 app.use(successStoriesRouter);
+app.use(adminRouter);
 app.use(errorHandler);
 
 app.listen(env.port, () => {
