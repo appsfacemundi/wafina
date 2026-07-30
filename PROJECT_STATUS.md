@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-07-30
 **Updated by:** Claude Code, after completing Phase 3A Module 3 (Country Expansion + Selector UX)
-**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1, 2, and 3 are implemented and verified. The stakeholder issued a new "master prompt" (see below) substantially expanding Phase 3A's scope — it has been broken into Modules 3–9 rather than built as one change, per the stakeholder's own "one module at a time" rule. Three open design decisions from that prompt were resolved with the stakeholder before any implementation began (see "Master Prompt Decisions" below).
+**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1, 2, and 3 are implemented; Module 3 is fully verified on Web, mobile (`mobile-donor`) verification still outstanding pending Xcode/Simulator setup on this machine. The stakeholder issued a "master prompt" substantially expanding Phase 3A's scope (Modules 3–9) and, separately the same day, a **Permanent Rules Update** (`DEVELOPMENT_RULES.md` §14) that retires AppSheet from the long-term architecture and tightens the module-completion process (live end-to-end testing of every affected app is now mandatory, not just typecheck/lint). That update supersedes two of the three master-prompt decisions already made — see "Permanent Rules Update" below before starting Module 5 or 8.
 
 ---
 
@@ -300,18 +300,56 @@ was a real fork found by reading the actual current implementation, not a hypoth
    `Public_Donation_Code` field, format `<CountryCode>-<SequentialNumber>` (e.g. `AO-000001`), unique and
    never reused per country, shown everywhere user-facing; UUID hidden from normal users. *(Not yet
    implemented — scheduled for Module 6.)*
-2. **Corporate invitations** — native AppSheet bulk-generation action (Admin runs it manually inside
-   AppSheet), cryptographically random codes, single-use by default but configurable to multi-use, written
-   into a new `Corporate_Invitations` tab. No new Admin REST API — consistent with `DEVELOPMENT_RULES.md`
-   §3 (AppSheet is permanent, never rebuilt). This is a real deviation from `MASTER_SPECIFICATION.md` §13.2
-   (which currently describes one shared company-wide code) — that document needs a matching update
-   alongside the Module 8 implementation, not left silently stale. *(Not yet implemented.)*
+2. **Corporate invitations** — ~~native AppSheet bulk-generation action~~ **SUPERSEDED 2026-07-30, see
+   "Permanent Rules Update" below** — cryptographically random codes, single-use by default but configurable
+   to multi-use, written into a new `Corporate_Invitations` tab, generation now needs a small new Admin-
+   facing REST endpoint instead of an AppSheet action (AppSheet gets no new logic from this date forward).
+   Still a real deviation from `MASTER_SPECIFICATION.md` §13.2 (one shared company-wide code today) — needs
+   a matching spec update alongside the Module 8 implementation. *(Not yet implemented.)*
 3. **Success Stories Admin approval** — institution publishes → `Status=Pending` (not shown to the donor
-   yet) → Admin flips it to `Approved` directly in the `Success_Stories` Sheet tab (AppSheet) → institution/
-   donor see it once Approved, next time they load the app. No push signal on approval yet — that needs the
-   still-unbuilt Admin→app bridge (Phase 3's BL-1). *(Not yet implemented — scheduled for Module 5, along
-   with the richer story fields §7 asks for: multiple before/after photos, thank-you message, institution
-   logo/name on the story card.)*
+   yet) → Admin approves. ~~Admin flips it to `Approved` directly in the `Success_Stories` Sheet tab
+   (AppSheet)~~ **SUPERSEDED 2026-07-30** — the approval mechanism itself is now an open question (see
+   "Permanent Rules Update" below) since it can no longer be a new AppSheet action. *(Not yet implemented —
+   scheduled for Module 5, along with the richer story fields §7 asks for: multiple before/after photos,
+   thank-you message, institution logo/name on the story card.)*
+
+### Permanent Rules Update (stakeholder instruction, 2026-07-30)
+
+Full text recorded in `DEVELOPMENT_RULES.md` §14 — that file is the canonical copy; this entry exists so
+this status file explains the *consequences* for in-flight planning.
+
+**The architecture change (AppSheet no longer part of long-term architecture, no new AppSheet logic/Bots/
+automations/APIs, all new development targets a future custom Admin Web App) directly supersedes two
+decisions made earlier the same day, before either was implemented:**
+
+- Module 8 (corporate invitations) can no longer use "a native AppSheet bulk-generation action" — bulk
+  code generation now needs a small new Admin-facing REST endpoint on our own API instead. This is actually
+  now the *more* correct choice under the new architecture (a real REST endpoint is forward-compatible with
+  the future Admin Web App and PostgreSQL; an AppSheet Bot was never going to survive that migration
+  anyway), so this resolves cleanly — no new ambiguity, just a corrected implementation path.
+- Module 5 (Success Stories approval) is a genuinely open question again: "Admin flips Status in the
+  Success_Stories Sheet tab via AppSheet" was the whole mechanism, and it's now off the table for *new*
+  logic. Nothing today replaces it, because the future Admin Web App doesn't exist yet either. **Not
+  resolved in this update** — needs a stakeholder decision on sequencing (see below) before Module 5 can
+  implement approval gating.
+
+**Wider ripple not caused by these two decisions, but surfaced by them:** every Admin action in the
+*existing, already-shipped* product — institution verification, dispute resolution, change-request
+approval — happens in AppSheet today, per `MASTER_SPECIFICATION.md`'s current Admin model. Those keep
+working exactly as-is (nothing is being removed), but the same "no new AppSheet logic" constraint means
+none of them can gain new capability (e.g. the still-unbuilt Admin→app notification bridge, Phase 3's BL-1)
+without a REST-based Admin surface existing first. Per the stakeholder's own Scope Discipline rule, this is
+recorded here as a Known Issue rather than acted on — no Admin Web App work has been started.
+
+**Known Issues / Deferred Items:**
+- *Open question for the stakeholder:* should a dedicated "Admin Web App foundation" module be scheduled
+  (and if so, where in the sequence — before Module 4, or interleaved once Modules 5/8 actually need it),
+  or should the Admin-dependent parts of Modules 5 and 8 simply stay deferred/recorded here until a
+  foundation module is explicitly approved? No module has been resequenced yet pending this answer.
+- `MASTER_SPECIFICATION.md` §13.2 (corporate invite code) and the Admin model sections describing AppSheet
+  as the permanent Admin surface are now stale relative to the new architecture direction — need a matching
+  update once the Admin Web App's shape is decided, not before (updating them prematurely risks documenting
+  a design that hasn't been approved yet).
 
 ### Module 3 — Country Expansion + Selector UX: COMPLETE
 

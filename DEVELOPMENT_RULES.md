@@ -14,7 +14,14 @@ There is no sync/replication layer in Version 1, because there is only one datab
 
 ## 3. AppSheet / Admin
 
-AppSheet Admin is permanent. Never rebuild it, never redesign its workflows. It is the reference implementation for business logic — when in doubt about how something should behave, match what AppSheet already does.
+**Superseded 2026-07-30 — see §14 "Permanent Rules Update" below.** AppSheet is no longer part of WAFINA's
+long-term architecture. This section is kept for history: it originally read "AppSheet Admin is permanent.
+Never rebuild it, never redesign its workflows. It is the reference implementation for business logic."
+Existing AppSheet-based Admin workflows (institution verification, dispute resolution, change-request
+approval) keep working exactly as today — nothing is being ripped out — but no *new* AppSheet logic, Bots,
+automations, workflows, or dependencies get added from this date forward. New Admin-facing capability is
+designed for the future custom Admin Web Application instead. Where an AppSheet reference is encountered in
+new work, replace it with a Google Sheets/Admin Web App approach whenever appropriate.
 
 ## 4. File storage
 
@@ -78,4 +85,49 @@ A migration to PostgreSQL or another relational database may happen after Versio
 - Never simplify workflows or remove features.
 - Never redesign business processes.
 - If something is unclear, ask before implementing.
-- Preserve compatibility with the current AppSheet implementation at all times.
+- Preserve compatibility with the current AppSheet implementation at all times (see §14 — AppSheet itself
+  is being phased out of new development, but existing behavior stays compatible until replaced).
+
+---
+
+## 14. Permanent Rules Update (stakeholder instruction, 2026-07-30)
+
+Issued as a standing policy covering every remaining module. Supersedes §3 above where the two conflict.
+
+**Architecture:** AppSheet is no longer part of WAFINA's long-term architecture. No new AppSheet logic,
+Bots, automations, workflows, APIs, or dependencies. Google Sheets remains the current production database.
+All new development is designed for the future custom Admin Web Application. Every architectural decision
+must naturally support the future PostgreSQL migration without redesigning the application.
+
+**Module completion rule — a module is not complete until:**
+1. The API is started.
+2. Every affected application is started: Web Donor, Web Institution, Donor Mobile, Institution Mobile,
+   Admin (when applicable).
+3. Complete end-to-end manual functional testing of every feature in that module is performed against the
+   running apps.
+4. Every issue found during that testing is fixed.
+5. Typecheck passes.
+6. Lint passes.
+7. `PROJECT_STATUS.md` is updated.
+8. The module is committed.
+9. Work stops for the stakeholder's own verification before the next module starts.
+
+Code review, typecheck, and lint alone are never sufficient — every module needs live manual verification.
+
+**Keep the applications running:** after completing and testing a module, leave the API, web apps, and
+mobile simulator running for the stakeholder's own immediate testing. Only stop servers if explicitly asked.
+
+**Scope discipline:** do not expand the current module's scope. Unrelated bugs/improvements/ideas discovered
+along the way get recorded under a Known Issues / Deferred Items section in `PROJECT_STATUS.md`, not
+implemented immediately — only on later explicit approval. (Bugs that block the current module's own
+feature from working are part of that module, not "unrelated," and get fixed as part of it.)
+
+**Documentation:** `PROJECT_STATUS.md` stays the single source of truth. Every completed module's entry
+includes: what was implemented, architectural decisions made, database/schema changes, files modified,
+testing performed, remaining work, Known Issues / Deferred Items, and the git commit hash.
+
+**Development philosophy:** one approved module at a time. Don't redesign completed modules absent a real
+architectural problem or explicit request. Prioritize maintainability, scalability, performance, and
+production readiness over quick fixes. Every feature must be compatible with: multi-country operation,
+Active Country filtering, the future Admin Web App, Google Sheets (current), PostgreSQL (future), iOS,
+Android, and Web.
