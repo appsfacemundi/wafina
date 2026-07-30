@@ -614,7 +614,7 @@ Xcode/Simulator gap as Module 3).
   list entries that reference an institution.
 - Corporate donor logo has no upload UI yet (Admin-provisioned accounts, future Admin action).
 
-**Commit:** (recorded after this entry is committed — see below)
+**Commit:** `4881e58`
 
 ### Modules 6+: not yet started
 Sequenced dynamically based on stakeholder priority rather than a fixed order — Module 4 and Module 5 both
