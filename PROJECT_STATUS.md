@@ -459,6 +459,8 @@ duplicate-ID bug, not confirmed to belong to the stakeholder).
 screens in `apps/admin` — those arrive with Modules 6 and 9. No broader Admin capability (dispute
 resolution, change-request approval, institution edit) was added — deliberately out of scope.
 
+**Commit:** `b0f0ebd`
+
 ### Modules 5–10: not yet started
 Sequenced next per the breakdown above. Module 5 should start only after the stakeholder has personally
 tested Module 3 (Web confirmed by Claude; iOS/Android and final stakeholder sign-off still outstanding) and
