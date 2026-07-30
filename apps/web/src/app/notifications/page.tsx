@@ -27,21 +27,27 @@ export default function NotificationsPage() {
     })();
   }, [firebaseUser]);
 
+  // Phase 3A Module 2 — real per-notification deep-linking, using Entity_Type
+  // now that it exists, instead of always navigating to the same fixed page.
+  function pathForEntity(n: Notification): string {
+    return n.Entity_Type === 'Corporate_Account' ? '/settings' : '/donations';
+  }
+
   async function onOpen(n: Notification) {
-    if (!n.Read) {
+    if (n.Status !== 'Read') {
       try {
         const idToken = await firebaseUser?.getIdToken();
         await apiFetch(`/notifications/${n.Notification_ID}`, { method: 'PATCH', idToken });
         setNotifications(
           (prev) =>
-            prev?.map((x) => (x.Notification_ID === n.Notification_ID ? { ...x, Read: true } : x)) ??
+            prev?.map((x) => (x.Notification_ID === n.Notification_ID ? { ...x, Status: 'Read' } : x)) ??
             null,
         );
       } catch {
         // Non-critical — still navigate even if marking read failed.
       }
     }
-    router.push('/donations');
+    router.push(pathForEntity(n));
   }
 
   if (!session) return null;
@@ -64,15 +70,15 @@ export default function NotificationsPage() {
           <div className="list">
             {notifications.map((n) => (
               <button key={n.Notification_ID} className="notif-item" onClick={() => onOpen(n)}>
-                {!n.Read && <span className="notif-dot" />}
+                {n.Status !== 'Read' && <span className="notif-dot" />}
                 <div className="grow" style={{ textAlign: 'left' }}>
                   <div
                     className="txt"
-                    style={{ color: n.Read ? 'var(--color-text-muted)' : 'var(--color-text)' }}
+                    style={{ color: n.Status === 'Read' ? 'var(--color-text-muted)' : 'var(--color-text)' }}
                   >
                     {n.Message}
                   </div>
-                  <div className="time">{new Date(n.Date_Created).toLocaleString()}</div>
+                  <div className="time">{new Date(n.Created_At).toLocaleString()}</div>
                 </div>
               </button>
             ))}

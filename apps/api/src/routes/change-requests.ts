@@ -21,7 +21,12 @@ changeRequestsRouter.post(
   requireVerified,
   asyncHandler(async (req, res) => {
     const institutionId = await requireOwnInstitutionId(req.user!.userId);
-    const request = await createChangeRequest(institutionId, req.body.Field_Requested, req.body.Reason);
+    const request = await createChangeRequest(
+      institutionId,
+      req.user!.userId,
+      req.body.Field_Requested,
+      req.body.Reason,
+    );
     res.status(201).json(request);
   }),
 );

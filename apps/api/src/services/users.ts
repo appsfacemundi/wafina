@@ -10,6 +10,7 @@ import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso, toSheetBool } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { isActiveCountry } from './geo-regions';
+import { createNotification } from './notifications';
 import { ValidationError } from './validation-error';
 
 export interface UserRow {
@@ -129,12 +130,35 @@ export async function updateSwitchPreference(userId: string, preference: SwitchP
   await updateRow(SHEET_TABS.users, 'User_ID', userId, { Switch_Preference: preference });
 }
 
-/** Spec 13.2 — joining a company via an Admin-issued invite code. */
+/**
+ * Spec 13.2 — joining a company via an Admin-issued invite code. Phase 3A
+ * Module 2: existing teammates are looked up *before* the link, so the
+ * joining user is never notified about their own arrival, then everyone who
+ * was already on the account gets a "corporate_member_joined" notification.
+ */
 export async function linkCorporateAccount(userId: string, corporateAccountId: string): Promise<void> {
+  const [existingTeammateIds, joiningUser] = await Promise.all([
+    listUserIdsByCorporateAccount(corporateAccountId),
+    findUserById(userId),
+  ]);
+
   await updateRow(SHEET_TABS.users, 'User_ID', userId, {
     Donor_Subtype: 'Corporate',
     Corporate_Account_ID: corporateAccountId,
   });
+
+  const joinerName = joiningUser?.Name?.trim() || 'Um novo membro';
+  await Promise.all(
+    existingTeammateIds.map((teammateId) =>
+      createNotification({
+        recipientUserId: teammateId,
+        notificationType: 'corporate_member_joined',
+        entityType: 'Corporate_Account',
+        entityId: corporateAccountId,
+        message: `${joinerName} associou-se à sua conta corporativa.`,
+      }),
+    ),
+  );
 }
 
 /** Shared by the auth middleware and /auth/session so both build the same session shape. */

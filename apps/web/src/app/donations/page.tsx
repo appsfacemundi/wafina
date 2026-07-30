@@ -1,6 +1,6 @@
 'use client';
 
-import { DONATION_STATUS_LABEL, DONATION_STATUS_TONE, type Donation } from '@wafina/shared';
+import { DONATION_STATUS_LABEL, DONATION_STATUS_TONE, type Donation, type SuccessStory } from '@wafina/shared';
 import { Badge, Button, Card, EmptyState } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -13,6 +13,7 @@ export default function DonationsPage() {
   const { firebaseUser } = useAuth();
   const router = useRouter();
   const [donations, setDonations] = useState<Donation[] | null>(null);
+  const [storiesByDonation, setStoriesByDonation] = useState<Map<string, SuccessStory>>(new Map());
   const [error, setError] = useState('');
 
   const stats = useMemo(() => {
@@ -31,7 +32,12 @@ export default function DonationsPage() {
     (async () => {
       try {
         const idToken = await firebaseUser.getIdToken();
-        setDonations(await apiFetch<Donation[]>('/donations/mine', { idToken }));
+        const [donationList, stories] = await Promise.all([
+          apiFetch<Donation[]>('/donations/mine', { idToken }),
+          apiFetch<SuccessStory[]>('/donor/success-stories', { idToken }),
+        ]);
+        setDonations(donationList);
+        setStoriesByDonation(new Map(stories.map((s) => [s.Donation_ID, s])));
       } catch {
         setError('Não foi possível carregar as suas doações.');
       }
@@ -83,19 +89,60 @@ export default function DonationsPage() {
         )}
         {donations && donations.length > 0 && (
           <div className="stack">
-            {donations.map((d) => (
-              <Card key={d.Donation_ID} className="donation-row">
-                <div>
-                  <p style={{ fontWeight: 600 }}>{d.Item_Type}</p>
-                  <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
-                    {d.Donation_ID} · Qtd {d.Quantity}
-                  </p>
-                </div>
-                <Badge tone={DONATION_STATUS_TONE[d.Status]}>
-                  {DONATION_STATUS_LABEL[d.Status]}
-                </Badge>
-              </Card>
-            ))}
+            {donations.map((d) => {
+              const story = storiesByDonation.get(d.Donation_ID);
+              return (
+                <Card key={d.Donation_ID} className="stack">
+                  <div className="donation-row">
+                    <div>
+                      <p style={{ fontWeight: 600 }}>{d.Item_Type}</p>
+                      <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
+                        {d.Donation_ID} · Qtd {d.Quantity}
+                      </p>
+                    </div>
+                    <Badge tone={DONATION_STATUS_TONE[d.Status]}>
+                      {DONATION_STATUS_LABEL[d.Status]}
+                    </Badge>
+                  </div>
+                  {story && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 'var(--space-3)',
+                        background: 'var(--success-100)',
+                        borderRadius: 8,
+                        padding: 'var(--space-3)',
+                      }}
+                    >
+                      <img
+                        src={story.Image}
+                        alt=""
+                        width={56}
+                        height={56}
+                        style={{ borderRadius: 6, objectFit: 'cover' }}
+                      />
+                      <div>
+                        <p
+                          style={{
+                            fontSize: 10.5,
+                            letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                            fontWeight: 600,
+                            color: 'var(--success-700)',
+                          }}
+                        >
+                          História de impacto
+                        </p>
+                        <p style={{ fontWeight: 600, fontSize: 13.5 }}>{story.Title}</p>
+                        <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+                          {story.Description}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

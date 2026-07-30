@@ -11,6 +11,7 @@ import { geoRegionsRouter } from './routes/geo-regions';
 import { healthRouter } from './routes/health';
 import { institutionsRouter } from './routes/institutions';
 import { notificationsRouter } from './routes/notifications';
+import { successStoriesRouter } from './routes/success-stories';
 import { usersRouter } from './routes/users';
 
 const app = express();
@@ -27,6 +28,7 @@ app.use(donorRouter);
 app.use(notificationsRouter);
 app.use(disputesRouter);
 app.use(changeRequestsRouter);
+app.use(successStoriesRouter);
 app.use(errorHandler);
 
 app.listen(env.port, () => {

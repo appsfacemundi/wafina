@@ -9,6 +9,7 @@ import { ClaimedByMeScreen } from '@/screens/ClaimedByMeScreen';
 import { DisputesListScreen } from '@/screens/DisputesListScreen';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { NewDisputeScreen } from '@/screens/NewDisputeScreen';
+import { NewSuccessStoryScreen } from '@/screens/NewSuccessStoryScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
 import { RegisterScreen } from '@/screens/RegisterScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
@@ -35,10 +36,17 @@ export type DisputesStackParamList = {
   NewDispute: { donationId: string };
 };
 
+export type ClaimedByMeStackParamList = {
+  ClaimedByMeList: undefined;
+  NewSuccessStory: { donationId: string };
+};
+
 export type AppTabParamList = {
   Home: undefined;
   AvailableDonations: undefined;
-  ClaimedByMe: undefined;
+  ClaimedByMe:
+    | { screen?: keyof ClaimedByMeStackParamList; params?: ClaimedByMeStackParamList['NewSuccessStory'] }
+    | undefined;
   Disputes: { screen?: keyof DisputesStackParamList; params?: DisputesStackParamList['NewDispute'] } | undefined;
   Notifications: undefined;
   Settings: undefined;
@@ -48,6 +56,7 @@ const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 const VerificationStack = createNativeStackNavigator<VerificationStackParamList>();
 const DisputesStack = createNativeStackNavigator<DisputesStackParamList>();
+const ClaimedByMeStack = createNativeStackNavigator<ClaimedByMeStackParamList>();
 const AppTab = createBottomTabNavigator<AppTabParamList>();
 
 function tabLabel(label: string) {
@@ -69,6 +78,15 @@ function DisputesNavigator() {
       <DisputesStack.Screen name="DisputesList" component={DisputesListScreen} />
       <DisputesStack.Screen name="NewDispute" component={NewDisputeScreen} />
     </DisputesStack.Navigator>
+  );
+}
+
+function ClaimedByMeNavigator() {
+  return (
+    <ClaimedByMeStack.Navigator screenOptions={{ headerShown: false }}>
+      <ClaimedByMeStack.Screen name="ClaimedByMeList" component={ClaimedByMeScreen} />
+      <ClaimedByMeStack.Screen name="NewSuccessStory" component={NewSuccessStoryScreen} />
+    </ClaimedByMeStack.Navigator>
   );
 }
 
@@ -117,7 +135,7 @@ export function RootNavigator() {
           />
           <AppTab.Screen
             name="ClaimedByMe"
-            component={ClaimedByMeScreen}
+            component={ClaimedByMeNavigator}
             options={{ tabBarLabel: tabLabel('Reclamadas') }}
           />
           <AppTab.Screen

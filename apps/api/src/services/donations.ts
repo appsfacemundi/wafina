@@ -205,11 +205,13 @@ export async function claimDonation(institutionId: string, donationId: string): 
   if (!updated) throw new Error('Donation vanished after claim');
 
   // Spec 19 — "Donation claimed" notifies the donor, in-app.
-  await createNotification(
-    updated.Donor_ID,
-    `A sua doação de ${updated.Item_Type} foi reclamada por uma instituição.`,
-    updated.Donation_ID,
-  );
+  await createNotification({
+    recipientUserId: updated.Donor_ID,
+    notificationType: 'donation_claimed',
+    entityType: 'Donation',
+    entityId: updated.Donation_ID,
+    message: `A sua doação de ${updated.Item_Type} foi reclamada por uma instituição.`,
+  });
 
   return updated;
 }
@@ -231,11 +233,13 @@ export async function confirmDelivery(institutionId: string, donationId: string)
   if (!updated) throw new Error('Donation vanished after confirming delivery');
 
   // Spec 19 — "Donation delivered" notifies the donor, in-app.
-  await createNotification(
-    updated.Donor_ID,
-    `A sua doação de ${updated.Item_Type} foi entregue.`,
-    updated.Donation_ID,
-  );
+  await createNotification({
+    recipientUserId: updated.Donor_ID,
+    notificationType: 'donation_delivered',
+    entityType: 'Donation',
+    entityId: updated.Donation_ID,
+    message: `A sua doação de ${updated.Item_Type} foi entregue.`,
+  });
 
   return updated;
 }

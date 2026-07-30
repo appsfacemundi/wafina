@@ -1,18 +1,19 @@
-import { DONATION_STATUS_LABEL, DONATION_STATUS_TONE, type Donation } from '@wafina/shared';
+import { DONATION_STATUS_LABEL, DONATION_STATUS_TONE, type Donation, type SuccessStory } from '@wafina/shared';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
-import { colors, fonts, spacing } from '@/theme/tokens';
+import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 export function MyDonationsScreen() {
   const { firebaseUser, session } = useAuth();
   const insets = useSafeAreaInsets();
   const [donations, setDonations] = useState<Donation[] | null>(null);
+  const [storiesByDonation, setStoriesByDonation] = useState<Map<string, SuccessStory>>(new Map());
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -20,7 +21,12 @@ export function MyDonationsScreen() {
     (async () => {
       try {
         const idToken = await firebaseUser.getIdToken();
-        setDonations(await apiFetch<Donation[]>('/donations/mine', { idToken }));
+        const [donationList, stories] = await Promise.all([
+          apiFetch<Donation[]>('/donations/mine', { idToken }),
+          apiFetch<SuccessStory[]>('/donor/success-stories', { idToken }),
+        ]);
+        setDonations(donationList);
+        setStoriesByDonation(new Map(stories.map((s) => [s.Donation_ID, s])));
       } catch {
         setError('Não foi possível carregar as suas doações.');
       }
@@ -77,17 +83,34 @@ export function MyDonationsScreen() {
         }
         data={donations ?? []}
         keyExtractor={(item) => item.Donation_ID}
-        renderItem={({ item }) => (
-          <Card style={styles.donationRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.itemType}>{item.Item_Type}</Text>
-              <Text style={styles.donationId}>
-                {item.Donation_ID} · Qtd {item.Quantity}
-              </Text>
-            </View>
-            <Badge tone={DONATION_STATUS_TONE[item.Status]}>{DONATION_STATUS_LABEL[item.Status]}</Badge>
-          </Card>
-        )}
+        renderItem={({ item }) => {
+          const story = storiesByDonation.get(item.Donation_ID);
+          return (
+            <Card style={{ marginBottom: spacing[3], gap: spacing[3] }}>
+              <View style={styles.donationRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemType}>{item.Item_Type}</Text>
+                  <Text style={styles.donationId}>
+                    {item.Donation_ID} · Qtd {item.Quantity}
+                  </Text>
+                </View>
+                <Badge tone={DONATION_STATUS_TONE[item.Status]}>{DONATION_STATUS_LABEL[item.Status]}</Badge>
+              </View>
+              {story && (
+                <View style={styles.storyCard}>
+                  <Image source={{ uri: story.Image }} style={styles.storyImage} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.storyLabel}>História de impacto</Text>
+                    <Text style={styles.storyTitle}>{story.Title}</Text>
+                    <Text style={styles.storyDescription} numberOfLines={3}>
+                      {story.Description}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </Card>
+          );
+        }}
       />
     </View>
   );
@@ -148,7 +171,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing[3],
+  },
+  storyCard: {
+    flexDirection: 'row',
+    gap: spacing[3],
+    backgroundColor: colors.successSoft,
+    borderRadius: radius.md,
+    padding: spacing[3],
+  },
+  storyImage: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.sm,
+  },
+  storyLabel: {
+    fontFamily: 'WorkSans-600',
+    fontSize: 10.5,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    color: colors.success,
+  },
+  storyTitle: {
+    fontFamily: 'WorkSans-600',
+    fontSize: 13.5,
+    color: colors.text,
+  },
+  storyDescription: {
+    fontFamily: 'WorkSans-400',
+    fontSize: 12.5,
+    color: colors.textMuted,
   },
   itemType: {
     fontFamily: 'WorkSans-600',

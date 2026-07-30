@@ -1,8 +1,8 @@
 # Project Status - WAFINA Platform
 
-**Last updated:** 2026-07-29
-**Updated by:** Claude Code, after completing Phase 3A Module 1 (Global Multi-Country & Geographic Architecture)
-**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Module 1 (the permanent geographic/country data model) is designed, approved, implemented, and verified against the real production Sheet. Module 2 (Notification Architecture) design is being revised to include newly-requested events before implementation.
+**Last updated:** 2026-07-30
+**Updated by:** Claude Code, after completing Phase 3A Module 2 (Notification Engine + Success Stories MVP)
+**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1 and 2 are both designed, approved, implemented, and verified against the real production Sheet. Ready for the stakeholder's own personal test pass (Web/iOS/Android) before Module 3 starts.
 
 ---
 
@@ -204,19 +204,88 @@ after validation tests, which are designed to throw before any write).
 - Country Configuration (language/currency/transport partners/etc. per country) — explicitly deferred per
   instruction; `Country_ID` is the extension point a future `Country_Config` table would key off.
 
-### Module 2 — Notification Architecture: DESIGN IN PROGRESS
+### Module 2 — Notification Engine + Success Stories MVP: COMPLETE
 
-Original design (2 wired events → complete 7-event matrix) was approved. The same approval message added
-significant new scope (dispute created, change request submitted/approved, corporate invitation
-accepted/member joined, transport volunteer accepted/completed, success story published → notify donor).
-Two of these (transport volunteer, success story) depend on features that don't exist yet in the codebase
-at all (no Transport/Volunteer entity, no Success Stories entity) — revising the design to sequence what's
-immediately buildable against what needs its underlying feature built first, before implementing anything,
-consistent with how BL-1 (the Admin bridge) was already identified as a prerequisite for several events.
+**What changed, why:**
+- **Generic Notification Engine.** `Notifications` was genuinely redesigned, not just extended: `User_ID`
+  → `Recipient_User_ID`, `Read` boolean → `Status` enum (`Pending`/`Delivered`/`Read`/`Failed`), `Date_Created`
+  → `Created_At`, plus new `Notification_Type`, `Entity_Type`/`Entity_ID` (real deep-linking — closes the
+  Phase 3 UX-2 gap), `Priority`, `Delivery_Channel`, `Metadata`. All values are reference vocabularies
+  (`packages/shared/src/enums/notification-fields.ts`), not server-enforced whitelists — the same pattern
+  already used for `ITEM_TYPES`/`CONDITIONS`/`GEO_LEVELS` — so a future event, entity kind, or delivery
+  channel (email/SMS/WhatsApp/push, transport) is pure data, no schema change. `createNotification()` in
+  `apps/api/src/services/notifications.ts` is the single write path every event goes through.
+  `Delivery_Channel` is hardcoded `'in_app'` today — no provider is integrated, per instruction ("do not
+  integrate providers yet").
+- **Newly-wired events** (previously missing entirely): `dispute_created` (self-confirmation to the raiser
+  — before this, raising a dispute gave no acknowledgement at all), `change_request_submitted`
+  (self-confirmation, same gap), `corporate_member_joined` (notifies existing teammates when someone joins
+  via invite code), `success_story_published` (notifies the donor).
+- **`Change_Requests.Status` formalized** as a real enum (`Pending`/`Approved`/`Rejected`,
+  `packages/shared/src/enums/change-request-status.ts`) — was previously an unenumerated string that only
+  ever held `"Pending"`.
+- **Institution approved/rejected/dispute-resolved/change-request-approved notifications are NOT wired** —
+  correctly deferred, since they depend on the Admin→app bridge (Phase 3's BL-1), which doesn't exist yet.
+  Not a gap introduced by this module; already documented as a prerequisite.
+- **Transport volunteer events** — deliberately not built (no Transport/Volunteer entity exists), per the
+  explicit "ensure the architecture will naturally support them later, do not implement now" instruction.
+  The generic `Entity_Type`/`Entity_ID` design means wiring transport in later needs zero notification-schema
+  changes.
+- **Success Stories MVP** (`apps/api/src/routes/success-stories.ts`, `services/success-stories.ts`, new
+  `Success_Stories` Sheet tab): verified institutions only, one photo (reuses the same Drive upload path as
+  donation photos), title + description (length-validated), tied to a specific `Delivered` donation the
+  institution actually delivered (one story per donation, enforced), publishes with `Status=Approved` by
+  default since no Admin Panel exists yet to moderate — the status column/enum
+  (`packages/shared/src/enums/success-story-status.ts`) is ready for that so a future moderation workflow
+  is just an Admin UI + changing the default, not a schema change. Publishing notifies the donor.
+- **Client UI, all 4 apps:** Institution web (`apps/institution/src/app/success-stories/new/page.tsx`) and
+  mobile (`NewSuccessStoryScreen.tsx`, using `expo-image-picker`) both get a "Publicar história" entry point
+  from the Claimed/Delivered donation list, with an inline "published" indicator once one exists. Donor web
+  (`donations/page.tsx`) and mobile (`MyDonationsScreen.tsx`) show the published story inline on the
+  matching donation card. Notification inboxes on all 4 apps updated to the new schema and now deep-link to
+  the actual record via `Entity_Type`/`Entity_ID` instead of a fixed generic screen.
+
+**Database implications:** `Notifications` tab schema genuinely changed (not additive) — the 7 existing
+rows (all real data from already-verified claim/deliver flows) were migrated in place, inferring
+`Notification_Type` from each message's wording (the only two events ever wired before this module). New
+`Success_Stories` tab created, currently empty (0 real stories exist yet — MVP just shipped).
+
+**Verified:**
+- `npm run typecheck` and `npm run lint` clean across all 7 workspaces (re-confirmed after this review).
+- Real, live smoke tests against the migrated production Sheet (prior session): created a real Success
+  Story against a real `Delivered` donation, confirmed the notification fired, confirmed validation rejects
+  duplicate/wrong-institution/non-Delivered attempts, then cleaned up the one test row — verified 0 stray
+  rows remained.
+- This review session independently re-verified the live Sheet state directly (0 `Success_Stories` rows, 7
+  `Notifications` rows, all real — no leftover test data), then did a fresh end-to-end **Web** UI pass: real
+  Firebase sign-up → onboarding (country picker) → Home → Notifications (empty state, no console errors) →
+  Minhas Doações (correctly fetches `/donor/success-stories` alongside donations, renders cleanly). Test
+  account (Firebase user + Sheets row) deleted afterward; confirmed back to 7 real Users rows.
+- Institution web app boots and renders cleanly; the full verified-institution publish flow (register →
+  simulate Admin verification → claim → deliver → publish story) was **not** re-exercised in this review
+  session — the underlying service logic was already live-tested (see above), and doing so again would mean
+  simulating Admin verification against the real Sheet for no new signal. Flagging this as the one openly
+  accepted gap, same spirit as the Android disputes gap already on record.
+- iOS/Android client builds were not run in this review session (no simulator/emulator session was spun up)
+  — typecheck covers both mobile workspaces, but a personal device/simulator pass is recommended before
+  Module 3, per the stakeholder's own test-and-approve process.
+- One-off migration/smoke-test/cleanup scripts used to build and verify this module were deleted after use
+  (`apps/api/scripts/tmp-*module2*.ts`) — they were disposable, already executed, not permanent tooling.
+
+**Not done in this module (explicitly deferred, consistent with Module 1's scoping):**
+- Email/SMS/WhatsApp/push provider integration — architecture is pluggable and ready; no provider chosen or
+  wired, per instruction.
+- Admin→app bridge (institution approved/rejected, dispute resolved, change request approved notifications)
+  — Phase 3's BL-1, not yet built.
+- Success Story Admin moderation — schema/enum ready (`Status` column), no Admin UI exists to act on it;
+  every story auto-publishes as `Approved` today, matching the "simple MVP" instruction.
+- Transport/Volunteer notification events — no underlying entity exists yet; explicitly out of scope per
+  instruction, architecture confirmed generic enough to add later without changes to the engine itself.
 
 ### Modules 3–7: not yet started
-Database hardening, security hardening, UX pass — sequenced after Module 2's design is settled, per the
-stakeholder's explicit module-by-module process.
+Database hardening, security hardening, UX pass — sequenced next, per the stakeholder's explicit
+module-by-module process. Module 3 should start only after the stakeholder has personally tested Module 2
+on Web/iOS/Android and confirmed it works, per `DEVELOPMENT_RULES.md` §12.
 
 ---
 

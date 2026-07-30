@@ -1,5 +1,5 @@
-import { DONATION_STATUS_LABEL, DONATION_STATUS_TONE, type Donation } from '@wafina/shared';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { DONATION_STATUS_LABEL, DONATION_STATUS_TONE, type Donation, type SuccessStory } from '@wafina/shared';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,15 +9,16 @@ import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
-import type { AppTabParamList } from '@/navigation/RootNavigator';
+import type { ClaimedByMeStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
-type Props = BottomTabScreenProps<AppTabParamList, 'ClaimedByMe'>;
+type Props = NativeStackScreenProps<ClaimedByMeStackParamList, 'ClaimedByMeList'>;
 
 export function ClaimedByMeScreen({ navigation }: Props) {
   const { firebaseUser } = useAuth();
   const insets = useSafeAreaInsets();
   const [donations, setDonations] = useState<Donation[] | null>(null);
+  const [storiesByDonation, setStoriesByDonation] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
 
@@ -25,7 +26,12 @@ export function ClaimedByMeScreen({ navigation }: Props) {
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
-      setDonations(await apiFetch<Donation[]>('/donations/claimed-by-me', { idToken }));
+      const [donationList, stories] = await Promise.all([
+        apiFetch<Donation[]>('/donations/claimed-by-me', { idToken }),
+        apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }),
+      ]);
+      setDonations(donationList);
+      setStoriesByDonation(new Set(stories.map((s) => s.Donation_ID)));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as doações.');
     }
@@ -96,7 +102,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
               <Button
                 variant="ghost"
                 onPress={() =>
-                  navigation.navigate('Disputes', {
+                  navigation.getParent()?.navigate('Disputes', {
                     screen: 'NewDispute',
                     params: { donationId: item.Donation_ID },
                   })
@@ -104,6 +110,17 @@ export function ClaimedByMeScreen({ navigation }: Props) {
               >
                 Reportar problema
               </Button>
+              {item.Status === 'Delivered' &&
+                (storiesByDonation.has(item.Donation_ID) ? (
+                  <Text style={styles.storyPublished}>✓ História publicada</Text>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    onPress={() => navigation.navigate('NewSuccessStory', { donationId: item.Donation_ID })}
+                  >
+                    Publicar história
+                  </Button>
+                ))}
             </View>
           </Card>
         )}
@@ -155,6 +172,12 @@ const styles = StyleSheet.create({
     fontFamily: 'WorkSans-600',
     fontSize: 15,
     color: colors.text,
+  },
+  storyPublished: {
+    fontFamily: 'WorkSans-600',
+    fontSize: 12,
+    color: colors.success,
+    alignSelf: 'center',
   },
   mono: {
     fontFamily: fonts.mono,

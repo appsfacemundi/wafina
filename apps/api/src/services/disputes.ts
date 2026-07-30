@@ -4,6 +4,7 @@ import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso } from '../config/sheet-values';
 import { appendRow, getRows } from '../config/sheets';
 import { getDonation } from './donations';
+import { createNotification } from './notifications';
 import { ValidationError } from './validation-error';
 
 const MIN_DESCRIPTION_LENGTH = 10;
@@ -59,7 +60,19 @@ export async function createDispute(
   };
 
   await appendRow(SHEET_TABS.disputes, row);
-  return rowToDispute(row);
+  const dispute = rowToDispute(row);
+
+  // Phase 3A Module 2 — self-confirmation; previously the raiser got no
+  // acknowledgement at all that their dispute was actually recorded.
+  await createNotification({
+    recipientUserId: userId,
+    notificationType: 'dispute_created',
+    entityType: 'Dispute',
+    entityId: dispute.Dispute_ID,
+    message: 'A sua disputa foi registada e será analisada pelo Admin.',
+  });
+
+  return dispute;
 }
 
 /** "My Disputes" (spec 9.2) — Disputes are keyed by Donation_ID, so join through Donations. */

@@ -29,20 +29,31 @@ export function NotificationsScreen({ navigation }: Props) {
     })();
   }, [firebaseUser]);
 
+  // Phase 3A Module 2 — real per-notification deep-linking, using Entity_Type
+  // now that it exists, instead of always navigating to the same fixed screen.
+  function navigateForEntity(n: Notification) {
+    if (n.Entity_Type === 'Corporate_Account') {
+      navigation.navigate('Settings');
+      return;
+    }
+    navigation.navigate('MyDonations');
+  }
+
   async function onOpen(n: Notification) {
-    if (!n.Read) {
+    if (n.Status !== 'Read') {
       try {
         const idToken = await firebaseUser?.getIdToken();
         await apiFetch(`/notifications/${n.Notification_ID}`, { method: 'PATCH', idToken });
         setNotifications(
           (prev) =>
-            prev?.map((x) => (x.Notification_ID === n.Notification_ID ? { ...x, Read: true } : x)) ?? null,
+            prev?.map((x) => (x.Notification_ID === n.Notification_ID ? { ...x, Status: 'Read' } : x)) ??
+            null,
         );
       } catch {
         // Non-critical — still navigate even if marking read failed.
       }
     }
-    navigation.navigate('MyDonations');
+    navigateForEntity(n);
   }
 
   return (
@@ -70,12 +81,12 @@ export function NotificationsScreen({ navigation }: Props) {
         keyExtractor={(item) => item.Notification_ID}
         renderItem={({ item }) => (
           <Pressable style={styles.item} onPress={() => onOpen(item)}>
-            {!item.Read && <View style={styles.dot} />}
+            {item.Status !== 'Read' && <View style={styles.dot} />}
             <View style={{ flex: 1 }}>
-              <Text style={[styles.message, { color: item.Read ? colors.textMuted : colors.text }]}>
+              <Text style={[styles.message, { color: item.Status === 'Read' ? colors.textMuted : colors.text }]}>
                 {item.Message}
               </Text>
-              <Text style={styles.time}>{new Date(item.Date_Created).toLocaleString()}</Text>
+              <Text style={styles.time}>{new Date(item.Created_At).toLocaleString()}</Text>
             </View>
           </Pressable>
         )}

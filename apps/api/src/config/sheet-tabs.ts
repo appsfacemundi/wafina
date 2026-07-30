@@ -12,4 +12,6 @@ export const SHEET_TABS = {
   notifications: 'Notifications',
   /** Phase 3A Module 1 — the permanent geographic model. See packages/shared/src/types/geo-region.ts. */
   geoRegions: 'Geo_Regions',
+  /** Phase 3A Module 2 — MVP. See packages/shared/src/types/success-story.ts. */
+  successStories: 'Success_Stories',
 } as const;

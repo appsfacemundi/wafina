@@ -1,14 +1,31 @@
+import type { EntityType, NotificationPriority, NotificationStatus, NotificationType } from '../enums/notification-fields';
+
 /**
- * Not part of the spec's original data model — AppSheet's reference used its
- * own internal Bot/inbox mechanism, which doesn't carry over since Donor
- * leaves AppSheet. New tab, added when building the Donor Notifications
- * screen (spec 9.1, events per spec 19).
+ * Phase 3A Module 2 — the generic Notification Engine. Replaces the earlier
+ * Donation-only shape (User_ID/Message/Donation_ID/Read) with a model that
+ * covers every entity type Wafina has today and every one it's likely to add
+ * (transport, future providers) without another schema change.
+ *
+ * Message stays a server-rendered, human-readable string rather than a
+ * client-side template keyed off Notification_Type/Metadata — the codebase
+ * has no i18n/template layer yet (a separate, already-tracked gap), and
+ * rendering server-side avoids needing one just for this. Metadata is still
+ * present for exactly that future upgrade: nothing here blocks moving to
+ * client-rendered templates later.
  */
 export interface Notification {
   Notification_ID: string;
-  User_ID: string;
+  Notification_Type: NotificationType;
+  Entity_Type: EntityType;
+  Entity_ID: string;
+  Recipient_User_ID: string;
+  Priority: NotificationPriority;
+  /** Comma-separated; only 'in_app' is ever actually delivered today. */
+  Delivery_Channel: string;
+  Status: NotificationStatus;
   Message: string;
-  Donation_ID: string;
-  Read: boolean;
-  Date_Created: string;
+  /** JSON-encoded extra context (e.g. which field a change request touched). Optional. */
+  Metadata: string | null;
+  Created_At: string;
+  Read_At: string | null;
 }

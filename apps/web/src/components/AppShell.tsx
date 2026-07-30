@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       try {
         const idToken = await firebaseUser.getIdToken();
         const notifications = await apiFetch<Notification[]>('/notifications', { idToken });
-        setUnreadCount(notifications.filter((n) => !n.Read).length);
+        setUnreadCount(notifications.filter((n) => n.Status !== 'Read').length);
       } catch {
         // Non-critical — the badge just stays at its last known count.
       }
