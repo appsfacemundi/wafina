@@ -1,8 +1,8 @@
 # Project Status - WAFINA Platform
 
 **Last updated:** 2026-07-30
-**Updated by:** Claude Code, after completing Phase 3A Module 2 (Notification Engine + Success Stories MVP)
-**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1 and 2 are both designed, approved, implemented, and verified against the real production Sheet. Ready for the stakeholder's own personal test pass (Web/iOS/Android) before Module 3 starts.
+**Updated by:** Claude Code, after completing Phase 3A Module 3 (Country Expansion + Selector UX)
+**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1, 2, and 3 are implemented and verified. The stakeholder issued a new "master prompt" (see below) substantially expanding Phase 3A's scope — it has been broken into Modules 3–9 rather than built as one change, per the stakeholder's own "one module at a time" rule. Three open design decisions from that prompt were resolved with the stakeholder before any implementation began (see "Master Prompt Decisions" below).
 
 ---
 
@@ -282,10 +282,95 @@ rows (all real data from already-verified claim/deliver flows) were migrated in 
 - Transport/Volunteer notification events — no underlying entity exists yet; explicitly out of scope per
   instruction, architecture confirmed generic enough to add later without changes to the engine itself.
 
-### Modules 3–7: not yet started
-Database hardening, security hardening, UX pass — sequenced next, per the stakeholder's explicit
-module-by-module process. Module 3 should start only after the stakeholder has personally tested Module 2
-on Web/iOS/Android and confirmed it works, per `DEVELOPMENT_RULES.md` §12.
+### Stakeholder "Master Prompt" (2026-07-30) — re-scoped Phase 3A roadmap
+
+The stakeholder issued a consolidated brief covering: universal Active-Country filtering as a platform-wide
+rule (§1), CPLP-wide country expansion (§2), a "Coming Soon" country selector (§3), GPS switch behavior
+(§4), a dev-only country simulator (§5), a Home screen Active Country banner (§6), a richer Success Stories
+feature with Admin approval (§7), short human-readable donation codes (§8), institution logos everywhere
+(§9), secure one-time corporate invitations with bulk generation (§11), a corporate impact dashboard (§12),
+and confirmation that institutions stay single-country for V1 (§13). Rather than implement this as one
+sweep, it was broken into Modules 3–9, consistent with the stakeholder's own "one module at a time, verify
+before continuing" rule.
+
+**Three genuinely ambiguous decisions were resolved with the stakeholder before writing any code** (each
+was a real fork found by reading the actual current implementation, not a hypothetical):
+
+1. **Donation short codes** — `Donation_ID` (UUID) stays the internal primary key, untouched. New
+   `Public_Donation_Code` field, format `<CountryCode>-<SequentialNumber>` (e.g. `AO-000001`), unique and
+   never reused per country, shown everywhere user-facing; UUID hidden from normal users. *(Not yet
+   implemented — scheduled for Module 6.)*
+2. **Corporate invitations** — native AppSheet bulk-generation action (Admin runs it manually inside
+   AppSheet), cryptographically random codes, single-use by default but configurable to multi-use, written
+   into a new `Corporate_Invitations` tab. No new Admin REST API — consistent with `DEVELOPMENT_RULES.md`
+   §3 (AppSheet is permanent, never rebuilt). This is a real deviation from `MASTER_SPECIFICATION.md` §13.2
+   (which currently describes one shared company-wide code) — that document needs a matching update
+   alongside the Module 8 implementation, not left silently stale. *(Not yet implemented.)*
+3. **Success Stories Admin approval** — institution publishes → `Status=Pending` (not shown to the donor
+   yet) → Admin flips it to `Approved` directly in the `Success_Stories` Sheet tab (AppSheet) → institution/
+   donor see it once Approved, next time they load the app. No push signal on approval yet — that needs the
+   still-unbuilt Admin→app bridge (Phase 3's BL-1). *(Not yet implemented — scheduled for Module 5, along
+   with the richer story fields §7 asks for: multiple before/after photos, thank-you message, institution
+   logo/name on the story card.)*
+
+### Module 3 — Country Expansion + Selector UX: COMPLETE
+
+Covers master-prompt §2 (CPLP countries), §3 (Coming Soon selector), §4 (GPS prompt — already matched the
+3-option spec, no change needed), §5 (dev country simulator), §6 (Home Active Country banner). Donor-facing
+only (Web + `mobile-donor`) — Active Country is a donor concept; an institution's country is fixed at
+registration (§13), not a personal toggle, so the Institution apps were correctly left untouched here.
+
+**What changed:**
+- `Geo_Regions` now has all 9 CPLP countries in the real production Sheet: Angola (`Active=TRUE`, unchanged)
+  plus Portugal, Brasil, Moçambique, Cabo Verde (already existed) and newly added Guiné-Bissau, São Tomé e
+  Príncipe, Timor-Leste, Guiné Equatorial (all `Active=FALSE`, ready to launch by flipping one flag — pure
+  data, zero code change, exactly Module 1's original design intent).
+- New `GET /geo-regions/all-countries` endpoint (`listAllCountries()` in `geo-regions.ts`) returning every
+  Country-level row regardless of `Active`. The existing `GET /geo-regions/countries` (active-only) is
+  untouched and still backs onboarding, Home Country, and institution registration — those must only ever
+  offer a real, currently-launched country. The two endpoints exist for deliberately different purposes;
+  using the wrong one anywhere would be a real bug, not a style choice.
+- Settings' "País ativo" selector (Web + mobile-donor) now shows all 9 countries: active ones selectable
+  normally, inactive ones labeled "— Brevemente" and disabled (native `<option disabled>` on web,
+  `Picker.Item enabled={false}` on mobile) rather than hidden — no redesign needed the day one launches.
+  "País de origem" (Home Country) deliberately still shows active-only.
+- Home screen (Web + mobile-donor) now shows a "🌍 País ativo" card with the resolved country name.
+- Developer-only "Opções de programador" section in Settings (Web: gated on
+  `process.env.NODE_ENV !== 'production'`; mobile: gated on `__DEV__`) with buttons for the 5 countries
+  `geo-detect.ts` can actually recognize from coordinates (Angola/Portugal/Brasil/Moçambique/Cabo Verde).
+  Clicking one publishes through a tiny pub-sub (`lib/dev-country-simulator.ts`) that `SwitchCountryPrompt`
+  subscribes to — exercises the exact same code path as real GPS, no VPN or fake-location app needed, and
+  the publish side never renders outside a dev build.
+- **A real bug found and fixed during verification, not just this module's new code:** `SwitchCountryPrompt`
+  was only mounted inside the Home screen/tab, so GPS detection (and the new dev simulator) silently did
+  nothing from any other screen. Moved it to `AppShell` (web, wraps every authenticated page) and to
+  `RootNavigator` (mobile, sibling to the tab navigator) so it's present for the whole authenticated session
+  regardless of which tab loads first — a correctness fix, not just a dev-tool fix.
+- **A second pre-existing gap fixed in the same component:** `switchNow()`/`neverAskAgain()` had no error
+  handling — a failed API call left the modal silently stuck with no feedback. Added try/catch and an inline
+  error banner on both platforms (Minor fix, applied per `DEVELOPMENT_RULES.md`'s "implement automatically"
+  guidance for this class of change).
+
+**Verified:** `npm run typecheck` and `npm run lint` clean across all 7 workspaces. Live browser walkthrough
+(Web): fresh sign-up → onboarding (unaffected, still active-only) → Home (banner renders) → Settings
+(confirmed all 9 countries present via the accessibility tree, 8 correctly marked "— Brevemente") → used the
+dev simulator to trigger a real "Portugal detected" modal end-to-end (network trace confirmed the exact
+expected API calls) → confirmed the fix for the AppShell-mounting bug by exercising it from the Settings
+route directly. Server-side validation double-checked by deliberately feeding a fake country ID through the
+switch flow — correctly rejected with `400`, confirming the backend remains the final authority regardless
+of client state. Test account (Firebase user + Sheets row) deleted afterward. Mobile (`mobile-donor`) changes
+mirror the verified web implementation line-for-line and typecheck clean, but were not exercised live in a
+simulator this pass — recommended before moving on, per `DEVELOPMENT_RULES.md` §12.
+
+**Not done in this module (scheduled for later modules per the breakdown above):** Active-Country filtering
+audit across Success Stories/Notifications/future Search-Maps-Statistics (Module 4), Success Stories v2 +
+Admin approval (Module 5), donation short codes (Module 6), institution logos everywhere (Module 7),
+corporate secure invitations (Module 8), corporate dashboard (Module 9).
+
+### Modules 4–9: not yet started
+Sequenced next per the breakdown above. Module 4 should start only after the stakeholder has personally
+tested Module 3 (Web confirmed by Claude this session; iOS/Android and final stakeholder sign-off still
+outstanding) per `DEVELOPMENT_RULES.md` §12.
 
 ---
 

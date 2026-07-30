@@ -16,15 +16,33 @@ function rowToGeoRegion(row: Record<string, string>): GeoRegion {
 }
 
 /**
- * Donor/Institution-facing country picker (onboarding, registration, Settings'
- * Active Country switch). Only Active=TRUE countries are offered — this is the
- * lever that lets Admin "launch" a new market by flipping one flag, no redeploy.
+ * Donor/Institution-facing country picker (onboarding, registration, Home
+ * Country). Only Active=TRUE countries are offered — this is the lever that
+ * lets Admin "launch" a new market by flipping one flag, no redeploy.
  */
 export async function listActiveCountries(): Promise<GeoRegion[]> {
   const rows = await getRows(SHEET_TABS.geoRegions);
   return rows
     .filter((row) => row.Level === 'Country' && fromSheetBool(row.Active ?? ''))
     .map(rowToGeoRegion);
+}
+
+/**
+ * Every Country-level row, active or not — backs the Settings "Active Country"
+ * selector, which shows not-yet-launched countries as "Coming Soon" rather
+ * than hiding them (so the UI needs no redesign the day one launches).
+ * Distinct from listActiveCountries(): this must NEVER be used to validate or
+ * populate a field that requires a real, currently-launched country.
+ */
+export async function listAllCountries(): Promise<GeoRegion[]> {
+  const rows = await getRows(SHEET_TABS.geoRegions);
+  return rows
+    .filter((row) => row.Level === 'Country')
+    .map(rowToGeoRegion)
+    .sort((a, b) => {
+      if (a.Active !== b.Active) return a.Active ? -1 : 1;
+      return a.Name.localeCompare(b.Name, 'pt');
+    });
 }
 
 export async function getRegionById(regionId: string): Promise<GeoRegion | null> {

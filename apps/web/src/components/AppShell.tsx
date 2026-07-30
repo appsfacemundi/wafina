@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
+import { SwitchCountryPrompt } from '@/components/SwitchCountryPrompt';
 import { Button } from '@wafina/ui';
 
 const NAV_ITEMS = [
@@ -37,6 +38,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div>
+      <SwitchCountryPrompt />
       <header className="app-topbar">
         <div className="app-topbar-row">
           <span className="app-mark">

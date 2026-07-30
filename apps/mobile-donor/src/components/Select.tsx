@@ -5,6 +5,8 @@ import { colors, radius, spacing } from '@/theme/tokens';
 interface SelectOption {
   label: string;
   value: string;
+  /** e.g. a "Coming Soon" country not yet launched — still listed, not selectable. Defaults to true. */
+  enabled?: boolean;
 }
 
 interface SelectProps {
@@ -28,7 +30,12 @@ export function Select({ label, value, onValueChange, options }: SelectProps) {
       <View style={styles.pickerWrap}>
         <Picker selectedValue={value} onValueChange={onValueChange}>
           {normalized.map((option) => (
-            <Picker.Item key={option.value} label={option.label} value={option.value} />
+            <Picker.Item
+              key={option.value}
+              label={option.label}
+              value={option.value}
+              enabled={option.enabled ?? true}
+            />
           ))}
         </Picker>
       </View>

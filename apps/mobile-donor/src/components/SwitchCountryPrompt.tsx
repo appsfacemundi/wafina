@@ -2,10 +2,12 @@ import { detectSupportedCountryFromCoords, type GeoRegion } from '@wafina/shared
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
+import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
+import { onSimulatedCountryDetection } from '@/lib/dev-country-simulator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 /**
@@ -17,7 +19,22 @@ import { colors, fonts, radius, spacing } from '@/theme/tokens';
 export function SwitchCountryPrompt() {
   const { firebaseUser, session, refreshSession } = useAuth();
   const [detected, setDetected] = useState<GeoRegion | null>(null);
+  const [actionError, setActionError] = useState('');
   const checkedRef = useRef(false);
+
+  async function checkIsoCode(isoCode: string | null) {
+    if (!isoCode || !session?.activeCountryId) return;
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      const countries = await apiFetch<GeoRegion[]>('/geo-regions/countries', { idToken });
+      const match = countries.find((c) => c.ISO_Code === isoCode);
+      if (match && match.Region_ID !== session.activeCountryId) {
+        setDetected(match);
+      }
+    } catch {
+      // Silent — this is a nice-to-have prompt, never worth surfacing an error for.
+    }
+  }
 
   useEffect(() => {
     if (checkedRef.current) return;
@@ -25,50 +42,58 @@ export function SwitchCountryPrompt() {
     checkedRef.current = true;
 
     (async () => {
-      const { status } = await Location.getForegroundPermissionsAsync();
-      if (status !== 'granted') return; // Don't force a permission prompt just for this.
-
       try {
-        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
-        const isoCode = detectSupportedCountryFromCoords(
-          position.coords.latitude,
-          position.coords.longitude,
-        );
-        if (!isoCode) return;
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== 'granted') return; // Don't force a permission prompt just for this.
 
-        const idToken = await firebaseUser?.getIdToken();
-        const countries = await apiFetch<GeoRegion[]>('/geo-regions/countries', { idToken });
-        const match = countries.find((c) => c.ISO_Code === isoCode);
-        if (match && match.Region_ID !== session.activeCountryId) {
-          setDetected(match);
-        }
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+        await checkIsoCode(
+          detectSupportedCountryFromCoords(position.coords.latitude, position.coords.longitude),
+        );
       } catch {
         // Silent — this is a nice-to-have prompt, never worth surfacing an error for.
       }
     })();
   }, [session, firebaseUser]);
 
+  // Development-only: lets Settings' "Simular País" trigger this exact same
+  // flow without real GPS. The publish side is dev-gated; this subscription
+  // is harmless in production since nothing there ever calls it.
+  useEffect(() => {
+    return onSimulatedCountryDetection((isoCode) => checkIsoCode(isoCode));
+  }, [session, firebaseUser]);
+
   async function switchNow() {
     if (!detected) return;
-    const idToken = await firebaseUser?.getIdToken();
-    await apiFetch('/users/me/active-country', {
-      method: 'PATCH',
-      idToken,
-      body: { countryId: detected.Region_ID },
-    });
-    await refreshSession();
-    setDetected(null);
+    setActionError('');
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/users/me/active-country', {
+        method: 'PATCH',
+        idToken,
+        body: { countryId: detected.Region_ID },
+      });
+      await refreshSession();
+      setDetected(null);
+    } catch {
+      setActionError('Não foi possível mudar de país. Tente novamente em Definições.');
+    }
   }
 
   async function neverAskAgain() {
-    const idToken = await firebaseUser?.getIdToken();
-    await apiFetch('/users/me/switch-preference', {
-      method: 'PATCH',
-      idToken,
-      body: { preference: 'Never_Ask_Automatically' },
-    });
-    await refreshSession();
-    setDetected(null);
+    setActionError('');
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/users/me/switch-preference', {
+        method: 'PATCH',
+        idToken,
+        body: { preference: 'Never_Ask_Automatically' },
+      });
+      await refreshSession();
+      setDetected(null);
+    } catch {
+      setActionError('Não foi possível guardar a preferência. Tente novamente em Definições.');
+    }
   }
 
   if (!detected) return null;
@@ -82,6 +107,7 @@ export function SwitchCountryPrompt() {
             Parece que está atualmente em {detected.Name}. Mudar o seu país ativo para{' '}
             {detected.Name}?
           </Text>
+          {actionError ? <ErrorBanner message={actionError} /> : null}
           <Button onPress={switchNow} fullWidth>
             Mudar agora
           </Button>

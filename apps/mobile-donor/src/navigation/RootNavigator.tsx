@@ -12,6 +12,7 @@ import { OnboardingProfileScreen } from '@/screens/OnboardingProfileScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { SignInScreen } from '@/screens/SignInScreen';
 import { SignUpScreen } from '@/screens/SignUpScreen';
+import { SwitchCountryPrompt } from '@/components/SwitchCountryPrompt';
 import { colors } from '@/theme/tokens';
 
 export type AuthStackParamList = {
@@ -68,6 +69,8 @@ export function RootNavigator() {
           <OnboardingStack.Screen name="OnboardingProfile" component={OnboardingProfileScreen} />
         </OnboardingStack.Navigator>
       ) : (
+        <>
+        <SwitchCountryPrompt />
         <AppTab.Navigator
           screenOptions={{
             headerShown: false,
@@ -97,6 +100,7 @@ export function RootNavigator() {
           />
           <AppTab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: tabLabel('Definições') }} />
         </AppTab.Navigator>
+        </>
       )}
     </NavigationContainer>
   );

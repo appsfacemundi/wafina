@@ -6,6 +6,18 @@ import { Button, Card, Input, Select } from '@wafina/ui';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
+import { simulateCountryDetection } from '@/lib/dev-country-simulator';
+
+const IS_DEV_BUILD = process.env.NODE_ENV !== 'production';
+
+/** The 5 countries geo-detect.ts can actually recognize from coordinates today. */
+const SIMULATABLE_COUNTRIES = [
+  { label: 'Angola', isoCode: 'AO' },
+  { label: 'Portugal', isoCode: 'PT' },
+  { label: 'Brasil', isoCode: 'BR' },
+  { label: 'Moçambique', isoCode: 'MZ' },
+  { label: 'Cabo Verde', isoCode: 'CV' },
+];
 
 interface ProfileData {
   Name: string;
@@ -18,6 +30,7 @@ export default function SettingsPage() {
   const { firebaseUser, refreshSession } = useAuth();
 
   const [countries, setCountries] = useState<GeoRegion[] | null>(null);
+  const [allCountries, setAllCountries] = useState<GeoRegion[] | null>(null);
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [profileError, setProfileError] = useState('');
@@ -38,12 +51,14 @@ export default function SettingsPage() {
     (async () => {
       try {
         const idToken = await firebaseUser.getIdToken();
-        const [profileData, countryList] = await Promise.all([
+        const [profileData, countryList, allCountryList] = await Promise.all([
           apiFetch<ProfileData>('/donor/profile', { idToken }),
           apiFetch<GeoRegion[]>('/geo-regions/countries', { idToken }),
+          apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }),
         ]);
         setProfile(profileData);
         setCountries(countryList);
+        setAllCountries(allCountryList);
       } catch {
         setProfileError('Não foi possível carregar o seu perfil.');
       }
@@ -167,7 +182,7 @@ export default function SettingsPage() {
             Determina quais as instituições e doações que vê. Mudar de país nunca altera doações já
             submetidas.
           </p>
-          {countries && session.activeCountryId && (
+          {allCountries && session.activeCountryId && (
             <div className="stack">
               <Select
                 label="País ativo"
@@ -175,9 +190,9 @@ export default function SettingsPage() {
                 onChange={(e) => onChangeActiveCountry(e.target.value)}
                 disabled={switchingCountry}
               >
-                {countries.map((c) => (
-                  <option key={c.Region_ID} value={c.Region_ID}>
-                    {c.Name}
+                {allCountries.map((c) => (
+                  <option key={c.Region_ID} value={c.Region_ID} disabled={!c.Active}>
+                    {c.Active ? c.Name : `${c.Name} — Brevemente`}
                   </option>
                 ))}
               </Select>
@@ -223,6 +238,27 @@ export default function SettingsPage() {
             </form>
           )}
         </Card>
+
+        {IS_DEV_BUILD && (
+          <Card className="stack">
+            <p style={{ fontWeight: 600 }}>Opções de programador</p>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
+              Simula o país detetado por GPS, sem precisar de VPN ou de uma app de localização falsa.
+              Nunca aparece fora de um build de desenvolvimento.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {SIMULATABLE_COUNTRIES.map((c) => (
+                <Button
+                  key={c.isoCode}
+                  variant="secondary"
+                  onClick={() => simulateCountryDetection(c.isoCode)}
+                >
+                  {c.label}
+                </Button>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     </AppShell>
   );

@@ -9,7 +9,17 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError, apiFetch } from '@/lib/api';
+import { simulateCountryDetection } from '@/lib/dev-country-simulator';
 import { colors, fonts, spacing } from '@/theme/tokens';
+
+/** The 5 countries geo-detect.ts can actually recognize from coordinates today. */
+const SIMULATABLE_COUNTRIES = [
+  { label: 'Angola', isoCode: 'AO' },
+  { label: 'Portugal', isoCode: 'PT' },
+  { label: 'Brasil', isoCode: 'BR' },
+  { label: 'Moçambique', isoCode: 'MZ' },
+  { label: 'Cabo Verde', isoCode: 'CV' },
+];
 
 interface ProfileData {
   Name: string;
@@ -22,6 +32,7 @@ export function SettingsScreen() {
   const insets = useSafeAreaInsets();
 
   const [countries, setCountries] = useState<GeoRegion[] | null>(null);
+  const [allCountries, setAllCountries] = useState<GeoRegion[] | null>(null);
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [profileError, setProfileError] = useState('');
@@ -43,12 +54,14 @@ export function SettingsScreen() {
     (async () => {
       try {
         const idToken = await firebaseUser.getIdToken();
-        const [profileData, countryList] = await Promise.all([
+        const [profileData, countryList, allCountryList] = await Promise.all([
           apiFetch<ProfileData>('/donor/profile', { idToken }),
           apiFetch<GeoRegion[]>('/geo-regions/countries', { idToken }),
+          apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }),
         ]);
         setProfile(profileData);
         setCountries(countryList);
+        setAllCountries(allCountryList);
       } catch {
         setProfileError('Não foi possível carregar o seu perfil.');
       }
@@ -163,13 +176,17 @@ export function SettingsScreen() {
             Determina quais as instituições e doações que vê. Mudar de país nunca altera doações já
             submetidas.
           </Text>
-          {countries && session?.activeCountryId && (
+          {allCountries && session?.activeCountryId && (
             <>
               <Select
                 label="País ativo"
                 value={session.activeCountryId}
                 onValueChange={onChangeActiveCountry}
-                options={countries.map((c) => ({ label: c.Name, value: c.Region_ID }))}
+                options={allCountries.map((c) => ({
+                  label: c.Active ? c.Name : `${c.Name} — Brevemente`,
+                  value: c.Region_ID,
+                  enabled: c.Active,
+                }))}
               />
               {switchingCountry && <Text style={styles.hint}>A mudar de país…</Text>}
               {countryError && <ErrorBanner message={countryError} />}
@@ -206,6 +223,25 @@ export function SettingsScreen() {
             </>
           )}
         </Card>
+
+        {__DEV__ && (
+          <Card style={{ gap: spacing[3] }}>
+            <Text style={styles.cardTitle}>Opções de programador</Text>
+            <Text style={styles.hint}>
+              Simula o país detetado por GPS, sem precisar de VPN ou de uma app de localização
+              falsa. Nunca aparece fora de um build de desenvolvimento.
+            </Text>
+            {SIMULATABLE_COUNTRIES.map((c) => (
+              <Button
+                key={c.isoCode}
+                variant="secondary"
+                onPress={() => simulateCountryDetection(c.isoCode)}
+              >
+                Simular {c.label}
+              </Button>
+            ))}
+          </Card>
+        )}
 
         <Button variant="ghost" onPress={() => signOutUser()}>
           Sair
