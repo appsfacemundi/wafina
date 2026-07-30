@@ -15,6 +15,20 @@ import { notificationsRouter } from './routes/notifications';
 import { successStoriesRouter } from './routes/success-stories';
 import { usersRouter } from './routes/users';
 
+/**
+ * Defense-in-depth (2026-07-30, root-caused incident): every async route
+ * handler and middleware in this app is wrapped in asyncHandler, which
+ * forwards rejections to Express's errorHandler instead of leaving them
+ * unhandled. This is the backstop for anything that isn't — Node's default
+ * behavior on an unhandled rejection is to crash the whole process, which is
+ * exactly what took the API down during heavy testing (a Sheets API 429
+ * thrown inside the then-unwrapped requireAuth middleware). Logging and
+ * surviving is strictly better than a silent, total outage.
+ */
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection (API stayed up):', reason);
+});
+
 const app = express();
 
 app.use(cors({ origin: env.allowedOrigins }));

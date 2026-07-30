@@ -18,8 +18,20 @@ declare global {
 /**
  * Verifies the Firebase ID token on every request and re-resolves Role/Verified
  * from the Users sheet — the client's own claims are never trusted (spec 14.2).
+ *
+ * Wrapped in asyncHandler: this function is mounted directly as middleware on
+ * nearly every route, unlike route handlers which already went through
+ * asyncHandler individually. Before this fix, any rejection here (e.g. a
+ * transient Google Sheets API error) was an unhandled promise rejection that
+ * crashed the entire Node process — confirmed as the root cause of a real
+ * incident (2026-07-30): a Sheets API quota error (429, 60 reads/min/user)
+ * during heavy testing crashed the API mid-session, which looked like "login
+ * suddenly stopped working" from the client, since every request — including
+ * the login call itself — failed with connection-refused until the process
+ * was manually restarted. tsx watch does not restart on runtime crashes, only
+ * file changes, so the outage persisted silently.
  */
-export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+export const requireAuth = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const header = req.headers.authorization;
   const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : null;
 
@@ -57,7 +69,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   req.user = toAuthenticatedUser(uid, userRow);
 
   next();
-}
+});
 
 /** Section 4 permission gate — use after requireAuth. */
 export function requireRole(...roles: Role[]) {

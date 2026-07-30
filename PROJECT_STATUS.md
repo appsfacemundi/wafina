@@ -461,6 +461,48 @@ resolution, change-request approval, institution edit) was added — deliberatel
 
 **Commit:** `b0f0ebd`
 
+### Production Incident — API crash ("login suddenly stopped working"), 2026-07-30: ROOT-CAUSED AND FIXED
+
+Investigated per the stakeholder's explicit request before starting any UX work — root cause found from
+direct evidence (the API's own crash log), not guessed.
+
+**Root cause:** Two Express route handlers were `async` functions mounted directly, without the
+`asyncHandler` wrapper every other handler in the codebase already uses (`asyncHandler`'s own doc comment:
+"Express 4 doesn't catch rejected promises from async handlers"): `requireAuth` in
+`apps/api/src/middleware/auth.ts` (used as middleware on nearly every protected route) and the
+`POST /auth/session` handler in `apps/api/src/routes/auth.ts` — **the login endpoint itself.**
+
+During this session's heavy testing (rapid creation/deletion of many disposable accounts, several apps
+concurrently polling for notifications/countries), the sheer volume of Google Sheets reads hit a real,
+documented Google quota: 60 read requests/minute/user on `sheets.googleapis.com`. When `getRows()` — called
+from `findUserByEmail` inside the unwrapped `requireAuth` — received a `429 RESOURCE_EXHAUSTED` from Google,
+the rejected promise was never caught. Node's default behavior on an unhandled promise rejection is to crash
+the entire process. The API died mid-session; `tsx watch` only restarts on file changes, not runtime
+crashes, so it stayed down silently. From the client, every request — including the login call itself —
+then failed with connection-refused, which is exactly what "login suddenly stopped working" looks like. The
+outage ended only because Claude happened to manually restart the API later for an unrelated reason (an
+`.env` change), without realizing at the time that it also cleared this crash.
+
+**Fix:** Wrapped both `requireAuth` and `POST /auth/session` in `asyncHandler`, matching the pattern already
+used correctly everywhere else in the codebase (confirmed via a full grep — these were the *only* two
+unwrapped async handlers in the entire API). Also added a top-level `process.on('unhandledRejection', ...)`
+logger in `apps/api/src/index.ts` as a defense-in-depth backstop — logs and survives instead of crashing, in
+case anything is ever missed again in the future.
+
+**Not fixed, deliberately out of scope for this investigation:** the *triggering* condition — zero caching
+on Google Sheets reads, so every request re-reads entire tabs from scratch — is a separate, already-known,
+already-documented gap from the Phase 3 review (no caching/pagination/retry anywhere in the Sheets access
+layer). That's real performance-hardening work, not a bug fix; recorded here as a Known Issue rather than
+built speculatively into this investigation.
+
+**Verified:** `npm run typecheck` and `npm run lint` clean across all 8 workspaces. API restarted cleanly.
+Full live login round-trip re-tested (sign-up → `POST /auth/session` → 200 → onboarding) with a disposable
+test account, confirmed working, cleaned up afterward.
+
+**Known Issues / Deferred Items:**
+- Sheets read caching/pagination (Phase 3 finding, unchanged) — the real fix for quota exhaustion happening
+  again under real production load, not just heavy manual testing. Not scheduled into any current module.
+
 ### Modules 5–10: not yet started
 Sequenced next per the breakdown above. Module 5 should start only after the stakeholder has personally
 tested Module 3 (Web confirmed by Claude; iOS/Android and final stakeholder sign-off still outstanding) and
