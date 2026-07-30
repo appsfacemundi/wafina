@@ -1,8 +1,8 @@
 # Project Status - WAFINA Platform
 
-**Last updated:** 2026-07-30
-**Updated by:** Claude Code, after completing Phase 3A Module 3 (Country Expansion + Selector UX)
-**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1, 2, and 3 are implemented; Module 3 is fully verified on Web, mobile (`mobile-donor`) verification still outstanding pending Xcode/Simulator setup on this machine. The stakeholder issued a "master prompt" substantially expanding Phase 3A's scope (Modules 3–9) and, separately the same day, a **Permanent Rules Update** (`DEVELOPMENT_RULES.md` §14) that retires AppSheet from the long-term architecture and tightens the module-completion process (live end-to-end testing of every affected app is now mandatory, not just typecheck/lint). That update supersedes two of the three master-prompt decisions already made — see "Permanent Rules Update" below. Module 4 (Admin Web App Foundation) is now COMPLETE, inserted ahead of the original Module 4 (renumbered to Module 5) per the stakeholder's explicit sequencing choice.
+**Last updated:** 2026-07-31
+**Updated by:** Claude Code, after completing Phase 3A Module 5 (Institution App UX & Workflow Improvements)
+**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1–5 are implemented. The stakeholder has repeatedly inserted new modules ahead of the original Module 5–10 queue based on their own live testing (Module 4: Admin Foundation, unblocking institution verification; Module 5: this UX pass, based on hands-on Institution app testing) — the queue is being resequenced dynamically rather than followed rigidly, which is working as intended. See "Modules 6+" below for the current queue.
 
 ---
 
@@ -503,10 +503,125 @@ test account, confirmed working, cleaned up afterward.
 - Sheets read caching/pagination (Phase 3 finding, unchanged) — the real fix for quota exhaustion happening
   again under real production load, not just heavy manual testing. Not scheduled into any current module.
 
-### Modules 5–10: not yet started
-Sequenced next per the breakdown above. Module 5 should start only after the stakeholder has personally
-tested Module 3 (Web confirmed by Claude; iOS/Android and final stakeholder sign-off still outstanding) and
-Module 4 (Admin Web App Foundation, live-tested by Claude this session per the process above) per
+### Module 5 — Institution App UX & Workflow Improvements: COMPLETE
+
+Inserted ahead of the original queue per explicit stakeholder instruction, driven by their own hands-on
+Institution app testing. Absorbs and completes what was previously queued as "Module 7 (donation short
+codes)" and "Module 8 (institution logos everywhere)" — those are no longer separate future modules, they
+shipped here. One sub-item (new Donation workflow states + Expected Delivery Date) was deliberately split
+out into its own next module after a stakeholder decision — see Known Issues below.
+
+**What was implemented:**
+
+*Terminology (institution-facing, plus donor-facing surfaces using the same underlying concepts for
+platform-wide consistency):* "Reclamar"/"Reclamadas por Mim" → "Aceitar Doação"/"Doações Aceites"
+throughout — nav labels, buttons, page titles, empty states, error messages, the shared
+`DONATION_STATUS_LABEL` badge (`Claimed` now reads "Aceite" everywhere it's shown, donor and institution
+side), and the donor-facing `donation_claimed` notification text. "Disputa"/"Disputas" →
+"Ocorrência"/"Ocorrências" throughout, same breadth — including the self-confirmation notification text.
+Internal names unchanged (routes, `Dispute` type, `Donation_ID`, `Status: 'Claimed'`) — only user-facing
+Portuguese text changed, deliberately, to avoid an unnecessary/risky rename of stable API contracts.
+
+*Public Donation Code (was planned as Module 7):* new `Public_Donation_Code` field on `Donations`
+(`<CountryCode>-<SequentialNumber>`, e.g. `AO-000125`), generated at creation from the current max per
+country (a documented, accepted small-race-window tradeoff, same class as `claimDonation`'s existing one —
+proportionate to V1 write volume, not a high-concurrency system). `Donation_ID` (UUID) stays the internal
+primary key and is now confirmed **never shown anywhere** — this required fixing 6 real remaining raw-UUID
+displays found only during live testing (donor `Minhas Doações` on both platforms, institution "Comunicar
+Ocorrência"/"Publicar história" forms, and the institution's own Ocorrências list) beyond the ones
+originally anticipated. All 25 real existing donations backfilled in original Sheet order (already
+chronological).
+
+*Donation cards, visual redesign:* Available/Aceites lists (Web + `mobile-institution`) now show a large
+photo, title (`Item_Type`), Public Donation Code, quantity, condition, city + country with a "Ver no mapa"
+link (opens the existing `Location` lat/lng in Google Maps — no new map dependency added), publish date
+("Publicado há N dias"), and the donor's name/logo when available. New `daysAgoLabel()` helper in
+`packages/shared`.
+
+*Donor identity on cards (new privacy-aware feature, not just display):* new `Users.Show_Name_To_Institutions`
+boolean, **defaults FALSE** (opt-in, the safer default for a personal-privacy flag) — a Donor Settings toggle
+("Privacidade" card, Web + `mobile-donor`) controls it. Corporate donors are unaffected by this flag: their
+donations always show the company name (and logo, once set) instead, since that's institutional identity,
+not personal — new `CorporateAccounts.Logo` field, schema/display-ready, no upload UI yet (Corporate accounts
+are Admin-provisioned, not self-service; setting a logo is a future Admin action, not scoped here). Resolved
+server-side via a new batched `resolveDonorDisplays()` — exactly 2 extra Sheets reads *total* per list
+request regardless of list size, a deliberate choice given this codebase just had a real quota-exhaustion
+incident from excess reads (see the Login Investigation entry above) — an N+1-per-donation lookup would have
+made that risk worse, not just slower.
+
+*Institution logo upload (was planned as part of Module 8):* `Institutions.Logo` existed in the schema since
+Module 1 with zero write path — confirmed via code read, not assumed. New `PATCH /institutions/me/logo`
+(reuses the same Drive upload path as donation/success-story photos), respecting the exact same field-lock
+rule every other profile field already follows (blocked once `Locked_Fields` includes `Logo`, i.e. after
+verification without an Admin-granted unlock). New upload UI in Institution Settings, Web + mobile, with a
+locked-state message when applicable. `useOwnInstitution()` (web) gained a `refetch()` — it didn't have one;
+mobile's version already did from an earlier session's fix.
+
+*Institution identity on donor-facing surfaces:* the donor-facing Institutions browse list (Web +
+`mobile-donor`) now actually renders the `Logo` it already fetched but never displayed, plus the
+institution's country. Success Story/Notification institution-attribution surfaces were not touched — see
+Known Issues.
+
+*General UX polish:* folded into the card redesign above (larger photos, consistent spacing, no separate
+pass needed) rather than built as a distinct step.
+
+**Login investigation:** see the dedicated entry above (same day, done first per explicit instruction) —
+root-caused to two unwrapped async Express handlers, not a login-specific bug at all.
+
+**Database implications:** Additive only. `Donations` gained `Public_Donation_Code` and `City` columns
+(both added to the real Sheet, `Public_Donation_Code` backfilled for all 25 existing rows). `Users` gained
+`Show_Name_To_Institutions`. `Corporate_Accounts` gained `Logo`. No existing column changed meaning.
+
+**Verified (live, per the module-completion rule):** API, Web Donor, Web Institution all running together
+throughout. Full real lifecycle exercised with disposable test accounts: donor signs up → submits a donation
+(via the real `createDonation` path, confirming `AO-000026` generated correctly) → institution (verified via
+the same `verifyInstitution` path Module 4 built) sees the new visual card exactly as designed → "Aceitar
+Doação" → card moves to "Doações Aceites" with the "Aceite" badge → "Comunicar Ocorrência" submitted and
+confirmed showing the public code, not the UUID (the fix described above) → "Confirmar entrega" → "Entregue"
+→ donor's Notifications show the new "aceite"/"entregue" wording. Separately: donor toggled "Mostrar o meu
+nome às instituições" live and confirmed the institution's card updated to show the donor's name. Institution
+logo upload tested twice: once through the live UI confirming a *verified* institution's logo is correctly
+**locked** (proves the lock check works), and once via the actual upload pipeline (real Drive upload +
+Sheet update) against a fresh *unverified* test institution to confirm the success path. All disposable
+accounts/rows deleted afterward; confirmed real data back to exactly 10 Users / 5 Institutions / 25
+Donations / 7 Disputes / 11 Notifications. `npm run typecheck` and `npm run lint` clean across all 8
+workspaces throughout. Mobile (`mobile-institution`/`mobile-donor`) changes mirror the verified web
+implementation and typecheck clean, but weren't exercised live in a simulator this pass (same outstanding
+Xcode/Simulator gap as Module 3).
+
+**Not done in this module — explicitly deferred, not built speculatively:**
+- New Donation workflow states (`Collection Scheduled`, `Collected`) and Expected Delivery Date — the
+  stakeholder chose to split this into its own next module rather than bundle it here (see Known Issues).
+- A full "View Details" screen with description/pickup-instructions/donor-notes/contact-info — none of
+  those fields exist anywhere, not even in the donation submission form. Building a details screen around
+  non-existent data would mean faking it; only the one genuinely real missing piece (a map link) was added
+  instead. Recorded as a Known Issue, not invented.
+- Institution identity on Success Story cards and Notification entries referencing an institution — not
+  touched this pass, given everything else already in scope.
+- Corporate logo upload UI — schema/display-ready only; Corporate accounts are Admin-provisioned, not
+  self-service, so this is a future Admin action.
+
+**Known Issues / Deferred Items:**
+- **Next module, by explicit stakeholder decision:** new Donation workflow states (`Collection Scheduled`,
+  `Collected` — inserted between `Claimed` and `Delivered`) plus Expected Delivery Date (Admin-set, with
+  notifications to both parties on change). This needs a new Admin donation-scheduling screen (the Admin
+  Web App currently only has institution verification) and new notification wiring for each transition.
+- "View Details" screen fields that don't exist anywhere yet: full description (beyond `Item_Type`),
+  multiple photos, pickup instructions, donor notes, donor contact info (with a permission model). None of
+  these are collected at donation-submission time either — building the screen would need the submission
+  form extended first.
+- Institution identity (logo/name/verified badge) not yet added to Success Story cards or to Notification
+  list entries that reference an institution.
+- Corporate donor logo has no upload UI yet (Admin-provisioned accounts, future Admin action).
+
+**Commit:** (recorded after this entry is committed — see below)
+
+### Modules 6+: not yet started
+Sequenced dynamically based on stakeholder priority rather than a fixed order — Module 4 and Module 5 both
+jumped the original queue by explicit instruction. Known upcoming work: Donation Workflow States + Expected
+Delivery Date (the split-off from this module); Active-Country filtering audit across Success
+Stories/Notifications; Success Stories v2 + Admin approval; corporate secure invitations; corporate
+dashboard. Next module starts only after the stakeholder has personally tested Module 5 per
 `DEVELOPMENT_RULES.md` §14.
 
 ---

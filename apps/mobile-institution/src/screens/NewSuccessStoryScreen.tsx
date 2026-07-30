@@ -18,7 +18,7 @@ const MAX_DESCRIPTION_LENGTH = 600;
 type Props = NativeStackScreenProps<ClaimedByMeStackParamList, 'NewSuccessStory'>;
 
 export function NewSuccessStoryScreen({ route, navigation }: Props) {
-  const { donationId } = route.params;
+  const { donationId, publicCode } = route.params;
   const { firebaseUser } = useAuth();
   const insets = useSafeAreaInsets();
 
@@ -90,7 +90,7 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
         <Card style={{ gap: spacing[4] }}>
           <Text style={styles.title}>Publicar história de impacto</Text>
-          <Text style={styles.mono}>Doação: {donationId}</Text>
+          <Text style={styles.mono}>Doação: {publicCode}</Text>
           <Input label="Título" value={title} onChangeText={setTitle} hint={`${title.length}/${MAX_TITLE_LENGTH}`} />
           <Input
             label="Descrição"

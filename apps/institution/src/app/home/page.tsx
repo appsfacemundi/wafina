@@ -51,7 +51,7 @@ export default function HomePage() {
           </Card>
           <Card className="stack">
             <p style={{ fontSize: 28, fontWeight: 700 }}>{stats ? stats.claimed : '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Reclamadas por entregar</p>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Aceites por entregar</p>
           </Card>
           <Card className="stack">
             <p style={{ fontSize: 28, fontWeight: 700 }}>{stats ? stats.delivered : '—'}</p>

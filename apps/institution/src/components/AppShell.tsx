@@ -8,8 +8,8 @@ import { useAuth } from '@/context/AuthContext';
 const NAV_ITEMS = [
   { href: '/home', label: 'Início' },
   { href: '/donations/available', label: 'Doações Disponíveis' },
-  { href: '/donations/claimed', label: 'Reclamadas por Mim' },
-  { href: '/disputes', label: 'Disputas' },
+  { href: '/donations/claimed', label: 'Doações Aceites' },
+  { href: '/disputes', label: 'Ocorrências' },
   { href: '/notifications', label: 'Notificações' },
   { href: '/settings', label: 'Definições' },
 ];

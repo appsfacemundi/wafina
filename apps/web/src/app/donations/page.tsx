@@ -66,7 +66,7 @@ export default function DonationsPage() {
             </Card>
             <Card className="stack">
               <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.claimed}</p>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Reclamadas</p>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Aceites</p>
             </Card>
             <Card className="stack">
               <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.delivered}</p>
@@ -97,7 +97,7 @@ export default function DonationsPage() {
                     <div>
                       <p style={{ fontWeight: 600 }}>{d.Item_Type}</p>
                       <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
-                        {d.Donation_ID} · Qtd {d.Quantity}
+                        {d.Public_Donation_Code} · Qtd {d.Quantity}
                       </p>
                     </div>
                     <Badge tone={DONATION_STATUS_TONE[d.Status]}>

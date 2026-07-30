@@ -23,6 +23,7 @@ function NewDisputeForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const donationId = searchParams.get('donationId') ?? '';
+  const code = searchParams.get('code') ?? '';
   const fieldId = useId();
 
   const [description, setDescription] = useState('');
@@ -33,7 +34,7 @@ function NewDisputeForm() {
     e.preventDefault();
     setError('');
     if (description.trim().length < MIN_LENGTH) {
-      setError(`Descreva o problema com pelo menos ${MIN_LENGTH} caracteres.`);
+      setError(`Descreva a ocorrência com pelo menos ${MIN_LENGTH} caracteres.`);
       return;
     }
     setSubmitting(true);
@@ -46,7 +47,7 @@ function NewDisputeForm() {
       });
       router.push('/disputes');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível enviar a disputa.');
+      setError(err instanceof ApiError ? err.message : 'Não foi possível enviar a ocorrência.');
     } finally {
       setSubmitting(false);
     }
@@ -57,14 +58,16 @@ function NewDisputeForm() {
   return (
     <AppShell>
       <div className="stack" style={{ maxWidth: 480 }}>
-        <h1 style={{ fontSize: 24 }}>Reportar problema</h1>
+        <h1 style={{ fontSize: 24 }}>Comunicar Ocorrência</h1>
         <Card className="stack">
-          <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
-            Doação: {donationId}
-          </p>
+          {code && (
+            <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
+              Doação: {code}
+            </p>
+          )}
           <form className="stack" onSubmit={onSubmit}>
             <div className="field">
-              <label htmlFor={fieldId}>Descrição do problema</label>
+              <label htmlFor={fieldId}>Descrição da ocorrência</label>
               <textarea
                 id={fieldId}
                 className="input"
@@ -75,7 +78,7 @@ function NewDisputeForm() {
             </div>
             {error && <div className="banner banner-error">{error}</div>}
             <Button type="submit" fullWidth disabled={submitting}>
-              {submitting ? 'A enviar…' : 'Enviar disputa'}
+              {submitting ? 'A enviar…' : 'Comunicar Ocorrência'}
             </Button>
           </form>
         </Card>

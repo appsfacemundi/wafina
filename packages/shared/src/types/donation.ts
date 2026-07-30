@@ -3,6 +3,13 @@ import type { GeoPoint } from './geo-point';
 
 export interface Donation {
   Donation_ID: string;
+  /**
+   * Institution UX module (2026-07-30) — the only donation identifier ever
+   * shown to end users. Format `<CountryCode>-<SequentialNumber>` (e.g.
+   * `AO-000125`), unique and never reused per country. Donation_ID (the UUID)
+   * remains the internal primary key and is never displayed.
+   */
+  Public_Donation_Code: string;
   Donor_ID: string;
   /**
    * Fixed/hidden value reserved for a future monetary-donation phase (spec 5.3.2).
@@ -32,4 +39,27 @@ export interface Donation {
    * another country in reports just because the donor's current setting changed.
    */
   Country_ID: string;
+  /**
+   * Institution UX module — simple donor-entered free text (e.g. "Luanda").
+   * Not a Geo_Regions Region_ID: no Province/Municipality-level data exists
+   * yet for any country (Module 1), so a real geographic hierarchy would be
+   * pure speculation. Free text gets the donation card 90% of the value
+   * ("where is this?") without inventing a geocoding system or a data-entry
+   * project that has no rows to populate it with today.
+   */
+  City: string | null;
+}
+
+/**
+ * Institution-facing donation view (Institution UX module) — the same
+ * Donation plus a resolved, privacy-aware donor identity. Only ever returned
+ * from institution-facing endpoints (available/claimed-by-me), never stored:
+ * Donor_Display_Name/Logo are derived fresh from Users/Corporate_Accounts,
+ * respecting Users.Show_Name_To_Institutions for individual donors and always
+ * showing the company name/logo for Corporate donors (institutional identity,
+ * not personal, so not gated by that flag).
+ */
+export interface InstitutionDonationView extends Donation {
+  Donor_Display_Name: string | null;
+  Donor_Display_Logo: string | null;
 }

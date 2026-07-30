@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import type { Donation, DonationStatus } from '@wafina/shared';
+import type { Donation, DonationStatus, InstitutionDonationView } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetLatLong, nowIso, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
+import { getRegionById } from './geo-regions';
 import { createNotification } from './notifications';
 import { listUserIdsByCorporateAccount } from './users';
 import { ValidationError } from './validation-error';
@@ -18,6 +19,7 @@ const DONATION_TYPE_PHYSICAL_GOODS = 'Bens';
 function rowToDonation(row: Record<string, string>): Donation {
   return {
     Donation_ID: row.Donation_ID,
+    Public_Donation_Code: row.Public_Donation_Code,
     Donor_ID: row.Donor_ID,
     Donation_Type: row.Donation_Type,
     Item_Type: row.Item_Type,
@@ -31,7 +33,31 @@ function rowToDonation(row: Record<string, string>): Donation {
     Date_Claimed: row.Date_Claimed || null,
     Date_Delivered: row.Date_Delivered || null,
     Country_ID: row.Country_ID,
+    City: row.City || null,
   };
+}
+
+/**
+ * Sequential per-country code (e.g. AO-000125), the only donation identifier
+ * ever shown to end users — Donation_ID (the UUID) stays internal. Sheets has
+ * no atomic counter, so this reads the current max and increments — the same
+ * accepted small-race-window tradeoff already documented on claimDonation,
+ * proportionate to V1's expected write volume (not a high-concurrency system).
+ */
+async function generatePublicDonationCode(countryId: string): Promise<string> {
+  const country = await getRegionById(countryId);
+  if (!country?.ISO_Code) {
+    throw new Error(`Country ${countryId} has no ISO_Code — cannot generate a donation code`);
+  }
+  const prefix = `${country.ISO_Code}-`;
+  const rows = await getRows(SHEET_TABS.donations);
+  const maxSeq = rows.reduce((max, row) => {
+    const code = row.Public_Donation_Code ?? '';
+    if (!code.startsWith(prefix)) return max;
+    const num = Number(code.slice(prefix.length));
+    return Number.isFinite(num) && num > max ? num : max;
+  }, 0);
+  return `${prefix}${String(maxSeq + 1).padStart(6, '0')}`;
 }
 
 function assertValidLocation(location: { lat: number; lng: number }): void {
@@ -59,6 +85,8 @@ export interface CreateDonationInput {
   Condition: string;
   Photo: string;
   Location: { lat: number; lng: number };
+  /** Free text, optional (e.g. "Luanda") — see the City field comment on the shared Donation type. */
+  City?: string;
 }
 
 /**
@@ -96,6 +124,7 @@ export async function createDonation(
 
   const row = {
     Donation_ID: randomUUID(),
+    Public_Donation_Code: await generatePublicDonationCode(activeCountryId),
     Donor_ID: donorId,
     Donation_Type: DONATION_TYPE_PHYSICAL_GOODS,
     Item_Type: input.Item_Type,
@@ -109,6 +138,7 @@ export async function createDonation(
     Claimed_By_Institution_ID: '',
     Date_Delivered: '',
     Country_ID: activeCountryId,
+    City: input.City?.trim() ?? '',
   };
 
   await appendRow(SHEET_TABS.donations, row);
@@ -133,6 +163,60 @@ export async function listDonationsByCorporateAccount(corporateAccountId: string
 }
 
 /**
+ * Institution UX module — resolves a privacy-aware donor identity for a batch
+ * of donations in exactly 2 extra Sheets reads total (Users + Corporate_Accounts),
+ * regardless of list size. Deliberately batched rather than one lookup per
+ * donation: this codebase just had a real production incident from excess
+ * Sheets reads (see PROJECT_STATUS.md, 2026-07-30) — an N+1 pattern here would
+ * make that worse, not just slow.
+ */
+async function resolveDonorDisplays(
+  donorIds: Iterable<string>,
+): Promise<Map<string, { name: string | null; logo: string | null }>> {
+  const [userRows, corpRows] = await Promise.all([
+    getRows(SHEET_TABS.users),
+    getRows(SHEET_TABS.corporateAccounts),
+  ]);
+  const userById = new Map(userRows.map((u) => [u.User_ID, u]));
+  const corpById = new Map(corpRows.map((c) => [c.Corporate_Account_ID, c]));
+
+  const result = new Map<string, { name: string | null; logo: string | null }>();
+  for (const donorId of donorIds) {
+    const donor = userById.get(donorId);
+    if (!donor) {
+      result.set(donorId, { name: null, logo: null });
+      continue;
+    }
+    if (donor.Donor_Subtype === 'Corporate' && donor.Corporate_Account_ID) {
+      const corp = corpById.get(donor.Corporate_Account_ID);
+      if (corp) {
+        result.set(donorId, { name: corp.Company_Name || null, logo: corp.Logo || null });
+        continue;
+      }
+    }
+    result.set(donorId, {
+      name: donor.Show_Name_To_Institutions === 'TRUE' ? donor.Name || null : null,
+      logo: null,
+    });
+  }
+  return result;
+}
+
+async function toInstitutionDonationViews(
+  rows: Record<string, string>[],
+): Promise<InstitutionDonationView[]> {
+  const displays = await resolveDonorDisplays(new Set(rows.map((r) => r.Donor_ID)));
+  return rows.map((row) => {
+    const display = displays.get(row.Donor_ID) ?? { name: null, logo: null };
+    return {
+      ...rowToDonation(row),
+      Donor_Display_Name: display.name,
+      Donor_Display_Logo: display.logo,
+    };
+  });
+}
+
+/**
  * "Available Donations" browse for verified institutions (spec 9.2). Phase 3A
  * Module 1: scoped to the claiming institution's own operating country
  * (Institutions.Country_ID) — an Angola institution has no reason to see, and
@@ -141,19 +225,21 @@ export async function listDonationsByCorporateAccount(corporateAccountId: string
  * since an institution's operating country is a fixed operational fact, not
  * something the browsing user should toggle.
  */
-export async function listAvailableDonations(countryId?: string): Promise<Donation[]> {
+export async function listAvailableDonations(countryId?: string): Promise<InstitutionDonationView[]> {
   const rows = await getRows(SHEET_TABS.donations);
-  return rows
-    .filter((row) => row.Status === 'Pending' && (!countryId || row.Country_ID === countryId))
-    .map(rowToDonation);
+  const filtered = rows.filter(
+    (row) => row.Status === 'Pending' && (!countryId || row.Country_ID === countryId),
+  );
+  return toInstitutionDonationViews(filtered);
 }
 
 /** "Claimed by Me" (spec 9.2) — includes both Claimed and Delivered so history isn't lost. */
-export async function listDonationsClaimedByInstitution(institutionId: string): Promise<Donation[]> {
+export async function listDonationsClaimedByInstitution(
+  institutionId: string,
+): Promise<InstitutionDonationView[]> {
   const rows = await getRows(SHEET_TABS.donations);
-  return rows
-    .filter((row) => row.Claimed_By_Institution_ID === institutionId)
-    .map(rowToDonation);
+  const filtered = rows.filter((row) => row.Claimed_By_Institution_ID === institutionId);
+  return toInstitutionDonationViews(filtered);
 }
 
 /** Donor may edit their own donation only while it's still Pending (spec 11.1.2). */
@@ -178,6 +264,7 @@ export async function editDonation(
   if (patch.Condition !== undefined) rowPatch.Condition = patch.Condition;
   if (patch.Photo !== undefined) rowPatch.Photo = patch.Photo;
   if (patch.Location !== undefined) rowPatch.Location = toSheetLatLong(patch.Location);
+  if (patch.City !== undefined) rowPatch.City = patch.City?.trim() ?? '';
 
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, rowPatch);
   const updated = await getDonation(donationId);
@@ -210,7 +297,7 @@ export async function claimDonation(institutionId: string, donationId: string): 
     notificationType: 'donation_claimed',
     entityType: 'Donation',
     entityId: updated.Donation_ID,
-    message: `A sua doação de ${updated.Item_Type} foi reclamada por uma instituição.`,
+    message: `A sua doação de ${updated.Item_Type} foi aceite por uma instituição.`,
   });
 
   return updated;

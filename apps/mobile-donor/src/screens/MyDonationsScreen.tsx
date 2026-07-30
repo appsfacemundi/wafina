@@ -57,7 +57,7 @@ export function MyDonationsScreen() {
                   ['Doações da empresa', stats.total],
                   ['Itens doados (total)', stats.quantity],
                   ['Pendentes', stats.pending],
-                  ['Reclamadas', stats.claimed],
+                  ['Aceites', stats.claimed],
                   ['Entregues', stats.delivered],
                 ].map(([label, value]) => (
                   <Card key={label as string} style={styles.statCard}>
@@ -91,7 +91,7 @@ export function MyDonationsScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemType}>{item.Item_Type}</Text>
                   <Text style={styles.donationId}>
-                    {item.Donation_ID} · Qtd {item.Quantity}
+                    {item.Public_Donation_Code} · Qtd {item.Quantity}
                   </Text>
                 </View>
                 <Badge tone={DONATION_STATUS_TONE[item.Status]}>{DONATION_STATUS_LABEL[item.Status]}</Badge>

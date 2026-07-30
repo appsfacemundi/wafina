@@ -69,7 +69,7 @@ export async function createDispute(
     notificationType: 'dispute_created',
     entityType: 'Dispute',
     entityId: dispute.Dispute_ID,
-    message: 'A sua disputa foi registada e será analisada pelo Admin.',
+    message: 'A sua ocorrência foi registada e será analisada pelo Admin.',
   });
 
   return dispute;

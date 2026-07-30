@@ -53,7 +53,7 @@ export function HomeScreen() {
         </Card>
         <Card style={styles.statCard}>
           <Text style={styles.statValue}>{stats ? stats.claimed : '—'}</Text>
-          <Text style={styles.statLabel}>Reclamadas por entregar</Text>
+          <Text style={styles.statLabel}>Aceites por entregar</Text>
         </Card>
         <Card style={styles.statCard}>
           <Text style={styles.statValue}>{stats ? stats.delivered : '—'}</Text>

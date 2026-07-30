@@ -1,7 +1,7 @@
 'use client';
 
 import { Badge, Button, Card, Select } from '@wafina/ui';
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
@@ -20,7 +20,7 @@ const FIELD_LABEL: Record<string, string> = {
 export default function SettingsPage() {
   const session = useRequireSession();
   const { firebaseUser, signOutUser } = useAuth();
-  const { institution, loading } = useOwnInstitution();
+  const { institution, loading, refetch } = useOwnInstitution();
   const reasonId = useId();
 
   const [field, setField] = useState('');
@@ -28,6 +28,10 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const [logoError, setLogoError] = useState('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -59,6 +63,27 @@ export default function SettingsPage() {
     }
   }
 
+  async function onUploadLogo(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setLogoError('');
+    setUploadingLogo(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      const form = new FormData();
+      form.append('logo', file);
+      await apiFetch('/institutions/me/logo', { method: 'PATCH', idToken, body: form });
+      await refetch();
+    } catch (err) {
+      setLogoError(err instanceof ApiError ? err.message : 'Não foi possível enviar o logótipo.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
+  const logoLocked = institution?.Locked_Fields.includes('Logo') ?? false;
+
   if (!session || loading) return null;
 
   return (
@@ -67,7 +92,60 @@ export default function SettingsPage() {
         <h1 style={{ fontSize: 24 }}>Definições</h1>
 
         <Card className="stack">
-          <p style={{ fontWeight: 600 }}>{institution?.Name}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {institution?.Logo ? (
+              <img
+                src={institution.Logo}
+                alt=""
+                style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover' }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 12,
+                  background: 'var(--color-surface-2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--color-text-faint)',
+                  fontSize: 11,
+                  textAlign: 'center',
+                }}
+              >
+                Sem logótipo
+              </div>
+            )}
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: 600 }}>{institution?.Name}</p>
+              {institution?.Verified && <Badge tone="success">Verificado</Badge>}
+            </div>
+          </div>
+          {logoLocked ? (
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 12.5 }}>
+              O logótipo está bloqueado. Peça uma alteração abaixo para o mudar.
+            </p>
+          ) : (
+            <>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={onUploadLogo}
+              />
+              <Button
+                variant="secondary"
+                type="button"
+                disabled={uploadingLogo}
+                onClick={() => logoInputRef.current?.click()}
+              >
+                {uploadingLogo ? 'A enviar…' : institution?.Logo ? 'Alterar logótipo' : 'Adicionar logótipo'}
+              </Button>
+              {logoError && <div className="banner banner-error">{logoError}</div>}
+            </>
+          )}
           <p style={{ color: 'var(--color-text-muted)' }}>{session.email}</p>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Tipo: {institution?.Type}</p>
           {institution?.Needs_List && (
@@ -75,7 +153,6 @@ export default function SettingsPage() {
               Necessidades: {institution.Needs_List}
             </p>
           )}
-          {institution?.Verified && <Badge tone="success">Verificado</Badge>}
         </Card>
 
         <Card className="stack">

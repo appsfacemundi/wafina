@@ -179,6 +179,28 @@ export async function verifyInstitution(institutionId: string): Promise<Institut
   return institution;
 }
 
+/**
+ * Institution UX module — logo upload, the piece "Identity Everywhere" needed
+ * that never had a write path before (Logo existed in the schema since Module
+ * 1's original design, but this service deliberately exposed no update
+ * function at all). Respects the same field-lock rule every other profile
+ * field already follows: allowed while Logo isn't in Locked_Fields (true
+ * before verification, and after an Admin-granted Change Request unlock),
+ * blocked once verification has locked it — same rule, just finally usable.
+ */
+export async function updateInstitutionLogo(institutionId: string, logoUrl: string): Promise<Institution> {
+  const institution = await getInstitutionById(institutionId);
+  if (!institution) throw new ValidationError('Institution not found');
+  if (institution.Locked_Fields.includes('Logo')) {
+    throw new ValidationError('Logo is locked — request a change via "Pedir Alteração"');
+  }
+
+  await updateRow(SHEET_TABS.institutions, 'Institution_ID', institutionId, { Logo: logoUrl });
+  const updated = await getInstitutionById(institutionId);
+  if (!updated) throw new Error('Institution vanished after logo update');
+  return updated;
+}
+
 /** Admin Web App foundation — rejects with a reason; institution stays unverified and can be re-reviewed. */
 export async function rejectInstitution(institutionId: string, reason: string): Promise<Institution> {
   if (!reason || !reason.trim()) throw new ValidationError('A rejection reason is required');

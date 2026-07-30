@@ -28,4 +28,12 @@ export interface User {
   Active_Country_ID: string;
   /** Governs whether the app offers the switch-country prompt at all. Never auto-switches. */
   Switch_Preference: SwitchPreference;
+  /**
+   * Institution UX module (2026-07-30) — "Donor Name (if donor allows)" on
+   * donation cards. Defaults FALSE (opt-in, not opt-out) — the safer default
+   * for a personal-privacy-affecting flag. Irrelevant for Corporate donors:
+   * their donations always show the company name/logo instead (institutional
+   * identity, not personal), never gated by this flag.
+   */
+  Show_Name_To_Institutions: boolean;
 }

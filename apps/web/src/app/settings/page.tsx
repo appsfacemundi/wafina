@@ -46,6 +46,8 @@ export default function SettingsPage() {
   const [countrySuccess, setCountrySuccess] = useState(false);
   const [switchingCountry, setSwitchingCountry] = useState(false);
 
+  const [savingNamePref, setSavingNamePref] = useState(false);
+
   useEffect(() => {
     if (!firebaseUser) return;
     (async () => {
@@ -125,6 +127,19 @@ export default function SettingsPage() {
       await refreshSession();
     } catch {
       // Non-critical — the prompt simply keeps showing if this silently fails.
+    }
+  }
+
+  async function onChangeShowName(show: boolean) {
+    setSavingNamePref(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/users/me/show-name-to-institutions', { method: 'PATCH', idToken, body: { show } });
+      await refreshSession();
+    } catch {
+      // Non-critical — the toggle simply reverts to its saved value on next load if this fails.
+    } finally {
+      setSavingNamePref(false);
     }
   }
 
@@ -237,6 +252,23 @@ export default function SettingsPage() {
               </Button>
             </form>
           )}
+        </Card>
+
+        <Card className="stack">
+          <p style={{ fontWeight: 600 }}>Privacidade</p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
+            Se ativar, a instituição que receber uma doação sua vê o seu nome no cartão da doação.
+            Caso contrário, a doação aparece sem identificação pessoal.
+          </p>
+          <Select
+            label="Mostrar o meu nome às instituições"
+            value={session.showNameToInstitutions ? 'yes' : 'no'}
+            onChange={(e) => onChangeShowName(e.target.value === 'yes')}
+            disabled={savingNamePref}
+          >
+            <option value="no">Não mostrar</option>
+            <option value="yes">Mostrar o meu nome</option>
+          </Select>
         </Card>
 
         {IS_DEV_BUILD && (

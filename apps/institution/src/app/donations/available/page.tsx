@@ -1,16 +1,19 @@
 'use client';
 
-import type { Donation } from '@wafina/shared';
+import { daysAgoLabel, type GeoRegion, type InstitutionDonationView } from '@wafina/shared';
 import { Button, Card, EmptyState, Input } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
+import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { apiFetch, ApiError } from '@/lib/api';
 
 export default function AvailableDonationsPage() {
   const session = useRequireSession();
   const { firebaseUser } = useAuth();
-  const [donations, setDonations] = useState<Donation[] | null>(null);
+  const { institution } = useOwnInstitution();
+  const [donations, setDonations] = useState<InstitutionDonationView[] | null>(null);
+  const [countryName, setCountryName] = useState('');
   const [error, setError] = useState('');
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -28,7 +31,7 @@ export default function AvailableDonationsPage() {
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
-      setDonations(await apiFetch<Donation[]>('/donations/available', { idToken }));
+      setDonations(await apiFetch<InstitutionDonationView[]>('/donations/available', { idToken }));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as doações.');
     }
@@ -38,6 +41,19 @@ export default function AvailableDonationsPage() {
     load();
   }, [firebaseUser]);
 
+  useEffect(() => {
+    if (!firebaseUser || !institution?.Country_ID) return;
+    (async () => {
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        const countries = await apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken });
+        setCountryName(countries.find((c) => c.Region_ID === institution.Country_ID)?.Name ?? '');
+      } catch {
+        // Non-critical — the card just omits the country name if this fails.
+      }
+    })();
+  }, [firebaseUser, institution?.Country_ID]);
+
   async function onClaim(donationId: string) {
     setClaimingId(donationId);
     setError('');
@@ -46,7 +62,7 @@ export default function AvailableDonationsPage() {
       await apiFetch(`/donations/${donationId}/claim`, { method: 'POST', idToken });
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível reclamar a doação.');
+      setError(err instanceof ApiError ? err.message : 'Não foi possível aceitar a doação.');
     } finally {
       setClaimingId(null);
     }
@@ -85,16 +101,61 @@ export default function AvailableDonationsPage() {
         {filtered && filtered.length > 0 && (
           <div className="stack">
             {filtered.map((d) => (
-              <Card key={d.Donation_ID} className="donation-row">
-                <div>
-                  <p style={{ fontWeight: 600 }}>{d.Item_Type}</p>
-                  <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
-                    {d.Donation_ID} · Qtd {d.Quantity} · {d.Condition}
+              <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
+                <img
+                  src={d.Photo}
+                  alt=""
+                  style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }}
+                />
+                <div className="stack" style={{ padding: 'var(--space-4)', gap: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <p style={{ fontWeight: 700, fontSize: 17 }}>{d.Item_Type}</p>
+                    <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)', whiteSpace: 'nowrap' }}>
+                      {d.Public_Donation_Code}
+                    </p>
+                  </div>
+                  <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
+                    Qtd: {d.Quantity} · Estado: {d.Condition}
                   </p>
+                  {(d.City || countryName) && (
+                    <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
+                      📍 {[d.City, countryName].filter(Boolean).join(', ')}{' '}
+                      <a
+                        href={`https://www.google.com/maps?q=${d.Location.lat},${d.Location.lng}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: 'var(--color-accent)', fontWeight: 600 }}
+                      >
+                        Ver no mapa
+                      </a>
+                    </p>
+                  )}
+                  {d.Donor_Display_Name && (
+                    <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {d.Donor_Display_Logo ? (
+                        <img
+                          src={d.Donor_Display_Logo}
+                          alt=""
+                          style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover' }}
+                        />
+                      ) : (
+                        '👤'
+                      )}
+                      {d.Donor_Display_Name}
+                    </p>
+                  )}
+                  <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
+                    📅 {daysAgoLabel(d.Date_Submitted)}
+                  </p>
+                  <Button
+                    onClick={() => onClaim(d.Donation_ID)}
+                    disabled={claimingId === d.Donation_ID}
+                    fullWidth
+                    style={{ marginTop: 4 }}
+                  >
+                    {claimingId === d.Donation_ID ? 'A aceitar…' : 'Aceitar Doação'}
+                  </Button>
                 </div>
-                <Button onClick={() => onClaim(d.Donation_ID)} disabled={claimingId === d.Donation_ID}>
-                  {claimingId === d.Donation_ID ? 'A reclamar…' : 'Reclamar'}
-                </Button>
               </Card>
             ))}
           </div>

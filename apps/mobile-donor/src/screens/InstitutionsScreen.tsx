@@ -1,11 +1,12 @@
+import type { GeoRegion } from '@wafina/shared';
 import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
-import { colors, fonts, spacing } from '@/theme/tokens';
+import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 /** Matches the public projection GET /institutions returns for donors — not the full Institution shape. */
 interface PublicInstitution {
@@ -15,12 +16,14 @@ interface PublicInstitution {
   Type: string;
   Needs_List: string | null;
   Total_Items_Received: number;
+  Country_ID: string;
 }
 
 export function InstitutionsScreen() {
   const { firebaseUser } = useAuth();
   const insets = useSafeAreaInsets();
   const [institutions, setInstitutions] = useState<PublicInstitution[] | null>(null);
+  const [countries, setCountries] = useState<GeoRegion[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -28,12 +31,21 @@ export function InstitutionsScreen() {
     (async () => {
       try {
         const idToken = await firebaseUser.getIdToken();
-        setInstitutions(await apiFetch<PublicInstitution[]>('/institutions', { idToken }));
+        const [institutionList, countryList] = await Promise.all([
+          apiFetch<PublicInstitution[]>('/institutions', { idToken }),
+          apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }),
+        ]);
+        setInstitutions(institutionList);
+        setCountries(countryList);
       } catch {
         setError('Não foi possível carregar as instituições.');
       }
     })();
   }, [firebaseUser]);
+
+  function countryName(countryId: string): string {
+    return countries.find((c) => c.Region_ID === countryId)?.Name ?? '';
+  }
 
   return (
     <View style={styles.screen}>
@@ -60,8 +72,20 @@ export function InstitutionsScreen() {
         keyExtractor={(item) => item.Institution_ID}
         renderItem={({ item }) => (
           <Card style={styles.card}>
-            <Text style={styles.name}>{item.Name}</Text>
-            <Text style={styles.meta}>{item.Type.trim()}</Text>
+            <View style={styles.headerRow}>
+              {item.Logo ? (
+                <Image source={{ uri: item.Logo }} style={styles.logo} />
+              ) : (
+                <View style={[styles.logo, styles.logoPlaceholder]} />
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.name}>{item.Name}</Text>
+                <Text style={styles.meta}>
+                  {item.Type.trim()}
+                  {countryName(item.Country_ID) ? ` · ${countryName(item.Country_ID)}` : ''}
+                </Text>
+              </View>
+            </View>
             {item.Needs_List && <Text style={styles.meta}>Necessita: {item.Needs_List}</Text>}
             <Text style={styles.mono}>{item.Total_Items_Received} itens recebidos</Text>
           </Card>
@@ -103,6 +127,20 @@ const styles = StyleSheet.create({
   },
   card: {
     marginBottom: spacing[3],
+    gap: 6,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  logo: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+  },
+  logoPlaceholder: {
+    backgroundColor: colors.surface2,
   },
   name: {
     fontFamily: 'WorkSans-600',

@@ -2,7 +2,7 @@ import { SWITCH_PREFERENCES } from '@wafina/shared';
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth } from '../middleware/auth';
-import { updateActiveCountry, updateSwitchPreference } from '../services/users';
+import { updateActiveCountry, updateShowNameToInstitutions, updateSwitchPreference } from '../services/users';
 import { ValidationError } from '../services/validation-error';
 
 export const usersRouter = Router();
@@ -37,5 +37,17 @@ usersRouter.patch(
     }
     await updateSwitchPreference(req.user!.userId, preference as (typeof SWITCH_PREFERENCES)[number]);
     res.json({ switchPreference: preference });
+  }),
+);
+
+/** Institution UX module — "Donor Name (if donor allows)" on donation cards. Opt-in. */
+usersRouter.patch(
+  '/users/me/show-name-to-institutions',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const show = req.body?.show;
+    if (typeof show !== 'boolean') throw new ValidationError('show must be a boolean');
+    await updateShowNameToInstitutions(req.user!.userId, show);
+    res.json({ showNameToInstitutions: show });
   }),
 );

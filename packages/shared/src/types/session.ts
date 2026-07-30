@@ -20,4 +20,6 @@ export interface AuthenticatedUser {
   activeCountryId: string | null;
   homeCountryId: string | null;
   switchPreference: SwitchPreference | null;
+  /** "Donor Name (if donor allows)" on donation cards — irrelevant/ignored for Corporate donors. */
+  showNameToInstitutions: boolean;
 }

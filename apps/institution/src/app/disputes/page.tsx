@@ -1,6 +1,6 @@
 'use client';
 
-import type { Dispute } from '@wafina/shared';
+import type { Dispute, InstitutionDonationView } from '@wafina/shared';
 import { Badge, Card, EmptyState } from '@wafina/ui';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -11,6 +11,7 @@ export default function MyDisputesPage() {
   const session = useRequireSession();
   const { firebaseUser } = useAuth();
   const [disputes, setDisputes] = useState<Dispute[] | null>(null);
+  const [codeByDonationId, setCodeByDonationId] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -18,9 +19,14 @@ export default function MyDisputesPage() {
     (async () => {
       try {
         const idToken = await firebaseUser.getIdToken();
-        setDisputes(await apiFetch<Dispute[]>('/disputes/mine', { idToken }));
+        const [disputeList, donations] = await Promise.all([
+          apiFetch<Dispute[]>('/disputes/mine', { idToken }),
+          apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
+        ]);
+        setDisputes(disputeList);
+        setCodeByDonationId(new Map(donations.map((d) => [d.Donation_ID, d.Public_Donation_Code])));
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as disputas.');
+        setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as ocorrências.');
       }
     })();
   }, [firebaseUser]);
@@ -30,15 +36,15 @@ export default function MyDisputesPage() {
   return (
     <AppShell>
       <div className="stack">
-        <h1 style={{ fontSize: 24 }}>As Minhas Disputas</h1>
+        <h1 style={{ fontSize: 24 }}>As Minhas Ocorrências</h1>
         {error && <div className="banner banner-error">{error}</div>}
         {!error && disputes === null && (
           <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>
         )}
         {disputes?.length === 0 && (
           <EmptyState
-            title="Sem disputas"
-            description="Os problemas que reportar sobre doações aparecem aqui."
+            title="Sem ocorrências"
+            description="As ocorrências que comunicar sobre doações aparecem aqui."
           />
         )}
         {disputes && disputes.length > 0 && (
@@ -47,7 +53,7 @@ export default function MyDisputesPage() {
               <Card key={d.Dispute_ID} className="stack">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
-                    Doação {d.Donation_ID}
+                    Doação {codeByDonationId.get(d.Donation_ID) ?? ''}
                   </p>
                   <Badge tone={d.Status === 'Open' ? 'warning' : 'success'}>
                     {d.Status === 'Open' ? 'Aberta' : 'Resolvida'}

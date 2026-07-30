@@ -6,10 +6,20 @@ import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
 
 /** Backs registration/verification-status routing — null means no profile submitted yet. */
-export function useOwnInstitution(): { institution: Institution | null; loading: boolean } {
+export function useOwnInstitution(): {
+  institution: Institution | null;
+  loading: boolean;
+  refetch: () => Promise<void>;
+} {
   const { firebaseUser, loading: authLoading } = useAuth();
   const [institution, setInstitution] = useState<Institution | null>(null);
   const [loading, setLoading] = useState(true);
+
+  async function fetchInstitution() {
+    if (!firebaseUser) return;
+    const idToken = await firebaseUser.getIdToken();
+    setInstitution(await apiFetch<Institution | null>('/institutions/me', { idToken }));
+  }
 
   useEffect(() => {
     // Wait for Firebase auth itself to settle first — on first mount firebaseUser
@@ -25,8 +35,7 @@ export function useOwnInstitution(): { institution: Institution | null; loading:
     setLoading(true);
     (async () => {
       try {
-        const idToken = await firebaseUser.getIdToken();
-        setInstitution(await apiFetch<Institution | null>('/institutions/me', { idToken }));
+        await fetchInstitution();
       } catch {
         setInstitution(null);
       } finally {
@@ -35,5 +44,5 @@ export function useOwnInstitution(): { institution: Institution | null; loading:
     })();
   }, [firebaseUser, authLoading]);
 
-  return { institution, loading };
+  return { institution, loading, refetch: fetchInstitution };
 }

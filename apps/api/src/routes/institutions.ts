@@ -1,9 +1,25 @@
 import { Router } from 'express';
+import multer from 'multer';
+import { uploadPhoto } from '../config/drive';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
-import { createInstitution, getInstitutionByUserId, listVerifiedInstitutions } from '../services/institutions';
+import {
+  createInstitution,
+  getInstitutionByUserId,
+  listVerifiedInstitutions,
+  updateInstitutionLogo,
+} from '../services/institutions';
+import { ValidationError } from '../services/validation-error';
 
 export const institutionsRouter = Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    cb(null, file.mimetype.startsWith('image/'));
+  },
+});
 
 /**
  * Registration (spec 13.3) — deliberately NOT gated by requireVerified, since
@@ -27,6 +43,27 @@ institutionsRouter.get(
   asyncHandler(async (req, res) => {
     const institution = await getInstitutionByUserId(req.user!.userId);
     res.json(institution);
+  }),
+);
+
+/** Institution UX module — logo upload, reusing the same Drive path as donation/success-story photos. */
+institutionsRouter.patch(
+  '/institutions/me/logo',
+  requireAuth,
+  requireRole('Institution'),
+  upload.single('logo'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new ValidationError('Logo image is required');
+
+    const institution = await getInstitutionByUserId(req.user!.userId);
+    if (!institution) throw new ValidationError('No Institution profile for this account');
+
+    const logoUrl = await uploadPhoto(
+      req.file.buffer,
+      `${Date.now()}-${req.file.originalname}`,
+      req.file.mimetype,
+    );
+    res.json(await updateInstitutionLogo(institution.Institution_ID, logoUrl));
   }),
 );
 

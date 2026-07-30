@@ -26,6 +26,7 @@ export interface UserRow {
   Home_Country_ID: string;
   Active_Country_ID: string;
   Switch_Preference: string;
+  Show_Name_To_Institutions: string;
 }
 
 export async function findUserByEmail(email: string): Promise<UserRow | null> {
@@ -56,6 +57,7 @@ export async function createUser(email: string, role: RegistrableRole): Promise<
     Home_Country_ID: '',
     Active_Country_ID: '',
     Switch_Preference: 'Always_Ask',
+    Show_Name_To_Institutions: toSheetBool(false),
   };
 
   await appendRow(SHEET_TABS.users, row as unknown as Record<string, string>);
@@ -130,6 +132,11 @@ export async function updateSwitchPreference(userId: string, preference: SwitchP
   await updateRow(SHEET_TABS.users, 'User_ID', userId, { Switch_Preference: preference });
 }
 
+/** Institution UX module — "Donor Name (if donor allows)" on donation cards. Opt-in, defaults FALSE. */
+export async function updateShowNameToInstitutions(userId: string, show: boolean): Promise<void> {
+  await updateRow(SHEET_TABS.users, 'User_ID', userId, { Show_Name_To_Institutions: toSheetBool(show) });
+}
+
 /**
  * Spec 13.2 — joining a company via an Admin-issued invite code. Phase 3A
  * Module 2: existing teammates are looked up *before* the link, so the
@@ -175,5 +182,6 @@ export function toAuthenticatedUser(uid: string, row: UserRow): AuthenticatedUse
     homeCountryId: row.Home_Country_ID || null,
     activeCountryId: row.Active_Country_ID || null,
     switchPreference: (row.Switch_Preference as SwitchPreference) || null,
+    showNameToInstitutions: row.Show_Name_To_Institutions === 'TRUE',
   };
 }

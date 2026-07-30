@@ -1,7 +1,13 @@
-import { DONATION_STATUS_LABEL, DONATION_STATUS_TONE, type Donation, type SuccessStory } from '@wafina/shared';
+import {
+  DONATION_STATUS_LABEL,
+  DONATION_STATUS_TONE,
+  daysAgoLabel,
+  type InstitutionDonationView,
+  type SuccessStory,
+} from '@wafina/shared';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
@@ -17,7 +23,7 @@ type Props = NativeStackScreenProps<ClaimedByMeStackParamList, 'ClaimedByMeList'
 export function ClaimedByMeScreen({ navigation }: Props) {
   const { firebaseUser } = useAuth();
   const insets = useSafeAreaInsets();
-  const [donations, setDonations] = useState<Donation[] | null>(null);
+  const [donations, setDonations] = useState<InstitutionDonationView[] | null>(null);
   const [storiesByDonation, setStoriesByDonation] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
@@ -27,7 +33,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
     try {
       const idToken = await firebaseUser.getIdToken();
       const [donationList, stories] = await Promise.all([
-        apiFetch<Donation[]>('/donations/claimed-by-me', { idToken }),
+        apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
         apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }),
       ]);
       setDonations(donationList);
@@ -61,7 +67,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
-            <Text style={styles.title}>Reclamadas por Mim</Text>
+            <Text style={styles.title}>Doações Aceites</Text>
             {error && (
               <View style={styles.errorBanner}>
                 <Text style={styles.errorText}>{error}</Text>
@@ -70,8 +76,8 @@ export function ClaimedByMeScreen({ navigation }: Props) {
             {!error && donations === null && <Text style={styles.loading}>A carregar…</Text>}
             {donations?.length === 0 && (
               <EmptyState
-                title="Ainda sem doações reclamadas"
-                description="As doações que reclamar aparecem aqui."
+                title="Ainda sem doações aceites"
+                description="As doações que aceitar aparecem aqui."
               />
             )}
           </>
@@ -79,48 +85,78 @@ export function ClaimedByMeScreen({ navigation }: Props) {
         data={donations ?? []}
         keyExtractor={(item) => item.Donation_ID}
         renderItem={({ item }) => (
-          <Card style={{ marginBottom: spacing[3], gap: spacing[2] }}>
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
+          <Card style={styles.card}>
+            <Image source={{ uri: item.Photo }} style={styles.photo} />
+            <View style={styles.cardBody}>
+              <View style={styles.rowBetween}>
                 <Text style={styles.itemType}>{item.Item_Type}</Text>
-                <Text style={styles.mono}>
-                  {item.Donation_ID} · Qtd {item.Quantity}
-                </Text>
+                <Badge tone={DONATION_STATUS_TONE[item.Status]}>{DONATION_STATUS_LABEL[item.Status]}</Badge>
               </View>
-              <Badge tone={DONATION_STATUS_TONE[item.Status]}>{DONATION_STATUS_LABEL[item.Status]}</Badge>
-            </View>
-            <View style={styles.actions}>
-              {item.Status === 'Claimed' && (
-                <Button
-                  variant="secondary"
-                  onPress={() => onDeliver(item.Donation_ID)}
-                  disabled={deliveringId === item.Donation_ID}
-                >
-                  {deliveringId === item.Donation_ID ? 'A confirmar…' : 'Confirmar entrega'}
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                onPress={() =>
-                  navigation.getParent()?.navigate('Disputes', {
-                    screen: 'NewDispute',
-                    params: { donationId: item.Donation_ID },
-                  })
-                }
-              >
-                Reportar problema
-              </Button>
-              {item.Status === 'Delivered' &&
-                (storiesByDonation.has(item.Donation_ID) ? (
-                  <Text style={styles.storyPublished}>✓ História publicada</Text>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    onPress={() => navigation.navigate('NewSuccessStory', { donationId: item.Donation_ID })}
+              <Text style={styles.mono}>{item.Public_Donation_Code}</Text>
+              <Text style={styles.meta}>
+                Qtd: {item.Quantity} · Estado: {item.Condition}
+              </Text>
+              {item.City && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+                  <Text style={styles.meta}>📍 {item.City}</Text>
+                  <Pressable
+                    onPress={() =>
+                      Linking.openURL(`https://www.google.com/maps?q=${item.Location.lat},${item.Location.lng}`)
+                    }
                   >
-                    Publicar história
+                    <Text style={styles.mapLink}>Ver no mapa</Text>
+                  </Pressable>
+                </View>
+              )}
+              {item.Donor_Display_Name && (
+                <View style={styles.donorRow}>
+                  {item.Donor_Display_Logo ? (
+                    <Image source={{ uri: item.Donor_Display_Logo }} style={styles.donorLogo} />
+                  ) : (
+                    <Text>👤</Text>
+                  )}
+                  <Text style={styles.meta}>{item.Donor_Display_Name}</Text>
+                </View>
+              )}
+              <Text style={styles.dateLabel}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
+              <View style={styles.actions}>
+                {item.Status === 'Claimed' && (
+                  <Button
+                    variant="secondary"
+                    onPress={() => onDeliver(item.Donation_ID)}
+                    disabled={deliveringId === item.Donation_ID}
+                  >
+                    {deliveringId === item.Donation_ID ? 'A confirmar…' : 'Confirmar entrega'}
                   </Button>
-                ))}
+                )}
+                <Button
+                  variant="ghost"
+                  onPress={() =>
+                    navigation.getParent()?.navigate('Disputes', {
+                      screen: 'NewDispute',
+                      params: { donationId: item.Donation_ID, publicCode: item.Public_Donation_Code },
+                    })
+                  }
+                >
+                  Comunicar Ocorrência
+                </Button>
+                {item.Status === 'Delivered' &&
+                  (storiesByDonation.has(item.Donation_ID) ? (
+                    <Text style={styles.storyPublished}>✓ História publicada</Text>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      onPress={() =>
+                        navigation.navigate('NewSuccessStory', {
+                          donationId: item.Donation_ID,
+                          publicCode: item.Public_Donation_Code,
+                        })
+                      }
+                    >
+                      Publicar história
+                    </Button>
+                  ))}
+              </View>
             </View>
           </Card>
         )}
@@ -159,19 +195,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.danger,
   },
-  row: {
+  card: {
+    padding: 0,
+    overflow: 'hidden',
+    gap: 0,
+    marginBottom: spacing[3],
+  },
+  photo: {
+    width: '100%',
+    height: 160,
+  },
+  cardBody: {
+    padding: spacing[4],
+    gap: 6,
+  },
+  rowBetween: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing[2],
   },
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: spacing[2],
+    marginTop: 4,
   },
   itemType: {
-    fontFamily: 'WorkSans-600',
-    fontSize: 15,
+    fontFamily: 'WorkSans-700',
+    fontSize: 16.5,
     color: colors.text,
+  },
+  meta: {
+    fontFamily: 'WorkSans-400',
+    fontSize: 13.5,
+    color: colors.textMuted,
   },
   storyPublished: {
     fontFamily: 'WorkSans-600',
@@ -181,6 +240,26 @@ const styles = StyleSheet.create({
   },
   mono: {
     fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.textFaint,
+  },
+  mapLink: {
+    fontFamily: 'WorkSans-600',
+    fontSize: 13.5,
+    color: colors.accent,
+  },
+  donorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  donorLogo: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+  },
+  dateLabel: {
+    fontFamily: 'WorkSans-400',
     fontSize: 12,
     color: colors.textFaint,
   },

@@ -1,5 +1,6 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { ErrorBanner } from '@/components/Banner';
@@ -9,7 +10,7 @@ import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { ApiError, apiFetch } from '@/lib/api';
-import { colors, fonts, spacing } from '@/theme/tokens';
+import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 const FIELD_LABEL: Record<string, string> = {
   Name: 'Nome',
@@ -21,7 +22,7 @@ const FIELD_LABEL: Record<string, string> = {
 
 export function SettingsScreen() {
   const { session, firebaseUser, signOutUser } = useAuth();
-  const { institution, loading } = useOwnInstitution();
+  const { institution, loading, refetch } = useOwnInstitution();
   const insets = useSafeAreaInsets();
 
   const [field, setField] = useState('');
@@ -29,6 +30,40 @@ export function SettingsScreen() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const [logoError, setLogoError] = useState('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  async function onPickLogo() {
+    setLogoError('');
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      setLogoError('É necessário acesso às fotografias para escolher um logótipo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (result.canceled || !result.assets[0]) return;
+
+    const photo = result.assets[0];
+    setUploadingLogo(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      const form = new FormData();
+      form.append('logo', {
+        uri: photo.uri,
+        name: photo.fileName ?? 'logo.jpg',
+        type: photo.mimeType ?? 'image/jpeg',
+      } as unknown as Blob);
+      await apiFetch('/institutions/me/logo', { method: 'PATCH', idToken, body: form });
+      await refetch();
+    } catch (err) {
+      setLogoError(err instanceof ApiError ? err.message : 'Não foi possível enviar o logótipo.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
+  const logoLocked = institution?.Locked_Fields.includes('Logo') ?? false;
 
   async function onSubmit() {
     setError('');
@@ -72,11 +107,32 @@ export function SettingsScreen() {
         <Text style={styles.title}>Definições</Text>
 
         <Card style={{ gap: spacing[2] }}>
-          <Text style={styles.name}>{institution?.Name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
+            {institution?.Logo ? (
+              <Image source={{ uri: institution.Logo }} style={styles.logo} />
+            ) : (
+              <View style={[styles.logo, styles.logoPlaceholder]}>
+                <Text style={styles.logoPlaceholderText}>Sem{'\n'}logótipo</Text>
+              </View>
+            )}
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.name}>{institution?.Name}</Text>
+              {institution?.Verified && <Badge tone="success">Verificado</Badge>}
+            </View>
+          </View>
+          {logoLocked ? (
+            <Text style={styles.hint}>O logótipo está bloqueado. Peça uma alteração abaixo para o mudar.</Text>
+          ) : (
+            <>
+              <Button variant="secondary" onPress={onPickLogo} loading={uploadingLogo}>
+                {institution?.Logo ? 'Alterar logótipo' : 'Adicionar logótipo'}
+              </Button>
+              {logoError ? <ErrorBanner message={logoError} /> : null}
+            </>
+          )}
           <Text style={styles.hint}>{session?.email}</Text>
           <Text style={styles.hint}>Tipo: {institution?.Type}</Text>
           {institution?.Needs_List && <Text style={styles.hint}>Necessidades: {institution.Needs_List}</Text>}
-          {institution?.Verified && <Badge tone="success">Verificado</Badge>}
         </Card>
 
         <Card style={{ gap: spacing[3] }}>
@@ -161,5 +217,21 @@ const styles = StyleSheet.create({
     fontFamily: 'WorkSans-400',
     fontSize: 13,
     color: colors.success,
+  },
+  logo: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.md,
+  },
+  logoPlaceholder: {
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoPlaceholderText: {
+    fontFamily: 'WorkSans-400',
+    fontSize: 9.5,
+    color: colors.textFaint,
+    textAlign: 'center',
   },
 });

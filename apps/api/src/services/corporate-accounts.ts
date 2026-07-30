@@ -8,6 +8,7 @@ function rowToCorporateAccount(row: Record<string, string>): CorporateAccount {
     Company_Name: row.Company_Name,
     Country: row.Country,
     Date_Created: row.Date_Created,
+    Logo: row.Logo || null,
   };
 }
 

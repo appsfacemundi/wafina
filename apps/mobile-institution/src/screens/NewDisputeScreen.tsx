@@ -15,7 +15,7 @@ const MIN_LENGTH = 10;
 type Props = NativeStackScreenProps<DisputesStackParamList, 'NewDispute'>;
 
 export function NewDisputeScreen({ route, navigation }: Props) {
-  const { donationId } = route.params;
+  const { donationId, publicCode } = route.params;
   const { firebaseUser } = useAuth();
   const insets = useSafeAreaInsets();
   const [description, setDescription] = useState('');
@@ -25,7 +25,7 @@ export function NewDisputeScreen({ route, navigation }: Props) {
   async function onSubmit() {
     setError('');
     if (description.trim().length < MIN_LENGTH) {
-      setError(`Descreva o problema com pelo menos ${MIN_LENGTH} caracteres.`);
+      setError(`Descreva a ocorrência com pelo menos ${MIN_LENGTH} caracteres.`);
       return;
     }
     setSubmitting(true);
@@ -38,7 +38,7 @@ export function NewDisputeScreen({ route, navigation }: Props) {
       });
       navigation.navigate('DisputesList');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível enviar a disputa.');
+      setError(err instanceof ApiError ? err.message : 'Não foi possível enviar a ocorrência.');
     } finally {
       setSubmitting(false);
     }
@@ -47,9 +47,9 @@ export function NewDisputeScreen({ route, navigation }: Props) {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Card style={{ marginHorizontal: spacing[6], marginTop: insets.top + spacing[6], marginBottom: spacing[6], gap: spacing[3] }}>
-        <Text style={styles.title}>Reportar problema</Text>
-        <Text style={styles.mono}>Doação: {donationId}</Text>
-        <Text style={styles.label}>Descrição do problema</Text>
+        <Text style={styles.title}>Comunicar Ocorrência</Text>
+        <Text style={styles.mono}>Doação: {publicCode}</Text>
+        <Text style={styles.label}>Descrição da ocorrência</Text>
         <TextInput
           style={styles.textarea}
           value={description}
@@ -61,7 +61,7 @@ export function NewDisputeScreen({ route, navigation }: Props) {
         />
         {error ? <ErrorBanner message={error} /> : null}
         <Button onPress={onSubmit} loading={submitting} fullWidth>
-          Enviar disputa
+          Comunicar Ocorrência
         </Button>
       </Card>
     </KeyboardAvoidingView>

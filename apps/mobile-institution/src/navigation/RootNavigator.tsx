@@ -33,12 +33,14 @@ export type VerificationStackParamList = {
 
 export type DisputesStackParamList = {
   DisputesList: undefined;
-  NewDispute: { donationId: string };
+  /** publicCode is the only donation identifier ever shown on screen — donationId is API-only. */
+  NewDispute: { donationId: string; publicCode: string };
 };
 
 export type ClaimedByMeStackParamList = {
   ClaimedByMeList: undefined;
-  NewSuccessStory: { donationId: string };
+  /** publicCode is the only donation identifier ever shown on screen — donationId is API-only. */
+  NewSuccessStory: { donationId: string; publicCode: string };
 };
 
 export type AppTabParamList = {
@@ -136,12 +138,12 @@ export function RootNavigator() {
           <AppTab.Screen
             name="ClaimedByMe"
             component={ClaimedByMeNavigator}
-            options={{ tabBarLabel: tabLabel('Reclamadas') }}
+            options={{ tabBarLabel: tabLabel('Aceites') }}
           />
           <AppTab.Screen
             name="Disputes"
             component={DisputesNavigator}
-            options={{ tabBarLabel: tabLabel('Disputas') }}
+            options={{ tabBarLabel: tabLabel('Ocorrências') }}
           />
           <AppTab.Screen
             name="Notifications"

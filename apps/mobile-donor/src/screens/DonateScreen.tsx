@@ -22,6 +22,7 @@ export function DonateScreen() {
   const [itemType, setItemType] = useState<string>(ITEM_TYPES[0]);
   const [quantity, setQuantity] = useState('');
   const [condition, setCondition] = useState<string>(CONDITIONS[0]);
+  const [city, setCity] = useState('');
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('capturing');
@@ -92,6 +93,7 @@ export function DonateScreen() {
       form.append('Item_Type', itemType);
       form.append('Quantity', quantity);
       form.append('Condition', condition);
+      form.append('City', city);
       form.append('Location_lat', lat);
       form.append('Location_lng', lng);
       form.append('photo', {
@@ -124,6 +126,7 @@ export function DonateScreen() {
             onChangeText={setQuantity}
           />
           <Select label="Estado" value={condition} onValueChange={setCondition} options={CONDITIONS} />
+          <Input label="Cidade (opcional)" placeholder="Ex: Luanda" value={city} onChangeText={setCity} />
 
           <View style={{ gap: spacing[1] }}>
             <Text style={styles.label}>Fotografia da doação</Text>

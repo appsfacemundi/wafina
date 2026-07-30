@@ -24,6 +24,7 @@ function NewSuccessStoryForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const donationId = searchParams.get('donationId') ?? '';
+  const code = searchParams.get('code') ?? '';
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -101,9 +102,11 @@ function NewSuccessStoryForm() {
         <h1 style={{ fontSize: 24 }}>Publicar história de impacto</h1>
         <Card>
           <form onSubmit={onSubmit} className="stack">
-            <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
-              Doação: {donationId}
-            </p>
+            {code && (
+              <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
+                Doação: {code}
+              </p>
+            )}
             <Input
               label="Título"
               required

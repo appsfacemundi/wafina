@@ -18,6 +18,7 @@ export default function NewDonationPage() {
   const [itemType, setItemType] = useState<string>(ITEM_TYPES[0]);
   const [quantity, setQuantity] = useState('');
   const [condition, setCondition] = useState<string>(CONDITIONS[0]);
+  const [city, setCity] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
@@ -80,6 +81,7 @@ export default function NewDonationPage() {
       form.append('Item_Type', itemType);
       form.append('Quantity', quantity);
       form.append('Condition', condition);
+      form.append('City', city);
       form.append('Location_lat', lat);
       form.append('Location_lng', lng);
       form.append('photo', photo);
@@ -125,6 +127,13 @@ export default function NewDonationPage() {
                 </option>
               ))}
             </Select>
+
+            <Input
+              label="Cidade (opcional)"
+              placeholder="Ex: Luanda"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+            />
 
             <div className="field">
               <label htmlFor="photo-input">Fotografia da doação</label>
