@@ -150,6 +150,12 @@ export async function listPendingInstitutions(): Promise<Institution[]> {
   return Promise.all(pendingRows.map(rowToInstitution));
 }
 
+/** Admin Web App Parity Phase C — Reports, unfiltered by verification status. */
+export async function listAllInstitutions(): Promise<Institution[]> {
+  const rows = await getRows(SHEET_TABS.institutions);
+  return Promise.all(rows.map(rowToInstitution));
+}
+
 /**
  * Admin Web App foundation — the first Admin action moved off AppSheet. Sets
  * Verified=TRUE (fields lock automatically from that point per rowToInstitution's

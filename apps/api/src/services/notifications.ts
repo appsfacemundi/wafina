@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { EntityType, Notification, NotificationPriority, NotificationType } from '@wafina/shared';
+import type { EntityType, Notification, NotificationPriority, NotificationType, Role } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso } from '../config/sheet-values';
 import { appendRow, getRows, updateRow } from '../config/sheets';
@@ -100,4 +100,65 @@ export async function markNotificationRead(userId: string, notificationId: strin
     Status: 'Read',
     Read_At: nowIso(),
   });
+}
+
+/** Admin Web App Parity Phase C — a single manually-composed message to one user. */
+export async function sendAdminNotification(recipientUserId: string, message: string): Promise<void> {
+  if (!message || !message.trim()) throw new ValidationError('A mensagem é obrigatória.');
+  await createNotification({
+    recipientUserId,
+    notificationType: 'admin_message',
+    entityType: 'Announcement',
+    entityId: 'admin',
+    message: message.trim(),
+  });
+}
+
+export interface BroadcastFilter {
+  role?: Role;
+  countryId?: string;
+}
+
+/**
+ * Scoped broadcast — deliberately requires at least a role or a country
+ * filter, never "every user, every country" in one call. Google Sheets has a
+ * real per-minute read-quota (already hit once this project during rapid
+ * testing), and createNotification's own append-per-recipient loop would
+ * otherwise scale directly with total user count with no ceiling.
+ */
+export async function broadcastNotification(filter: BroadcastFilter, message: string): Promise<number> {
+  if (!message || !message.trim()) throw new ValidationError('A mensagem é obrigatória.');
+  if (!filter.role && !filter.countryId) {
+    throw new ValidationError('Escolha pelo menos um filtro (tipo de conta ou país).');
+  }
+
+  const userRows = await getRows(SHEET_TABS.users);
+  const targets = userRows.filter((row) => {
+    if (filter.role && row.Role !== filter.role) return false;
+    if (filter.countryId && row.Active_Country_ID !== filter.countryId) return false;
+    return true;
+  });
+
+  await Promise.all(
+    targets.map((row) =>
+      createNotification({
+        recipientUserId: row.User_ID,
+        notificationType: 'admin_message',
+        entityType: 'Announcement',
+        entityId: 'admin',
+        message: message.trim(),
+      }),
+    ),
+  );
+
+  return targets.length;
+}
+
+/** Admin's notification-history view — every admin-originated message ever sent, newest first. */
+export async function listAdminSentNotifications(): Promise<Notification[]> {
+  const rows = await getRows(SHEET_TABS.notifications);
+  return rows
+    .filter((row) => row.Notification_Type === 'admin_message')
+    .map(rowToNotification)
+    .sort((a, b) => (a.Created_At < b.Created_At ? 1 : -1));
 }

@@ -1198,6 +1198,66 @@ deferred work.
 
 **Commit:** `0cbbdf6`
 
+### Admin Web App Parity Program — Phase C: Notifications (scoped broadcast) + Reports: COMPLETE
+
+The final phase. Closes the two least-defined items from the original audit — deliberately last, per the
+stakeholder's own sequencing choice.
+
+*Notifications:* previously `createNotification` only ever fired reactively from another service (donation
+claimed, dispute created, etc.) — there was no way for Admin to originate a message. New `Notification_Type:
+'admin_message'` and `Entity_Type: 'Announcement'` (no specific record to deep-link to). `apps/api/src/
+services/notifications.ts` gained `sendAdminNotification` (one recipient, looked up by email),
+`broadcastNotification` (role and/or country filter — **required**, never an unscoped "every user" option,
+per the stakeholder's explicit choice given Google Sheets' real per-minute read quota, already hit once this
+project), and `listAdminSentNotifications` (history view, filtered to `admin_message`). New Admin routes
+(`/admin/notifications/send`, `.../broadcast`, `.../sent`) and a new `/notifications` page: single-recipient
+send, a broadcast form (role + country selects, at least one required), and a sent-message history list.
+Verified live: sent a real message to the persistent Admin test account (confirmed in history), then
+confirmed the "at least one filter" guard actually blocks an empty-filter broadcast attempt client-side, then
+ran a real broadcast scoped to Institution role + Portugal (a country with zero real institutions) to prove
+the query wiring works end-to-end without touching any real account — 0 matched, 0 notifications created.
+
+*Reports:* first pass, reusing data Admin can already query elsewhere rather than a new export pipeline.
+Added two small unfiltered list functions where only a status-filtered one existed before —
+`listAllInstitutions()` (previously only Pending or only Verified) and `listAllSuccessStories()` (previously
+only Pending) — since a report titled "Institutions" or "Success Stories" showing only one status would be
+misleading. New generic `GET /admin/reports/:type` route (`donations | institutions | companies | users |
+countries | success-stories`) and a new `/reports` page: a type selector, a dynamically-columned table, and a
+client-side CSV export button (no new backend export format needed).
+
+Found and fixed a real bug during live testing: a donation's `Location` field is an object (`{lat, lng}`), and
+the table/CSV code's plain `String(value)` rendered it as the literal text `[object Object]` — both on screen
+and inside the exported CSV. Added a `cellText()` helper that `JSON.stringify`s object values instead, used
+by both the table and the CSV export. Verified live: the Donations report now shows `{"lat":...,"lng":...}`
+correctly instead of `[object Object]`.
+
+**Settings/Feature flags:** confirmed still out of scope for this program, per the stakeholder's own choice —
+nothing in the codebase reads a flag or setting today, so there's nothing concrete to build. Revisit once a
+real setting/flag exists that needs one.
+
+**Database implications:** none. Both `admin_message`/`Announcement` are additions to existing reference
+vocabularies (`NOTIFICATION_TYPES`/`ENTITY_TYPES`), not schema changes.
+
+**Verified:** `npm run typecheck` and `npm run lint` clean across all 8 workspaces. Live-tested every new
+Admin page (Notifications: single send + scoped broadcast + validation guard; Reports: all 6 report types
+rendered, the Location-object bug found and fixed). Deleted the one real test notification created during
+verification afterward, and the one-off script used to do it.
+
+**Commit:** _recorded below after this entry is committed._
+
+---
+
+## Admin Web App Parity Program — Summary
+
+All three phases complete. Admin now has: Users (search/suspend/reactivate/role/password-reset), Countries
+(activate/add), Disputes (resolve), Corporate Accounts (full CRUD + real invitation codes with
+expiration/max-usage/single-multi-use), Notifications (manual send + scoped broadcast + history), and
+Reports (6 report types + CSV export) — on top of the Institution approval, Success Story approval, Donation
+logistics, and Change Request moderation that already existed. Explicitly out of scope, by the stakeholder's
+own choice: Settings/Feature Flags (nothing to control yet). `DEVELOPMENT_RULES.md` §15 now stands as the
+permanent policy governing every future module: no new Donor/Institution feature is complete without asking
+"how will Admin manage this?" first.
+
 ---
 
 ## Next Steps

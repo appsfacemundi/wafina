@@ -18,11 +18,46 @@ import {
 import { listInFlightDonationsForAdmin } from '../services/donations';
 import { listAllOpenDisputes, resolveDispute } from '../services/disputes';
 import { createCountry, listAllCountries, setCountryActive } from '../services/geo-regions';
-import { listPendingInstitutions, rejectInstitution, verifyInstitution } from '../services/institutions';
+import {
+  listAllInstitutions,
+  listPendingInstitutions,
+  rejectInstitution,
+  verifyInstitution,
+} from '../services/institutions';
 import { createInvitationCode, deactivateCode, listCodesForAccount } from '../services/invitation-codes';
-import { approveSuccessStory, listPendingSuccessStories, rejectSuccessStory } from '../services/success-stories';
-import { listAllUsers, reactivateUser, setUserRole, suspendUser } from '../services/users';
+import {
+  broadcastNotification,
+  listAdminSentNotifications,
+  sendAdminNotification,
+} from '../services/notifications';
+import {
+  approveSuccessStory,
+  listAllSuccessStories,
+  listPendingSuccessStories,
+  rejectSuccessStory,
+} from '../services/success-stories';
+import { findUserByEmail, listAllUsers, reactivateUser, setUserRole, suspendUser } from '../services/users';
 import { ValidationError } from '../services/validation-error';
+
+const REPORT_TYPES = ['donations', 'institutions', 'companies', 'users', 'countries', 'success-stories'] as const;
+type ReportType = (typeof REPORT_TYPES)[number];
+
+async function getReportData(type: ReportType) {
+  switch (type) {
+    case 'donations':
+      return listInFlightDonationsForAdmin();
+    case 'institutions':
+      return listAllInstitutions();
+    case 'companies':
+      return listAllCorporateAccounts();
+    case 'users':
+      return listAllUsers();
+    case 'countries':
+      return listAllCountries();
+    case 'success-stories':
+      return listAllSuccessStories();
+  }
+}
 
 /**
  * Admin Web App foundation (Permanent Rules Update, 2026-07-30) — the first
@@ -322,5 +357,66 @@ adminRouter.post(
   asyncHandler(async (req, res) => {
     await deactivateCode(req.params.code);
     res.json({ ok: true });
+  }),
+);
+
+/**
+ * Notifications (Admin Web App Parity Phase C, 2026-07-31) — Admin previously
+ * had no way to message users directly; every notification was system-
+ * triggered. Broadcasts are always scoped by role and/or country, never an
+ * unscoped "every user" blast (Google Sheets has a real per-minute read
+ * quota, already hit once this project during rapid testing).
+ */
+adminRouter.get(
+  '/admin/notifications/sent',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listAdminSentNotifications());
+  }),
+);
+
+adminRouter.post(
+  '/admin/notifications/send',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    const email = req.body?.email as string | undefined;
+    if (!email) throw new ValidationError('email is required');
+    const user = await findUserByEmail(email);
+    if (!user) throw new ValidationError('Nenhuma conta Wafina encontrada com esse email.');
+    await sendAdminNotification(user.User_ID, req.body?.message);
+    res.json({ ok: true });
+  }),
+);
+
+adminRouter.post(
+  '/admin/notifications/broadcast',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    const sentCount = await broadcastNotification(
+      { role: req.body?.role || undefined, countryId: req.body?.countryId || undefined },
+      req.body?.message,
+    );
+    res.json({ sentCount });
+  }),
+);
+
+/**
+ * Reports (Admin Web App Parity Phase C, 2026-07-31) — a first pass: reuses
+ * data Admin can already query elsewhere, rendered as a plain table with a
+ * client-side CSV export. No new backend export format needed for this pass.
+ */
+adminRouter.get(
+  '/admin/reports/:type',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    const type = req.params.type as ReportType;
+    if (!REPORT_TYPES.includes(type)) {
+      throw new ValidationError(`type must be one of: ${REPORT_TYPES.join(', ')}`);
+    }
+    res.json(await getReportData(type));
   }),
 );

@@ -108,6 +108,12 @@ export async function listSuccessStoriesByDonor(donorId: string): Promise<Succes
     .map(rowToSuccessStory);
 }
 
+/** Admin Web App Parity Phase C — Reports, every story regardless of status. */
+export async function listAllSuccessStories(): Promise<SuccessStory[]> {
+  const rows = await getRows(SHEET_TABS.successStories);
+  return rows.map(rowToSuccessStory);
+}
+
 /** Admin moderation queue. */
 export async function listPendingSuccessStories(): Promise<AdminSuccessStoryView[]> {
   const rows = await getRows(SHEET_TABS.successStories);

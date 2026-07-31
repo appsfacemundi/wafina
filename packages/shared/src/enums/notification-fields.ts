@@ -14,6 +14,8 @@ export const ENTITY_TYPES = [
   'Change_Request',
   'Corporate_Account',
   'Success_Story',
+  /** Admin Web App Parity Phase C — manual/broadcast messages have no specific record to deep-link to. */
+  'Announcement',
 ] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
@@ -32,6 +34,8 @@ export const NOTIFICATION_TYPES = [
   'success_story_published',
   'success_story_approved',
   'success_story_rejected',
+  /** Admin Web App Parity Phase C — manual single-recipient send and scoped broadcast both use this. */
+  'admin_message',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
