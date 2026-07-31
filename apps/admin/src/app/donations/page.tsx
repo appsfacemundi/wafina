@@ -5,7 +5,7 @@ import {
   DONATION_STATUS_TONE,
   type AdminDonationView,
 } from '@wafina/shared';
-import { Badge, Button, Card, EmptyState, Input, Photo } from '@wafina/ui';
+import { Badge, Button, Card, EmptyState, Input, Photo, useToast } from '@wafina/ui';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
@@ -20,6 +20,7 @@ function toDateInputValue(iso: string | null): string {
 export default function AdminDonationsPage() {
   const session = useRequireAdminSession();
   const { firebaseUser } = useAuth();
+  const { showToast } = useToast();
 
   const [donations, setDonations] = useState<AdminDonationView[] | null>(null);
   const [error, setError] = useState('');
@@ -68,6 +69,7 @@ export default function AdminDonationsPage() {
         },
       });
       await load();
+      showToast('Estimativas guardadas com sucesso.');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível guardar as datas estimadas.');
     } finally {

@@ -1,7 +1,7 @@
 'use client';
 
 import type { GeoRegion, Institution } from '@wafina/shared';
-import { Button, Card, EmptyState, Input } from '@wafina/ui';
+import { Button, Card, EmptyState, Input, useToast } from '@wafina/ui';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
@@ -10,6 +10,7 @@ import { ApiError, apiFetch } from '@/lib/api';
 export default function AdminHomePage() {
   const session = useRequireAdminSession();
   const { firebaseUser } = useAuth();
+  const { showToast } = useToast();
 
   const [institutions, setInstitutions] = useState<Institution[] | null>(null);
   const [countries, setCountries] = useState<GeoRegion[]>([]);
@@ -48,6 +49,7 @@ export default function AdminHomePage() {
       const idToken = await firebaseUser?.getIdToken();
       await apiFetch(`/admin/institutions/${institutionId}/verify`, { method: 'POST', idToken });
       await load();
+      showToast('Instituição aprovada com sucesso.');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível aprovar a instituição.');
     } finally {
@@ -72,6 +74,7 @@ export default function AdminHomePage() {
       setRejectingId(null);
       setRejectReason('');
       await load();
+      showToast('Instituição rejeitada.');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível rejeitar a instituição.');
     } finally {

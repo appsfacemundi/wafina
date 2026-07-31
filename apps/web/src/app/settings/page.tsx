@@ -2,7 +2,7 @@
 
 import type { GeoRegion, SwitchPreference } from '@wafina/shared';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Button, Card, Input, Select } from '@wafina/ui';
+import { Button, Card, Input, Select, useToast } from '@wafina/ui';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
@@ -28,6 +28,7 @@ interface ProfileData {
 export default function SettingsPage() {
   const session = useRequireSession();
   const { firebaseUser, refreshSession } = useAuth();
+  const { showToast } = useToast();
 
   const [countries, setCountries] = useState<GeoRegion[] | null>(null);
   const [allCountries, setAllCountries] = useState<GeoRegion[] | null>(null);
@@ -79,6 +80,7 @@ export default function SettingsPage() {
       // that's the separate, explicit action below. See api/services/users.ts.
       await apiFetch('/donor/profile', { method: 'PATCH', idToken, body: profile });
       setProfileSuccess(true);
+      showToast('Perfil atualizado com sucesso.');
     } catch (err) {
       setProfileError(err instanceof ApiError ? err.message : 'Não foi possível guardar.');
     } finally {
@@ -97,6 +99,7 @@ export default function SettingsPage() {
       await refreshSession();
       setCorporateSuccess(true);
       setInviteCode('');
+      showToast('Conta corporativa associada com sucesso.');
     } catch (err) {
       setCorporateError(err instanceof ApiError ? err.message : 'Não foi possível associar a conta.');
     } finally {
@@ -113,6 +116,7 @@ export default function SettingsPage() {
       await apiFetch('/users/me/active-country', { method: 'PATCH', idToken, body: { countryId } });
       await refreshSession();
       setCountrySuccess(true);
+      showToast('País ativo alterado com sucesso.');
     } catch (err) {
       setCountryError(err instanceof ApiError ? err.message : 'Não foi possível mudar de país.');
     } finally {
@@ -136,6 +140,7 @@ export default function SettingsPage() {
       const idToken = await firebaseUser?.getIdToken();
       await apiFetch('/users/me/show-name-to-institutions', { method: 'PATCH', idToken, body: { show } });
       await refreshSession();
+      showToast('Preferência de privacidade atualizada.');
     } catch {
       // Non-critical — the toggle simply reverts to its saved value on next load if this fails.
     } finally {

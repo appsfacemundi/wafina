@@ -29,8 +29,18 @@ export default function NotificationsPage() {
 
   // Phase 3A Module 2 — real per-notification deep-linking, using Entity_Type
   // now that it exists, instead of always navigating to the same fixed page.
+  // Institution App Polish QA review (2026-07-31) — expanded once Success
+  // Story approval and a dedicated donor Impact page existed to link to.
   function pathForEntity(n: Notification): string {
-    return n.Entity_Type === 'Corporate_Account' ? '/settings' : '/donations';
+    switch (n.Entity_Type) {
+      case 'Corporate_Account':
+        return '/settings';
+      case 'Success_Story':
+        return '/impact';
+      case 'Donation':
+      default:
+        return '/donations';
+    }
   }
 
   async function onOpen(n: Notification) {

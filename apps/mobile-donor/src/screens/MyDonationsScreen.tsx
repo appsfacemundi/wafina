@@ -5,8 +5,9 @@ import {
   type Donation,
   type SuccessStory,
 } from '@wafina/shared';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
@@ -14,9 +15,12 @@ import { DonationTimeline } from '@/components/DonationTimeline';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
+import type { MyDonationsStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
-export function MyDonationsScreen() {
+type Props = NativeStackScreenProps<MyDonationsStackParamList, 'MyDonationsList'>;
+
+export function MyDonationsScreen({ navigation }: Props) {
   const { firebaseUser, session } = useAuth();
   const insets = useSafeAreaInsets();
   const [donations, setDonations] = useState<Donation[] | null>(null);
@@ -57,7 +61,12 @@ export function MyDonationsScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
-            <Text style={styles.title}>Minhas Doações</Text>
+            <View style={styles.headerRow}>
+              <Text style={styles.title}>Minhas Doações</Text>
+              <Pressable onPress={() => navigation.navigate('Impact')}>
+                <Text style={styles.impactLink}>Histórias de Impacto</Text>
+              </Pressable>
+            </View>
             {stats && (
               <View style={styles.statsGrid}>
                 {[
@@ -144,7 +153,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 24,
     color: colors.text,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing[4],
+  },
+  impactLink: {
+    fontFamily: 'WorkSans-600',
+    fontSize: 13.5,
+    color: colors.accent,
   },
   statsGrid: {
     flexDirection: 'row',

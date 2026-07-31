@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/context/AuthContext';
+import { ToastProvider } from '@/context/ToastContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
 
 SplashScreen.preventAutoHideAsync();
@@ -26,7 +27,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <RootNavigator />
+        <ToastProvider>
+          <RootNavigator />
+        </ToastProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

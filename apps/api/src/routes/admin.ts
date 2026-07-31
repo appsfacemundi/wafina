@@ -3,6 +3,7 @@ import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { listInFlightDonationsForAdmin } from '../services/donations';
 import { listPendingInstitutions, rejectInstitution, verifyInstitution } from '../services/institutions';
+import { approveSuccessStory, listPendingSuccessStories, rejectSuccessStory } from '../services/success-stories';
 
 /**
  * Admin Web App foundation (Permanent Rules Update, 2026-07-30) — the first
@@ -50,5 +51,33 @@ adminRouter.get(
   requireRole('Admin'),
   asyncHandler(async (_req, res) => {
     res.json(await listInFlightDonationsForAdmin());
+  }),
+);
+
+/** Success Story moderation module — nothing an institution publishes is visible until Admin acts on it. */
+adminRouter.get(
+  '/admin/success-stories/pending',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listPendingSuccessStories());
+  }),
+);
+
+adminRouter.post(
+  '/admin/success-stories/:id/approve',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await approveSuccessStory(req.params.id));
+  }),
+);
+
+adminRouter.post(
+  '/admin/success-stories/:id/reject',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await rejectSuccessStory(req.params.id, req.body?.reason));
   }),
 );

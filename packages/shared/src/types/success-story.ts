@@ -17,12 +17,21 @@ export interface SuccessStory {
   /** Google Drive URL, same upload path as donation photos. */
   Image: string;
   /**
-   * Defaults to Approved today (no Admin Panel exists to moderate yet) — the
-   * column exists so a future moderation workflow can default new stories to
-   * Pending and approve/reject them without a schema change.
+   * Admin moderation module (2026-07-31) — defaults to Pending on publish.
+   * Only visible to the donor (and any future public gallery) once Approved;
+   * the institution always sees its own stories regardless of status via the
+   * status filter on "Histórias de Impacto".
    */
   Status: SuccessStoryStatus;
+  /** Set when Admin rejects — shown to the institution so they know why. Null otherwise. */
+  Rejection_Reason: string | null;
   /** The institution's User_ID at time of publish — stored explicitly rather than assumed, in case an institution ever has more than one author account. */
   Author_User_ID: string;
   Date_Published: string;
+}
+
+/** Admin moderation queue — same story plus enough institution context to review it. */
+export interface AdminSuccessStoryView extends SuccessStory {
+  Institution_Name: string | null;
+  Institution_Logo: string | null;
 }

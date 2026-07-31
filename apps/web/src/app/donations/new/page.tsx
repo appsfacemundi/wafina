@@ -1,7 +1,7 @@
 'use client';
 
 import { CONDITIONS, ITEM_TYPES } from '@wafina/shared';
-import { Button, Card, Input, Select } from '@wafina/ui';
+import { Button, Card, Input, Select, useToast } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -14,6 +14,7 @@ export default function NewDonationPage() {
   const session = useRequireSession();
   const { firebaseUser } = useAuth();
   const router = useRouter();
+  const { showToast } = useToast();
 
   const [itemType, setItemType] = useState<string>(ITEM_TYPES[0]);
   const [quantity, setQuantity] = useState('');
@@ -87,6 +88,7 @@ export default function NewDonationPage() {
       form.append('photo', photo);
 
       await apiFetch('/donations', { method: 'POST', idToken, body: form });
+      showToast('Doação submetida com sucesso!');
       router.push('/donations');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível submeter a doação.');

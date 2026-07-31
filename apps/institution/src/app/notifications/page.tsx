@@ -29,10 +29,22 @@ export default function NotificationsPage() {
 
   // Phase 3A Module 2 — real per-notification deep-linking, using Entity_Type
   // now that it exists, instead of always navigating to the same fixed page.
+  // Institution App Polish QA review (2026-07-31) — added Success_Story and
+  // Institution routing now that a moderation queue / verification flow exists.
   function pathForEntity(n: Notification): string {
-    if (n.Entity_Type === 'Dispute') return '/disputes';
-    if (n.Entity_Type === 'Change_Request') return '/settings';
-    return '/donations/claimed';
+    switch (n.Entity_Type) {
+      case 'Dispute':
+        return '/disputes';
+      case 'Change_Request':
+        return '/settings';
+      case 'Success_Story':
+        return '/success-stories';
+      case 'Institution':
+        return '/settings';
+      case 'Donation':
+      default:
+        return '/donations/claimed';
+    }
   }
 
   async function onOpen(n: Notification) {

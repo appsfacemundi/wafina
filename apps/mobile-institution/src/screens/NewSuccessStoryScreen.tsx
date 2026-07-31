@@ -79,7 +79,7 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
       } as unknown as Blob);
 
       await apiFetch('/success-stories', { method: 'POST', idToken, body: form });
-      showToast('História de impacto publicada com sucesso!');
+      showToast('História enviada para aprovação do Admin!');
       navigation.navigate('ClaimedByMeList');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível publicar a história.');

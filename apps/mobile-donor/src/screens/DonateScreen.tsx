@@ -10,6 +10,7 @@ import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { ApiError, apiFetch } from '@/lib/api';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
@@ -17,6 +18,7 @@ type LocationStatus = 'capturing' | 'captured' | 'failed';
 
 export function DonateScreen() {
   const { firebaseUser } = useAuth();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
 
   const [itemType, setItemType] = useState<string>(ITEM_TYPES[0]);
@@ -106,6 +108,7 @@ export function DonateScreen() {
       setSuccess(true);
       setQuantity('');
       setPhoto(null);
+      showToast('Doação submetida com sucesso!');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível submeter a doação.');
     } finally {

@@ -24,3 +24,20 @@ export function formatDateLabel(isoDate: string): string {
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
+
+/**
+ * Institution App Polish QA review (2026-07-31) — stakeholder feedback: the
+ * activity timeline showed date only, but every timeline entry (Date_Claimed,
+ * Date_Collection_Scheduled, etc.) is a real event timestamp, not just a
+ * calendar date — losing the time was losing real information. Used only for
+ * actual event timestamps, never for Expected_Collection_Date/
+ * Expected_Delivery_Date (those stay date-only via formatDateLabel — an
+ * estimate has no meaningful time-of-day).
+ */
+export function formatDateTimeLabel(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return '';
+  const datePart = date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const timePart = date.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+  return `${datePart} ${timePart}`;
+}

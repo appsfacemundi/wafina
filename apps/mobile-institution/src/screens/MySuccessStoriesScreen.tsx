@@ -1,4 +1,4 @@
-import type { SuccessStory, SuccessStoryStatus } from '@wafina/shared';
+import { formatDateTimeLabel, type SuccessStory, type SuccessStoryStatus } from '@wafina/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -91,8 +91,11 @@ export function MySuccessStoriesScreen() {
                 <Badge tone={STATUS_TONE[item.Status]}>{STATUS_LABEL[item.Status]}</Badge>
               </View>
               <Text style={styles.description}>{item.Description}</Text>
+              {item.Status === 'Rejected' && item.Rejection_Reason && (
+                <Text style={styles.rejectionReason}>Motivo da rejeição: {item.Rejection_Reason}</Text>
+              )}
               <Text style={styles.dateLabel}>
-                Publicada em {new Date(item.Date_Published).toLocaleDateString('pt-PT')}
+                {item.Status === 'Approved' ? 'Publicada' : 'Enviada'} em {formatDateTimeLabel(item.Date_Published)}
               </Text>
             </View>
           </Card>
@@ -175,6 +178,11 @@ const styles = StyleSheet.create({
     fontFamily: 'WorkSans-400',
     fontSize: 13.5,
     color: colors.textMuted,
+  },
+  rejectionReason: {
+    fontFamily: 'WorkSans-400',
+    fontSize: 13,
+    color: colors.danger,
   },
   dateLabel: {
     fontFamily: 'WorkSans-400',

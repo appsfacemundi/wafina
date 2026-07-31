@@ -2,7 +2,7 @@ import {
   DONATION_JOURNEY_DATE_FIELD,
   DONATION_JOURNEY_STEPS,
   DONATION_STATUS_LABEL,
-  formatDateLabel,
+  formatDateTimeLabel,
   type Donation,
 } from '@wafina/shared';
 import { StyleSheet, Text, View } from 'react-native';
@@ -29,7 +29,7 @@ export function DonationTimeline({ donation }: { donation: Donation }) {
             <Text style={[styles.label, reached && styles.labelReached, isCurrent && styles.labelCurrent]}>
               {DONATION_STATUS_LABEL[step]}
             </Text>
-            {date && <Text style={styles.date}>· {formatDateLabel(date)}</Text>}
+            {date && <Text style={styles.date}>· {formatDateTimeLabel(date)}</Text>}
           </View>
         );
       })}

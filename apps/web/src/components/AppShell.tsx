@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/home', label: 'Início' },
   { href: '/donations/new', label: 'Doar' },
   { href: '/donations', label: 'Minhas Doações' },
+  { href: '/impact', label: 'Histórias de Impacto' },
   { href: '/institutions', label: 'Instituições' },
   { href: '/notifications', label: 'Notificações' },
   { href: '/settings', label: 'Definições' },

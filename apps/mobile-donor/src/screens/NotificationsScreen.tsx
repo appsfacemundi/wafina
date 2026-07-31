@@ -31,9 +31,15 @@ export function NotificationsScreen({ navigation }: Props) {
 
   // Phase 3A Module 2 — real per-notification deep-linking, using Entity_Type
   // now that it exists, instead of always navigating to the same fixed screen.
+  // Institution App Polish QA review (2026-07-31) — expanded once a
+  // dedicated donor Impact screen existed to link Success_Story notifications to.
   function navigateForEntity(n: Notification) {
     if (n.Entity_Type === 'Corporate_Account') {
       navigation.navigate('Settings');
+      return;
+    }
+    if (n.Entity_Type === 'Success_Story') {
+      navigation.navigate('MyDonations', { screen: 'Impact' });
       return;
     }
     navigation.navigate('MyDonations');

@@ -31,16 +31,21 @@ export function NotificationsScreen({ navigation }: Props) {
 
   // Phase 3A Module 2 — real per-notification deep-linking, using Entity_Type
   // now that it exists, instead of always navigating to the same fixed screen.
+  // Institution App Polish QA review (2026-07-31) — Success_Story now routes
+  // to its own moderation-status list instead of falling back to ClaimedByMe.
   function navigateForEntity(n: Notification) {
     switch (n.Entity_Type) {
       case 'Dispute':
         navigation.navigate('Disputes', { screen: 'DisputesList' });
         return;
       case 'Change_Request':
+      case 'Institution':
         navigation.navigate('Settings');
         return;
-      case 'Donation':
       case 'Success_Story':
+        navigation.navigate('ClaimedByMe', { screen: 'MySuccessStories' });
+        return;
+      case 'Donation':
       default:
         navigation.navigate('ClaimedByMe');
     }

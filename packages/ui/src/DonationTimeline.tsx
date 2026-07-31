@@ -2,7 +2,7 @@ import {
   DONATION_JOURNEY_DATE_FIELD,
   DONATION_JOURNEY_STEPS,
   DONATION_STATUS_LABEL,
-  formatDateLabel,
+  formatDateTimeLabel,
   type Donation,
 } from '@wafina/shared';
 
@@ -46,7 +46,7 @@ export function DonationTimeline({ donation }: { donation: Donation }) {
             </span>
             {date && (
               <span style={{ fontSize: 12, color: 'var(--color-text-faint, #999)' }}>
-                · {formatDateLabel(date)}
+                · {formatDateTimeLabel(date)}
               </span>
             )}
           </div>

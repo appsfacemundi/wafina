@@ -87,7 +87,7 @@ function NewSuccessStoryForm() {
       form.append('image', image);
 
       await apiFetch('/success-stories', { method: 'POST', idToken, body: form });
-      showToast('História de impacto publicada com sucesso!');
+      showToast('História enviada para aprovação do Admin!');
       router.push('/donations/claimed');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível publicar a história.');

@@ -1,8 +1,8 @@
 # Project Status - WAFINA Platform
 
 **Last updated:** 2026-07-31
-**Updated by:** Claude Code, after a full post-hoc QA review of the Institution app (Module 6 sign-off)
-**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1–6 are implemented and Module 6 has been through a dedicated end-to-end QA review (bugs found and fixed — see that entry). The stakeholder has repeatedly inserted new modules ahead of the original queue based on their own live testing (Module 4: Admin Foundation; Module 5: Institution UX pass; Module 6: polish/workflow pass, driven by detailed stakeholder feedback after Module 5, followed by this QA review pass before Module 7) — the queue is being resequenced dynamically rather than followed rigidly, which is working as intended. See "Modules 7+" below for the current queue.
+**Updated by:** Claude Code, after a second stakeholder review round on Module 6 (Success Story approval workflow, timeline date+time, donor Impact section, notification deep-linking)
+**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1–6 are implemented; Module 6 has now been through two full stakeholder review rounds (first: hydration/notification-reliability/terminology bugs; second: Success Story approval workflow + UX gaps) with fixes verified live both times. One item from the second round — a "Needs_List showing need_list" bug report — was investigated thoroughly but could not be reproduced; flagged back to the stakeholder for more specific repro steps. The stakeholder has repeatedly inserted review rounds ahead of the original queue based on their own live testing — the queue is being resequenced dynamically rather than followed rigidly, which is working as intended. See "Modules 7+" below for the current queue.
 
 ---
 
@@ -848,6 +848,109 @@ in-scope code fixes (notification toast on dispute submission) and typecheck cle
 live in a simulator this pass — same outstanding, previously-accepted gap as Modules 3, 5, and 6.
 
 **Commit:** `563fe41`
+
+### Module 6 — Second Stakeholder Review Round (2026-07-31): Success Story approval, timeline time, donor Impact section, notification deep-linking
+
+After the first QA review pass above, the stakeholder ran their own manual review and sent a further list of
+concrete issues before agreeing Module 7 could start. All items addressed below; this is the round that
+finally closes Module 6.
+
+**1. Success Story approval workflow (previously auto-published) — BUILT:**
+Stories previously defaulted to `Status: 'Approved'` on submission (documented as a placeholder in Module 2,
+since no Admin moderation UI existed yet). Per the stakeholder's explicit workflow (Institution submits →
+Pending → Admin reviews → Approve/Reject → only Approved is visible to the donor/public), this module now:
+- Defaults new stories to `Pending`; added `Rejection_Reason` (new column, migrated onto the real
+  `Success_Stories` Sheet tab).
+- New Admin moderation queue (`GET /admin/success-stories/pending`, `POST .../approve`, `POST .../reject`)
+  and a new Admin Web App page (`/success-stories`) with institution identity shown per story, mirroring the
+  existing donations/institutions moderation pages.
+- The donor-facing query (`listSuccessStoriesByDonor`) already filtered to `Status === 'Approved'` from
+  Module 2 — so gating donor visibility required no change there, only the default-status flip.
+- The donor "story published" notification now fires on **approval**, not submission — a donor is never
+  notified about something they can't yet see.
+- Institution's existing "Histórias de Impacto" list (built in the first QA round) already had status filter
+  tabs (Todas/Publicada/Pendente/Rejeitada) from Module 6 proper — now also shows the rejection reason when
+  `Status === 'Rejected'`, on both web and mobile.
+- Verified live, twice: once through full approval (submission → Admin approves → toast → donor's `/impact`
+  and notifications both updated → tapping the notification deep-links to `/impact`) and once through full
+  rejection (submission → Admin rejects with a reason → institution sees "Rejeitada" + the exact reason
+  text) — both against a completely independent, freshly-registered donor/institution pair.
+
+**2. Timeline showing date only, not date+time — FIXED:**
+New `formatDateTimeLabel()` in `packages/shared/src/lib/relative-date.ts` (kept separate from the existing
+`formatDateLabel()`, which stays date-only and is still used for Expected_Collection/Delivery_Date — an
+*estimate* has no meaningful time-of-day, but a real event timestamp does). Applied to the shared
+`DonationTimeline` component (web + both mobile RN versions) and to Success Story submission timestamps
+(institution's own list, both platforms). Verified live: every timeline entry now reads e.g.
+"31/07/2026 06:11" instead of just the date.
+
+**3. Donor app missing a dedicated Success Stories / Impact section — BUILT:**
+Previously a story only appeared as a small inline mention on the one donation card it belonged to; no
+standalone page existed. New `/impact` page (Web) and `ImpactScreen` (mobile, reached via a header link from
+"Minhas Doações" rather than a 7th bottom tab — same pattern already used for the institution app's
+"Histórias de Impacto" link, to avoid an overcrowded tab bar). Both reuse the existing
+`listSuccessStoriesByDonor` endpoint (Approved-only). Verified live against a real account with real
+approved data, not just a disposable test one.
+
+**4. Notification tap not navigating anywhere useful — EXPANDED:**
+The stakeholder's own added item. Turned out partial deep-linking already existed from Module 2
+(`Entity_Type`-based routing on notification tap, marking as read) but only handled `Donation` and
+`Corporate_Account`. Expanded on both platforms (web: donor + institution; mobile: donor + institution) to
+route `Success_Story` notifications to the new Impact/Histórias-de-Impacto pages, and `Institution` entity
+notifications to Settings. Verified live: tapping the "história partilhada" notification navigates straight
+to `/impact`.
+
+**5. "Needed Items" (`Needs_List`) showing the literal string "need_list" instead of the typed text —
+INVESTIGATED, NOT REPRODUCED:**
+Extensive investigation across every code path that touches `Needs_List` (registration forms on web and
+mobile, the `createInstitution` service, the change-request field-label mapping, every display site across
+Institution/Admin/Donor apps) found no code path capable of producing a literal `"need_list"` string —
+every read/write consistently uses the correctly-cased `Needs_List` key, confirmed against the real Sheet's
+actual header row. Checked all 5 real institutions' live `Needs_List` values — all contain real, correctly-
+entered text, no corruption. Reproduced the exact registration flow live, twice, with fresh accounts,
+entering a real value each time ("Roupas de inverno e cobertores") — displayed correctly everywhere
+(Admin's pending-institution card, the institution's own Settings) both times. **Could not reproduce this
+bug.** There is currently no code path where an institution can change `Needs_List`'s *value* after
+verification at all (the change-request flow only lets them request a change and explain why — Admin has no
+UI yet to apply a change-request's requested value) — worth double-checking with the stakeholder whether
+this was seen during registration (unverified) or is describing the change-request flow's Field dropdown
+itself, and exactly which screen/app it appeared on, so it can be reproduced and fixed if it's real.
+
+**Also fixed while investigating notification error-handling (found live, not in the stakeholder's list, but
+directly blocking reliable verification of the items above):**
+Every donation-lifecycle action (`claimDonation`, `scheduleCollection`, `markCollected`, `confirmDelivery`,
+`setExpectedDates`) writes its core state change first, then a notification second. A transient Google
+Sheets 429 (rate limit, from rapid testing) during the notification write was throwing the whole request as
+a 500 — even though the actual state change had already succeeded — so the client showed "Internal server
+error" while the donation had, in fact, already been claimed/delivered/etc. Reproduced directly: after one
+such error, the donation had vanished from Available Donations (proving it really was claimed) while the UI
+told the institution the action had failed. Root-cause fixed at the single shared write path:
+`createNotification()` (`apps/api/src/services/notifications.ts`) now catches and logs failures instead of
+throwing — a missed in-app notification is a strictly better failure mode than falsely reporting that an
+already-succeeded action failed.
+
+**Also added for consistency** (not explicitly requested, but directly implied by "verify popups after
+every successful action" in the stakeholder's final checklist): a `ToastProvider` was missing entirely from
+the Donor web app and the Admin Web App (Institution already had one from the first QA round). Added both,
+plus toasts on donation submission, profile save, corporate-account join, active-country change, and privacy
+toggle (Donor); institution approve/reject and expected-dates save (Admin); dispute submission (Institution,
+both platforms — the one action in the whole app that had no toast at all).
+
+**Database implications:** Additive only. `Success_Stories` gained `Rejection_Reason`. No existing column
+changed meaning.
+
+**Verified:** `npm run typecheck` clean across all 8 workspaces after every fix. Full live end-to-end pass
+with a second, independent disposable donor/institution pair (fresh registration → Admin approval → accept →
+schedule → collect → deliver → submit story → Admin approves → donor sees it + gets a working deep-linked
+notification) plus a second full donation cycle specifically to exercise the rejection path (submit → Admin
+rejects with a reason → institution sees the exact reason). All disposable Firebase users and Sheet rows
+deleted afterward. The persistent `wafina.admin.testing@gmail.com` Admin account (created this round so the
+stakeholder has direct Admin access without needing the original Super Admin account's credentials) was
+deliberately left in place. Confirmed no leftover disposable-test rows remain — all data present after
+cleanup belongs to the stakeholder's own real accounts (real donations/stories created via their own live
+testing during this session), not anything created by this review.
+
+**Commit:** (pending — see below)
 
 ### Modules 7+: not yet started
 Sequenced dynamically based on stakeholder priority. Known upcoming work: Active-Country filtering audit

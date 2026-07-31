@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 const NAV_ITEMS = [
   { href: '/home', label: 'Instituições Pendentes' },
   { href: '/donations', label: 'Doações' },
+  { href: '/success-stories', label: 'Histórias de Impacto' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

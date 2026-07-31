@@ -30,6 +30,8 @@ export const NOTIFICATION_TYPES = [
   'change_request_rejected',
   'corporate_member_joined',
   'success_story_published',
+  'success_story_approved',
+  'success_story_rejected',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

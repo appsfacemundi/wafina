@@ -1,6 +1,6 @@
 'use client';
 
-import type { SuccessStory, SuccessStoryStatus } from '@wafina/shared';
+import { formatDateTimeLabel, type SuccessStory, type SuccessStoryStatus } from '@wafina/shared';
 import { Badge, Card, EmptyState } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -90,8 +90,13 @@ export default function SuccessStoriesPage() {
                     <Badge tone={STATUS_TONE[s.Status]}>{STATUS_LABEL[s.Status]}</Badge>
                   </div>
                   <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>{s.Description}</p>
+                  {s.Status === 'Rejected' && s.Rejection_Reason && (
+                    <p style={{ fontSize: 13, color: 'var(--danger-700)' }}>
+                      Motivo da rejeição: {s.Rejection_Reason}
+                    </p>
+                  )}
                   <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
-                    Publicada em {new Date(s.Date_Published).toLocaleDateString('pt-PT')}
+                    {s.Status === 'Approved' ? 'Publicada' : 'Enviada'} em {formatDateTimeLabel(s.Date_Published)}
                   </p>
                 </div>
               </Card>

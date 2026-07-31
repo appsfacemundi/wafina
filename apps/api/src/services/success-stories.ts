@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type { SuccessStory, SuccessStoryStatus } from '@wafina/shared';
+import type { AdminSuccessStoryView, SuccessStory, SuccessStoryStatus } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso } from '../config/sheet-values';
-import { appendRow, getRows } from '../config/sheets';
+import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { getDonation } from './donations';
+import { getInstitutionById } from './institutions';
 import { createNotification } from './notifications';
 import { ValidationError } from './validation-error';
 
@@ -20,10 +21,12 @@ function rowToSuccessStory(row: Record<string, string>): SuccessStory {
     Description: row.Description,
     Image: row.Image,
     Status: row.Status as SuccessStoryStatus,
+    Rejection_Reason: row.Rejection_Reason || null,
     Author_User_ID: row.Author_User_ID,
     Date_Published: row.Date_Published,
   };
 }
+
 
 export interface CreateSuccessStoryInput {
   Donation_ID: string;
@@ -33,13 +36,14 @@ export interface CreateSuccessStoryInput {
 }
 
 /**
- * Phase 3A Module 2 — MVP. Only a verified institution (enforced by the
- * requireVerified route middleware, same as disputes/change-requests) can
- * publish, and only about a donation it actually delivered. Status defaults
- * to Approved because no Admin Panel exists yet to moderate — the column and
- * values are ready for that (SUCCESS_STORY_STATUSES) so a future moderation
- * workflow only needs to change the default and add an Admin action, not the
- * schema. Notifies the donor on publish (spec requirement).
+ * Admin moderation module (2026-07-31) — only a verified institution
+ * (enforced by the requireVerified route middleware, same as
+ * disputes/change-requests) can submit, and only about a donation it
+ * actually delivered. Status defaults to Pending: nothing publishes
+ * automatically. The donor is deliberately NOT notified here — they only
+ * find out once Admin approves (see approveSuccessStory), so a donor is
+ * never shown a "shared a story" notification for something they can't
+ * actually see yet.
  */
 export async function createSuccessStory(
   institutionId: string,
@@ -80,13 +84,73 @@ export async function createSuccessStory(
     Title: input.Title.trim(),
     Description: input.Description.trim(),
     Image: input.Image,
-    Status: 'Approved' satisfies SuccessStoryStatus,
+    Status: 'Pending' satisfies SuccessStoryStatus,
+    Rejection_Reason: '',
     Author_User_ID: authorUserId,
     Date_Published: nowIso(),
   };
 
   await appendRow(SHEET_TABS.successStories, row);
-  const story = rowToSuccessStory(row);
+  return rowToSuccessStory(row);
+}
+
+/** Institution's own stories, any status — the "Histórias de Impacto" list with status filter tabs. */
+export async function listSuccessStoriesByInstitution(institutionId: string): Promise<SuccessStory[]> {
+  const rows = await getRows(SHEET_TABS.successStories);
+  return rows.filter((row) => row.Institution_ID === institutionId).map(rowToSuccessStory);
+}
+
+/** Donor-facing — Approved stories about their own donations only (not a public feed). */
+export async function listSuccessStoriesByDonor(donorId: string): Promise<SuccessStory[]> {
+  const rows = await getRows(SHEET_TABS.successStories);
+  return rows
+    .filter((row) => row.Donor_ID === donorId && row.Status === 'Approved')
+    .map(rowToSuccessStory);
+}
+
+/** Admin moderation queue. */
+export async function listPendingSuccessStories(): Promise<AdminSuccessStoryView[]> {
+  const rows = await getRows(SHEET_TABS.successStories);
+  const pending = rows.filter((row) => row.Status === 'Pending').map(rowToSuccessStory);
+
+  const institutionIds = new Set(pending.map((s) => s.Institution_ID));
+  const institutionById = new Map(
+    await Promise.all(
+      Array.from(institutionIds).map(async (id) => [id, await getInstitutionById(id)] as const),
+    ),
+  );
+
+  return pending.map((story) => {
+    const institution = institutionById.get(story.Institution_ID);
+    return {
+      ...story,
+      Institution_Name: institution?.Name ?? null,
+      Institution_Logo: institution?.Logo ?? null,
+    };
+  });
+}
+
+async function getSuccessStoryOrThrow(storyId: string): Promise<SuccessStory> {
+  const row = await findRow(SHEET_TABS.successStories, (r) => r.Success_Story_ID === storyId);
+  if (!row) throw new ValidationError('Success Story not found');
+  return rowToSuccessStory(row);
+}
+
+/**
+ * Admin approves — this is the moment the story actually becomes visible to
+ * the donor (listSuccessStoriesByDonor) and any future public gallery. Only
+ * now does the donor get notified; the institution is notified too, so both
+ * sides always know the current status.
+ */
+export async function approveSuccessStory(storyId: string): Promise<SuccessStory> {
+  const existing = await getSuccessStoryOrThrow(storyId);
+  if (existing.Status !== 'Pending') throw new ValidationError('Only a Pending story can be approved');
+
+  await updateRow(SHEET_TABS.successStories, 'Success_Story_ID', storyId, {
+    Status: 'Approved',
+    Rejection_Reason: '',
+  });
+  const story = await getSuccessStoryOrThrow(storyId);
 
   await createNotification({
     recipientUserId: story.Donor_ID,
@@ -96,19 +160,43 @@ export async function createSuccessStory(
     message: 'A instituição partilhou uma história de impacto sobre a sua doação!',
   });
 
+  const institution = await getInstitutionById(story.Institution_ID);
+  if (institution?.User_ID) {
+    await createNotification({
+      recipientUserId: institution.User_ID,
+      notificationType: 'success_story_approved',
+      entityType: 'Success_Story',
+      entityId: story.Success_Story_ID,
+      message: `A sua história "${story.Title}" foi aprovada e já está visível ao doador.`,
+    });
+  }
+
   return story;
 }
 
-/** Institution's own published stories. */
-export async function listSuccessStoriesByInstitution(institutionId: string): Promise<SuccessStory[]> {
-  const rows = await getRows(SHEET_TABS.successStories);
-  return rows.filter((row) => row.Institution_ID === institutionId).map(rowToSuccessStory);
-}
+/** Admin rejects — institution is notified with the reason; the donor never saw it, so isn't notified. */
+export async function rejectSuccessStory(storyId: string, reason: string): Promise<SuccessStory> {
+  if (!reason || !reason.trim()) throw new ValidationError('Rejection reason is required');
 
-/** Donor-facing — stories published about their own donations only (not a public feed). */
-export async function listSuccessStoriesByDonor(donorId: string): Promise<SuccessStory[]> {
-  const rows = await getRows(SHEET_TABS.successStories);
-  return rows
-    .filter((row) => row.Donor_ID === donorId && row.Status === 'Approved')
-    .map(rowToSuccessStory);
+  const existing = await getSuccessStoryOrThrow(storyId);
+  if (existing.Status !== 'Pending') throw new ValidationError('Only a Pending story can be rejected');
+
+  await updateRow(SHEET_TABS.successStories, 'Success_Story_ID', storyId, {
+    Status: 'Rejected',
+    Rejection_Reason: reason.trim(),
+  });
+  const story = await getSuccessStoryOrThrow(storyId);
+
+  const institution = await getInstitutionById(story.Institution_ID);
+  if (institution?.User_ID) {
+    await createNotification({
+      recipientUserId: institution.User_ID,
+      notificationType: 'success_story_rejected',
+      entityType: 'Success_Story',
+      entityId: story.Success_Story_ID,
+      message: `A sua história "${story.Title}" foi rejeitada. Motivo: ${reason.trim()}`,
+    });
+  }
+
+  return story;
 }
