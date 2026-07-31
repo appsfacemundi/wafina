@@ -66,6 +66,13 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
     return;
   }
 
+  // Admin parity Phase A — the row is already fetched fresh on every request,
+  // so a suspension takes effect immediately with no Firebase token revocation.
+  if (userRow.Status === 'Suspended') {
+    res.status(403).json({ error: 'This account has been suspended' });
+    return;
+  }
+
   req.user = toAuthenticatedUser(uid, userRow);
 
   next();

@@ -5,6 +5,8 @@ import type {
   RegistrableRole,
   Role,
   SwitchPreference,
+  User,
+  UserStatus,
 } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso, toSheetBool } from '../config/sheet-values';
@@ -27,6 +29,26 @@ export interface UserRow {
   Active_Country_ID: string;
   Switch_Preference: string;
   Show_Name_To_Institutions: string;
+  Status: string;
+}
+
+function rowToUser(row: UserRow): User {
+  return {
+    User_ID: row.User_ID,
+    Name: row.Name,
+    Phone: row.Phone,
+    Role: row.Role as Role,
+    Donor_Subtype: (row.Donor_Subtype as DonorSubtype) || null,
+    Corporate_Account_ID: row.Corporate_Account_ID || null,
+    Verified: row.Verified === 'TRUE',
+    Email: row.Email,
+    Date_Joined: row.Date_Joined,
+    Home_Country_ID: row.Home_Country_ID,
+    Active_Country_ID: row.Active_Country_ID,
+    Switch_Preference: (row.Switch_Preference as SwitchPreference) || 'Always_Ask',
+    Show_Name_To_Institutions: row.Show_Name_To_Institutions === 'TRUE',
+    Status: (row.Status as UserStatus) || 'Active',
+  };
 }
 
 export async function findUserByEmail(email: string): Promise<UserRow | null> {
@@ -58,6 +80,7 @@ export async function createUser(email: string, role: RegistrableRole): Promise<
     Active_Country_ID: '',
     Switch_Preference: 'Always_Ask',
     Show_Name_To_Institutions: toSheetBool(false),
+    Status: 'Active',
   };
 
   await appendRow(SHEET_TABS.users, row as unknown as Record<string, string>);
@@ -166,6 +189,44 @@ export async function linkCorporateAccount(userId: string, corporateAccountId: s
       }),
     ),
   );
+}
+
+/** Admin parity Phase A — the full user list for Admin's Users page, newest first. */
+export async function listAllUsers(): Promise<User[]> {
+  const rows = await getRows(SHEET_TABS.users);
+  return rows
+    .map((row) => rowToUser(row as unknown as UserRow))
+    .sort((a, b) => b.Date_Joined.localeCompare(a.Date_Joined));
+}
+
+async function getUserOrThrow(userId: string): Promise<UserRow> {
+  const row = await findRow(SHEET_TABS.users, (r) => r.User_ID === userId);
+  if (!row) throw new ValidationError('User not found');
+  return row as unknown as UserRow;
+}
+
+/** Blocks the account at requireAuth (Status is re-checked on every request) without deleting any data. */
+export async function suspendUser(userId: string): Promise<User> {
+  await getUserOrThrow(userId);
+  await updateRow(SHEET_TABS.users, 'User_ID', userId, { Status: 'Suspended' satisfies UserStatus });
+  return rowToUser(await getUserOrThrow(userId));
+}
+
+export async function reactivateUser(userId: string): Promise<User> {
+  await getUserOrThrow(userId);
+  await updateRow(SHEET_TABS.users, 'User_ID', userId, { Status: 'Active' satisfies UserStatus });
+  return rowToUser(await getUserOrThrow(userId));
+}
+
+/**
+ * Deliberately restricted to Donor <-> Institution: this is Admin correcting a
+ * mis-registered account, not a privilege-escalation lever. Granting Admin
+ * access is never done through this endpoint.
+ */
+export async function setUserRole(userId: string, role: RegistrableRole): Promise<User> {
+  await getUserOrThrow(userId);
+  await updateRow(SHEET_TABS.users, 'User_ID', userId, { Role: role });
+  return rowToUser(await getUserOrThrow(userId));
 }
 
 /** Shared by the auth middleware and /auth/session so both build the same session shape. */

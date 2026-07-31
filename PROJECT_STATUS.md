@@ -1066,11 +1066,83 @@ Module 7 without stopping for approval on this stabilization pass.
 
 **Commit:** `a1239bb`
 
-### Modules 7+: not yet started
-Sequenced dynamically based on stakeholder priority. Known upcoming work: Active-Country filtering audit
-across Success Stories/Notifications; corporate secure invitations; corporate dashboard. Also known,
-deliberately deferred this round (see Stabilization Module item 4): a dedicated future Admin module for
-Corporate invitation codes, Country management CRUD, User management, Notification management, and Reports.
+### Admin Web App Parity Program (2026-07-31): permanent policy + Phase A COMPLETE
+
+**Permanent policy adopted:** the stakeholder issued a standing rule that the Admin Web App is now a
+first-class application, equal to Donor and Institution, and must never fall behind them again — codified in
+`DEVELOPMENT_RULES.md` §15. Going forward, every new Donor/Institution feature must ask "how will Admin
+manage this?" before being considered complete. Immediate priority: bring Admin to full parity with what
+Donor/Institution already have, before the next major feature phase.
+
+An Explore-agent audit of the actual codebase (not just the requested feature list) found the gap was larger
+than "missing Admin screens" in several places — some capability didn't exist in the backend at all:
+- Users: no suspend/reactivate, no role management, no `Status` field on `Users`.
+- Corporate Accounts: only `findCorporateAccountByInviteCode`, which treats the Corporate_Account_ID itself
+  as the invite code — no real code entity, no expiration, no max-usage.
+- Countries: `Geo_Regions` was read-only; no write path to toggle `Active` or add a country.
+- Disputes: institutions could create/list their own; Admin had no visibility or resolve function at all
+  (previously "exclusively in AppSheet" — stale since AppSheet's retirement).
+- Notifications: no manual-send or broadcast concept, only system-triggered single-recipient ones.
+- Reports/Settings: neither existed in any form.
+
+Given the size, the stakeholder confirmed a 3-phase build order (quick wins reusing existing patterns first,
+then the two areas needing real new schema, then the least-defined items last), agreed to continue through
+all phases without stopping for per-phase approval (matching the prior stabilization module's checkpoint
+style), scoped notification broadcasts to be role/country-filtered rather than a true unscoped blast (Google
+Sheets has real per-minute rate limits, already hit once this project), and deferred Settings/feature flags
+entirely since nothing in the codebase reads a flag or setting today — Reports takes that slot instead, last.
+
+**Phase A — Users, Countries, Disputes: COMPLETE**
+
+*Users management:* Added a `Status` column to `Users` (migration, backfilled all 13 existing rows to
+`Active`). New `USER_STATUSES` enum (`packages/shared/src/enums/user-status.ts`). `apps/api/src/services/
+users.ts` gained `listAllUsers`, `suspendUser`, `reactivateUser`, `setUserRole` — role changes are
+deliberately restricted to Donor↔Institution only, never a path to Admin (privilege-escalation guard).
+`requireAuth` (`apps/api/src/middleware/auth.ts`) now rejects with 403 if `Status === 'Suspended'` — the row
+is already fetched fresh on every request, so this needs no Firebase token revocation and takes effect
+immediately. New Admin routes (`/admin/users`, `.../suspend`, `.../reactivate`, `.../role`) and a new
+`/users` page. "Reset account" needed no new backend endpoint — the Admin page calls Firebase's client-side
+`sendPasswordResetEmail()` directly, reusing Firebase's own reset flow.
+
+Found and fixed a real gap while testing: `POST /auth/session` (`apps/api/src/routes/auth.ts`) is a separate
+hand-rolled login handler that doesn't go through `requireAuth`, so a suspended user was still getting a
+valid session back from it and landing on a half-broken app shell (individual data calls 403'd one by one,
+with no clear message about why). Added the same suspension check directly in that handler — verified live
+that a freshly-suspended account is now rejected with a clear 403 right at login instead.
+
+*Countries management:* `apps/api/src/services/geo-regions.ts` gained `setCountryActive` and `createCountry`
+— the write side of the "Admin launches a country by flipping one flag" lever the type comments already
+described but that had no route until now. New Admin routes (`GET/PATCH/POST /admin/countries`) and a new
+`/countries` page (toggle Active, add-country form).
+
+*Disputes resolution:* `apps/api/src/services/disputes.ts` gained `listAllOpenDisputes` (joined with
+Donations/Institutions for display context) and `resolveDispute`, mirroring the existing change-request
+approve/reject shape. New Admin routes (`/admin/disputes/pending`, `.../resolve`) and a new `/disputes`
+page. Also added an `openDisputes` tile to the Admin dashboard stats.
+
+*Admin nav/dashboard restructuring:* `AppShell.tsx` now has 8 items (added Utilizadores, Países,
+Ocorrências). `AdminDashboardStats` gained `openDisputes`.
+
+**Database implications:** `Users` gained `Status` (additive, backfilled). No existing column changed
+meaning.
+
+**Verified:** `npm run typecheck` and `npm run lint` clean across all 8 workspaces. Live-tested against the
+running API/Donor/Admin apps: created a disposable donor account, suspended it via Admin and confirmed both
+`requireAuth`-gated routes and the login endpoint itself now reject it with 403, reactivated it and confirmed
+login works again, changed its role both directions, triggered a password-reset email — all via the real UI,
+not just the API directly. Tested Countries by adding a disposable "Pais de Teste QA" (ISO `ZZ`), toggling it
+Active and back. Tested Disputes by creating a disposable Open dispute and resolving it through the UI,
+confirming it disappears from the queue. Left 4 real pending disputes (Red Cross Luanda, Caritas Test,
+Finangest) untouched. All disposable test data (Firebase user, Sheet rows) deleted afterward via one-off
+scripts, then the scripts themselves deleted.
+
+**Known Issues / Deferred:** the generic error-swallowing pattern in each app's `AuthContext` (any
+`/auth/session` failure — suspended, no account yet, invalid token — collapses to the same "redirect to
+sign-in with no message" behavior) predates this phase and isn't specific to suspension; distinguishing
+*why* sign-in failed would touch every app's auth context equally and is a separate, small UX improvement,
+not part of Users management itself.
+
+**Commit:** _recorded below after this entry is committed._
 
 ---
 

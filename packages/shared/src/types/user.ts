@@ -1,12 +1,15 @@
 import type { Role } from '../enums/role';
 import type { DonorSubtype } from '../enums/donor-subtype';
 import type { SwitchPreference } from '../enums/switch-preference';
+import type { UserStatus } from '../enums/user-status';
 
 export interface User {
   User_ID: string;
   Name: string;
   Phone: string;
   Role: Role;
+  /** Admin parity Phase A — a suspended account is rejected at requireAuth, not deleted. */
+  Status: UserStatus;
   /** Only set when Role === 'Donor'. */
   Donor_Subtype: DonorSubtype | null;
   /** Only set when Donor_Subtype === 'Corporate'. */

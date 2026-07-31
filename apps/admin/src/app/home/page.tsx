@@ -58,6 +58,10 @@ export default function AdminHomePage() {
             <p style={{ fontSize: 28, fontWeight: 700 }}>{stats?.pendingChangeRequests ?? '—'}</p>
             <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Pedidos de alteração por rever</p>
           </Card>
+          <Card className="stack">
+            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats?.openDisputes ?? '—'}</p>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Ocorrências abertas</p>
+          </Card>
         </div>
       </div>
     </AppShell>

@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type { Dispute, DisputeStatus } from '@wafina/shared';
+import type { AdminDisputeView, Dispute, DisputeStatus } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso } from '../config/sheet-values';
-import { appendRow, getRows } from '../config/sheets';
+import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { getDonation } from './donations';
+import { getInstitutionById } from './institutions';
 import { createNotification } from './notifications';
 import { ValidationError } from './validation-error';
 
@@ -24,8 +25,9 @@ function rowToDispute(row: Record<string, string>): Dispute {
 
 /**
  * Spec 11.3: only for Claimed/Delivered donations, only by the institution
- * that claimed them. Admin resolution (Status/Resolution_Notes/Date_Resolved)
- * happens exclusively in AppSheet — there is no resolve function here.
+ * that claimed them. Admin resolves via resolveDispute() below (previously
+ * "exclusively in AppSheet" — stale now that AppSheet is retired from the
+ * architecture, 2026-07-30).
  */
 export async function createDispute(
   institutionId: string,
@@ -89,4 +91,74 @@ export async function listDisputesByInstitution(institutionId: string): Promise<
   );
 
   return disputeRows.filter((row) => ownDonationIds.has(row.Donation_ID)).map(rowToDispute);
+}
+
+/**
+ * Admin moderation queue (Admin Web App Parity module, 2026-07-31) — this
+ * used to happen "exclusively in AppSheet"; stale now that AppSheet is
+ * retired from the architecture. Joins through Donations/Institutions purely
+ * for display context (which institution/item this dispute is about).
+ */
+export async function listAllOpenDisputes(): Promise<AdminDisputeView[]> {
+  const [disputeRows, donationRows] = await Promise.all([
+    getRows(SHEET_TABS.disputes),
+    getRows(SHEET_TABS.donations),
+  ]);
+
+  const open = disputeRows.filter((row) => row.Status === 'Open').map(rowToDispute);
+  const donationById = new Map(donationRows.map((row) => [row.Donation_ID, row]));
+  const institutionIds = new Set(
+    open
+      .map((d) => donationById.get(d.Donation_ID)?.Claimed_By_Institution_ID)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const institutionById = new Map(
+    await Promise.all(Array.from(institutionIds).map(async (id) => [id, await getInstitutionById(id)] as const)),
+  );
+
+  return open.map((dispute) => {
+    const donation = donationById.get(dispute.Donation_ID);
+    const institution = donation?.Claimed_By_Institution_ID
+      ? institutionById.get(donation.Claimed_By_Institution_ID)
+      : null;
+    return {
+      ...dispute,
+      Institution_Name: institution?.Name ?? null,
+      Institution_Logo: institution?.Logo ?? null,
+      Donation_Item_Type: donation?.Item_Type ?? null,
+      Donation_Public_Code: donation?.Public_Donation_Code ?? null,
+    };
+  });
+}
+
+async function getDisputeOrThrow(disputeId: string): Promise<Dispute> {
+  const row = await findRow(SHEET_TABS.disputes, (r) => r.Dispute_ID === disputeId);
+  if (!row) throw new ValidationError('Dispute not found');
+  return rowToDispute(row);
+}
+
+/** Admin resolves — notifies the institution user who raised it, with the resolution notes. */
+export async function resolveDispute(disputeId: string, resolutionNotes: string): Promise<Dispute> {
+  if (!resolutionNotes || !resolutionNotes.trim()) {
+    throw new ValidationError('Resolution notes are required');
+  }
+
+  const dispute = await getDisputeOrThrow(disputeId);
+  if (dispute.Status !== 'Open') throw new ValidationError('Only an Open dispute can be resolved');
+
+  await updateRow(SHEET_TABS.disputes, 'Dispute_ID', disputeId, {
+    Status: 'Resolved' satisfies DisputeStatus,
+    Resolution_Notes: resolutionNotes.trim(),
+    Date_Resolved: nowIso(),
+  });
+
+  await createNotification({
+    recipientUserId: dispute.Raised_By,
+    notificationType: 'dispute_resolved',
+    entityType: 'Dispute',
+    entityId: disputeId,
+    message: `A sua ocorrência foi resolvida pelo Admin: ${resolutionNotes.trim()}`,
+  });
+
+  return getDisputeOrThrow(disputeId);
 }

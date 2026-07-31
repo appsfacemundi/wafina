@@ -5,4 +5,5 @@ export interface AdminDashboardStats {
   inFlightDonations: number;
   pendingSuccessStories: number;
   pendingChangeRequests: number;
+  openDisputes: number;
 }

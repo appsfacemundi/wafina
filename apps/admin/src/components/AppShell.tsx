@@ -11,6 +11,9 @@ const NAV_ITEMS = [
   { href: '/donations', label: 'Doações' },
   { href: '/success-stories', label: 'Histórias de Impacto' },
   { href: '/change-requests', label: 'Pedidos de Alteração' },
+  { href: '/users', label: 'Utilizadores' },
+  { href: '/countries', label: 'Países' },
+  { href: '/disputes', label: 'Ocorrências' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

@@ -61,6 +61,15 @@ authRouter.post(
       userRow = await createUser(email, requestedRole);
     }
 
+    // Admin parity Phase A — without this, a suspended user still got a valid
+    // session back here (this endpoint doesn't go through requireAuth) and
+    // landed on a half-broken app shell, with only the *next* data call
+    // failing. Blocking it here instead gives a clear message right at login.
+    if (userRow.Status === 'Suspended') {
+      res.status(403).json({ error: 'This account has been suspended' });
+      return;
+    }
+
     res.json(toAuthenticatedUser(uid, userRow));
   }),
 );

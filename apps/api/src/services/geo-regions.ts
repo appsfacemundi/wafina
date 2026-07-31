@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import type { GeoLevel, GeoRegion } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
-import { fromSheetBool } from '../config/sheet-values';
-import { findRow, getRows } from '../config/sheets';
+import { fromSheetBool, toSheetBool } from '../config/sheet-values';
+import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
+import { ValidationError } from './validation-error';
 
 function rowToGeoRegion(row: Record<string, string>): GeoRegion {
   return {
@@ -60,4 +62,37 @@ export async function listChildRegions(parentRegionId: string): Promise<GeoRegio
 export async function isActiveCountry(regionId: string): Promise<boolean> {
   const region = await getRegionById(regionId);
   return Boolean(region && region.Level === 'Country' && region.Active);
+}
+
+/**
+ * Admin parity Phase A — the write side of the "launch a country by flipping
+ * one flag" lever the type/read-side comments already describe. No route
+ * existed to actually flip it before this.
+ */
+export async function setCountryActive(regionId: string, active: boolean): Promise<GeoRegion> {
+  const region = await getRegionById(regionId);
+  if (!region || region.Level !== 'Country') throw new ValidationError('Country not found');
+  await updateRow(SHEET_TABS.geoRegions, 'Region_ID', regionId, { Active: toSheetBool(active) });
+  return { ...region, Active: active };
+}
+
+/** Admin-only — adds a brand-new Country-level row (Coming Soon by default until explicitly activated). */
+export async function createCountry(name: string, isoCode: string): Promise<GeoRegion> {
+  if (!name.trim()) throw new ValidationError('Country name is required');
+  if (!isoCode.trim() || isoCode.trim().length !== 2) {
+    throw new ValidationError('ISO code must be a 2-letter country code');
+  }
+
+  const regionId = randomUUID();
+  const row = {
+    Region_ID: regionId,
+    Name: name.trim(),
+    Level: 'Country' satisfies GeoLevel,
+    Parent_Region_ID: '',
+    Country_ID: regionId,
+    ISO_Code: isoCode.trim().toUpperCase(),
+    Active: toSheetBool(false),
+  };
+  await appendRow(SHEET_TABS.geoRegions, row);
+  return rowToGeoRegion(row as unknown as Record<string, string>);
 }

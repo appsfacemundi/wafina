@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { REGISTRABLE_ROLES, type RegistrableRole } from '@wafina/shared';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { getAdminDashboardStats } from '../services/admin-stats';
@@ -8,8 +9,12 @@ import {
   rejectChangeRequest,
 } from '../services/change-requests';
 import { listInFlightDonationsForAdmin } from '../services/donations';
+import { listAllOpenDisputes, resolveDispute } from '../services/disputes';
+import { createCountry, listAllCountries, setCountryActive } from '../services/geo-regions';
 import { listPendingInstitutions, rejectInstitution, verifyInstitution } from '../services/institutions';
 import { approveSuccessStory, listPendingSuccessStories, rejectSuccessStory } from '../services/success-stories';
+import { listAllUsers, reactivateUser, setUserRole, suspendUser } from '../services/users';
+import { ValidationError } from '../services/validation-error';
 
 /**
  * Admin Web App foundation (Permanent Rules Update, 2026-07-30) — the first
@@ -128,5 +133,105 @@ adminRouter.post(
   requireRole('Admin'),
   asyncHandler(async (req, res) => {
     res.json(await rejectChangeRequest(req.params.id, req.body?.reason));
+  }),
+);
+
+/**
+ * Users management (Admin Web App Parity module, 2026-07-31) — Admin
+ * previously had no way to view, suspend, or correct a mis-registered
+ * account's role. Role changes are deliberately restricted to Donor <->
+ * Institution in the service layer — never a path to grant Admin access.
+ */
+adminRouter.get(
+  '/admin/users',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listAllUsers());
+  }),
+);
+
+adminRouter.post(
+  '/admin/users/:id/suspend',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await suspendUser(req.params.id));
+  }),
+);
+
+adminRouter.post(
+  '/admin/users/:id/reactivate',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await reactivateUser(req.params.id));
+  }),
+);
+
+adminRouter.post(
+  '/admin/users/:id/role',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    const role = req.body?.role as RegistrableRole;
+    if (!REGISTRABLE_ROLES.includes(role)) {
+      throw new ValidationError('Role must be Donor or Institution');
+    }
+    res.json(await setUserRole(req.params.id, role));
+  }),
+);
+
+/**
+ * Countries management (Admin Web App Parity module, 2026-07-31) — Geo_Regions
+ * already supported this at the type level ("Lets Admin launch a country by
+ * flipping one flag") but no write route existed until now.
+ */
+adminRouter.get(
+  '/admin/countries',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listAllCountries());
+  }),
+);
+
+adminRouter.patch(
+  '/admin/countries/:id',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await setCountryActive(req.params.id, Boolean(req.body?.active)));
+  }),
+);
+
+adminRouter.post(
+  '/admin/countries',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await createCountry(req.body?.name, req.body?.isoCode));
+  }),
+);
+
+/**
+ * Disputes resolution (Admin Web App Parity module, 2026-07-31) — previously
+ * "exclusively in AppSheet"; stale now that AppSheet is retired.
+ */
+adminRouter.get(
+  '/admin/disputes/pending',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listAllOpenDisputes());
+  }),
+);
+
+adminRouter.post(
+  '/admin/disputes/:id/resolve',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await resolveDispute(req.params.id, req.body?.resolutionNotes));
   }),
 );
