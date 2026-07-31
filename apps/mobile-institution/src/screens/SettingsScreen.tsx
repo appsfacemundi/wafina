@@ -1,3 +1,4 @@
+import { INSTITUTION_FIELD_LABELS } from '@wafina/shared';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -12,14 +13,6 @@ import { useToast } from '@/context/ToastContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { ApiError, apiFetch } from '@/lib/api';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
-
-const FIELD_LABEL: Record<string, string> = {
-  Name: 'Nome',
-  Type: 'Tipo',
-  Location: 'Localização',
-  Needs_List: 'Lista de necessidades',
-  Logo: 'Logótipo',
-};
 
 export function SettingsScreen() {
   const { session, firebaseUser, signOutUser } = useAuth();
@@ -84,6 +77,7 @@ export function SettingsScreen() {
     setSubmitting(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
+      const fieldLabel = INSTITUTION_FIELD_LABELS[field] ?? field;
       await apiFetch('/change-requests', {
         method: 'POST',
         idToken,
@@ -92,7 +86,7 @@ export function SettingsScreen() {
       setSuccess(true);
       setField('');
       setReason('');
-      showToast('Pedido de alteração enviado ao Admin.');
+      showToast(`O seu pedido de alteração de "${fieldLabel}" foi enviado ao Admin.`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível enviar o pedido.');
     } finally {
@@ -104,7 +98,7 @@ export function SettingsScreen() {
 
   const fieldOptions = [
     { label: 'Selecione…', value: '' },
-    ...(institution?.Locked_Fields ?? []).map((f) => ({ label: FIELD_LABEL[f] ?? f, value: f })),
+    ...(institution?.Locked_Fields ?? []).map((f) => ({ label: INSTITUTION_FIELD_LABELS[f] ?? f, value: f })),
   ];
 
   return (

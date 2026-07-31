@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth } from '../middleware/auth';
+import { geocodeAddress } from '../services/geocode';
 import { listActiveCountries, listAllCountries, listChildRegions } from '../services/geo-regions';
 
 export const geoRegionsRouter = Router();
@@ -29,5 +30,19 @@ geoRegionsRouter.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     res.json(await listChildRegions(req.params.id));
+  }),
+);
+
+/**
+ * Stabilization module — address-to-coordinates fallback for whenever GPS is
+ * denied or unavailable, so a user never has to type Latitude/Longitude
+ * directly. See services/geocode.ts for why Nominatim, not Google Geocoding.
+ */
+geoRegionsRouter.get(
+  '/geo-regions/geocode',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const address = typeof req.query.address === 'string' ? req.query.address : '';
+    res.json(await geocodeAddress(address));
   }),
 );

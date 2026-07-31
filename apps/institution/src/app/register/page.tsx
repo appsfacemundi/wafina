@@ -8,7 +8,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
 
-type LocationStatus = 'capturing' | 'captured' | 'failed';
+type LocationStatus = 'capturing' | 'captured' | 'failed' | 'geocoding' | 'geocoded';
 
 export default function RegisterInstitutionPage() {
   const session = useRequireSession();
@@ -21,6 +21,8 @@ export default function RegisterInstitutionPage() {
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('capturing');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
+  const [address, setAddress] = useState('');
+  const [locationError, setLocationError] = useState('');
 
   const [countries, setCountries] = useState<GeoRegion[] | null>(null);
   const [countryId, setCountryId] = useState('');
@@ -62,7 +64,7 @@ export default function RegisterInstitutionPage() {
   // Once GPS resolves, use it as a smart default for the country picker —
   // reusing the coordinates already captured for Location, no extra prompt.
   useEffect(() => {
-    if (locationStatus !== 'captured' || !countries) return;
+    if ((locationStatus !== 'captured' && locationStatus !== 'geocoded') || !countries) return;
     const isoCode = detectSupportedCountryFromCoords(Number(lat), Number(lng));
     const match = countries.find((c) => c.ISO_Code === isoCode);
     if (match) setCountryId(match.Region_ID);
@@ -71,11 +73,33 @@ export default function RegisterInstitutionPage() {
   const hasValidLocation =
     lat !== '' && lng !== '' && !(Number(lat) === 0 && Number(lng) === 0) && !Number.isNaN(Number(lat));
 
+  async function onFindAddress() {
+    setLocationError('');
+    if (!address.trim()) {
+      setLocationError('Introduza uma morada.');
+      return;
+    }
+    setLocationStatus('geocoding');
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      const result = await apiFetch<{ lat: number; lng: number }>(
+        `/geo-regions/geocode?address=${encodeURIComponent(address)}`,
+        { idToken },
+      );
+      setLat(String(result.lat));
+      setLng(String(result.lng));
+      setLocationStatus('geocoded');
+    } catch (err) {
+      setLocationError(err instanceof ApiError ? err.message : 'Não foi possível localizar essa morada.');
+      setLocationStatus('failed');
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     if (!hasValidLocation) {
-      setError('É necessária uma localização válida. Ative o GPS ou introduza as coordenadas.');
+      setError('É necessária uma localização válida. Ative o GPS ou confirme a sua morada.');
       return;
     }
     if (!countryId) {
@@ -165,30 +189,29 @@ export default function RegisterInstitutionPage() {
             {locationStatus === 'capturing' && (
               <span className="hint">A obter a sua localização…</span>
             )}
-            {locationStatus === 'captured' && (
-              <span className="hint">
-                Localização obtida: {Number(lat).toFixed(5)}, {Number(lng).toFixed(5)}
-              </span>
+            {(locationStatus === 'captured' || locationStatus === 'geocoded') && (
+              <span className="hint">📍 Localização confirmada</span>
             )}
-            {locationStatus === 'failed' && (
+            {(locationStatus === 'failed' || locationStatus === 'geocoding') && (
               <div className="stack" style={{ gap: 8 }}>
                 <span className="hint">
-                  Não foi possível obter a localização automaticamente. Introduza-a manualmente.
+                  Não foi possível obter a sua localização automaticamente. Introduza a sua morada.
                 </span>
                 <Input
-                  label="Latitude"
-                  type="number"
-                  step="any"
-                  value={lat}
-                  onChange={(e) => setLat(e.target.value)}
+                  label="Morada"
+                  placeholder="Ex: Rua Amílcar Cabral, Luanda"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
                 />
-                <Input
-                  label="Longitude"
-                  type="number"
-                  step="any"
-                  value={lng}
-                  onChange={(e) => setLng(e.target.value)}
-                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={onFindAddress}
+                  disabled={locationStatus === 'geocoding'}
+                >
+                  {locationStatus === 'geocoding' ? 'A localizar…' : 'Confirmar morada'}
+                </Button>
+                {locationError && <div className="banner banner-error">{locationError}</div>}
               </div>
             )}
           </div>

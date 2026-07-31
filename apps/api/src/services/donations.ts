@@ -8,8 +8,6 @@ import { createNotification } from './notifications';
 import { listUserIdsByCorporateAccount } from './users';
 import { ValidationError } from './validation-error';
 
-const MAX_QUANTITY = 10_000;
-
 /**
  * Fixed/hidden value for the current physical-goods-only phase (spec 5.3.2).
  * TODO: confirm this matches whatever literal the live sheet already uses.
@@ -74,12 +72,16 @@ function assertValidLocation(location: { lat: number; lng: number }): void {
   }
 }
 
+/**
+ * Stabilization module (2026-07-31) — the previous 10,000-unit cap was an
+ * arbitrary number with no real business rule behind it (a corporate donor
+ * legitimately donating, say, 20,000 school notebooks should never be
+ * blocked by the platform). Only genuine constraints remain: a donation
+ * quantity must be a real, positive whole number.
+ */
 function assertValidQuantity(quantity: number): void {
   if (!Number.isInteger(quantity) || quantity <= 0) {
     throw new ValidationError('Quantity must be a positive integer');
-  }
-  if (quantity > MAX_QUANTITY) {
-    throw new ValidationError(`Quantity may not exceed ${MAX_QUANTITY} per submission`);
   }
 }
 

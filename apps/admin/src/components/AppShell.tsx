@@ -6,9 +6,11 @@ import type { ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 const NAV_ITEMS = [
-  { href: '/home', label: 'Instituições Pendentes' },
+  { href: '/home', label: 'Dashboard' },
+  { href: '/institutions', label: 'Instituições Pendentes' },
   { href: '/donations', label: 'Doações' },
   { href: '/success-stories', label: 'Histórias de Impacto' },
+  { href: '/change-requests', label: 'Pedidos de Alteração' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

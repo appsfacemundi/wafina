@@ -14,7 +14,7 @@ import { useToast } from '@/context/ToastContext';
 import { ApiError, apiFetch } from '@/lib/api';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
-type LocationStatus = 'capturing' | 'captured' | 'failed';
+type LocationStatus = 'capturing' | 'captured' | 'failed' | 'geocoding' | 'geocoded';
 
 export function DonateScreen() {
   const { firebaseUser } = useAuth();
@@ -30,6 +30,8 @@ export function DonateScreen() {
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('capturing');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
+  const [address, setAddress] = useState('');
+  const [locationError, setLocationError] = useState('');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -71,6 +73,28 @@ export function DonateScreen() {
   const hasValidLocation =
     lat !== '' && lng !== '' && !(Number(lat) === 0 && Number(lng) === 0) && !Number.isNaN(Number(lat));
 
+  async function onFindAddress() {
+    setLocationError('');
+    if (!address.trim()) {
+      setLocationError('Introduza uma morada.');
+      return;
+    }
+    setLocationStatus('geocoding');
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      const result = await apiFetch<{ lat: number; lng: number }>(
+        `/geo-regions/geocode?address=${encodeURIComponent(address)}`,
+        { idToken },
+      );
+      setLat(String(result.lat));
+      setLng(String(result.lng));
+      setLocationStatus('geocoded');
+    } catch (err) {
+      setLocationError(err instanceof ApiError ? err.message : 'Não foi possível localizar essa morada.');
+      setLocationStatus('failed');
+    }
+  }
+
   async function onSubmit() {
     setError('');
     setSuccess(false);
@@ -84,7 +108,7 @@ export function DonateScreen() {
       return;
     }
     if (!hasValidLocation) {
-      setError('É necessária uma localização válida. Ative o GPS ou introduza as coordenadas.');
+      setError('É necessária uma localização válida. Ative o GPS ou confirme a sua morada.');
       return;
     }
 
@@ -150,18 +174,19 @@ export function DonateScreen() {
           <View style={{ gap: spacing[1] }}>
             <Text style={styles.label}>Localização</Text>
             {locationStatus === 'capturing' && <Text style={styles.hint}>A obter a sua localização…</Text>}
-            {locationStatus === 'captured' && (
-              <Text style={styles.hint}>
-                Localização obtida: {Number(lat).toFixed(5)}, {Number(lng).toFixed(5)}
-              </Text>
+            {(locationStatus === 'captured' || locationStatus === 'geocoded') && (
+              <Text style={styles.hint}>📍 Localização confirmada</Text>
             )}
-            {locationStatus === 'failed' && (
+            {(locationStatus === 'failed' || locationStatus === 'geocoding') && (
               <View style={{ gap: spacing[2] }}>
                 <Text style={styles.hint}>
-                  Não foi possível obter a localização automaticamente. Introduza-a manualmente.
+                  Não foi possível obter a sua localização automaticamente. Introduza a sua morada.
                 </Text>
-                <Input label="Latitude" keyboardType="numbers-and-punctuation" value={lat} onChangeText={setLat} />
-                <Input label="Longitude" keyboardType="numbers-and-punctuation" value={lng} onChangeText={setLng} />
+                <Input label="Morada" placeholder="Ex: Rua Amílcar Cabral, Luanda" value={address} onChangeText={setAddress} />
+                <Button variant="secondary" onPress={onFindAddress} loading={locationStatus === 'geocoding'}>
+                  Confirmar morada
+                </Button>
+                {locationError ? <ErrorBanner message={locationError} /> : null}
               </View>
             )}
           </View>

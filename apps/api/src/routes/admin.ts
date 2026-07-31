@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { getAdminDashboardStats } from '../services/admin-stats';
+import {
+  approveChangeRequest,
+  listPendingChangeRequests,
+  rejectChangeRequest,
+} from '../services/change-requests';
 import { listInFlightDonationsForAdmin } from '../services/donations';
 import { listPendingInstitutions, rejectInstitution, verifyInstitution } from '../services/institutions';
 import { approveSuccessStory, listPendingSuccessStories, rejectSuccessStory } from '../services/success-stories';
@@ -12,6 +18,16 @@ import { approveSuccessStory, listPendingSuccessStories, rejectSuccessStory } fr
  * Every route here is Admin-only.
  */
 export const adminRouter = Router();
+
+/** Dashboard overview — mirrors the stat-tile pattern on the Donor/Institution Home screens. */
+adminRouter.get(
+  '/admin/stats',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await getAdminDashboardStats());
+  }),
+);
 
 adminRouter.get(
   '/admin/institutions/pending',
@@ -79,5 +95,38 @@ adminRouter.post(
   requireRole('Admin'),
   asyncHandler(async (req, res) => {
     res.json(await rejectSuccessStory(req.params.id, req.body?.reason));
+  }),
+);
+
+/**
+ * Change Request moderation — the missing piece since AppSheet was retired
+ * from the architecture (2026-07-30): institutions could already submit a
+ * request to change a locked field, but nothing in this codebase let Admin
+ * see or act on it until now.
+ */
+adminRouter.get(
+  '/admin/change-requests/pending',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listPendingChangeRequests());
+  }),
+);
+
+adminRouter.post(
+  '/admin/change-requests/:id/approve',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await approveChangeRequest(req.params.id, req.body?.value));
+  }),
+);
+
+adminRouter.post(
+  '/admin/change-requests/:id/reject',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await rejectChangeRequest(req.params.id, req.body?.reason));
   }),
 );

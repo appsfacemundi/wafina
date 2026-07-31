@@ -1,5 +1,6 @@
 'use client';
 
+import { INSTITUTION_FIELD_LABELS } from '@wafina/shared';
 import { Badge, Button, Card, Photo, Select, useToast } from '@wafina/ui';
 import { useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -8,14 +9,6 @@ import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { apiFetch, ApiError } from '@/lib/api';
 
 const MIN_REASON_LENGTH = 5;
-
-const FIELD_LABEL: Record<string, string> = {
-  Name: 'Nome',
-  Type: 'Tipo',
-  Location: 'Localização',
-  Needs_List: 'Lista de necessidades',
-  Logo: 'Logótipo',
-};
 
 export default function SettingsPage() {
   const session = useRequireSession();
@@ -49,6 +42,7 @@ export default function SettingsPage() {
     setSubmitting(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
+      const fieldLabel = INSTITUTION_FIELD_LABELS[field] ?? field;
       await apiFetch('/change-requests', {
         method: 'POST',
         idToken,
@@ -57,7 +51,7 @@ export default function SettingsPage() {
       setSuccess(true);
       setField('');
       setReason('');
-      showToast('Pedido de alteração enviado ao Admin.');
+      showToast(`O seu pedido de alteração de "${fieldLabel}" foi enviado ao Admin.`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível enviar o pedido.');
     } finally {
@@ -148,7 +142,7 @@ export default function SettingsPage() {
               <option value="">Selecione…</option>
               {(institution?.Locked_Fields ?? []).map((f) => (
                 <option key={f} value={f}>
-                  {FIELD_LABEL[f] ?? f}
+                  {INSTITUTION_FIELD_LABELS[f] ?? f}
                 </option>
               ))}
             </Select>
