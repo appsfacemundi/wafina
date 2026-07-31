@@ -1196,7 +1196,7 @@ untouched — this is a platform-wide i18n gap spanning every module built so fa
 wholesale inside this phase; a dedicated pass translating every backend validation message is separate,
 deferred work.
 
-**Commit:** _recorded below after this entry is committed._
+**Commit:** `0cbbdf6`
 
 ---
 
