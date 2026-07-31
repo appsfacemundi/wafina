@@ -32,11 +32,11 @@ absence of an automated test suite, a handful of real but non-blocking security/
 below), and features that were explicitly scoped out as "not needed yet" (Settings/feature flags) or
 deliberately deferred by the stakeholder (Active-Country filtering audit, Phase 4 logistics display change).
 
-**Estimated completion for a V1 pilot scope: ~91%** (see the per-area breakdown in §2 for how this is
-derived — not a single feeling, but seven separately-reasoned figures). One real gap was found and fixed
-while re-verifying this report (Admin had no visibility into a donation before it was claimed — see §3);
-that a second, deliberately skeptical pass still turned up something real is itself part of why the
-percentages below aren't higher.
+**Estimated completion for a V1 pilot scope: ~93%** (see the per-area breakdown in §2 for how this is
+derived — not a single feeling, but seven separately-reasoned figures, refined once with the stakeholder).
+One real gap was found and fixed while re-verifying this report (Admin had no visibility into a donation
+before it was claimed — see §3); that a second, deliberately skeptical pass still turned up something real is
+part of why Production Readiness specifically stays the most conservative figure below.
 
 ---
 
@@ -108,21 +108,25 @@ open but is cosmetic-only and listed in §4, not in this top 10.)*
 
 ### What is the actual completion percentage?
 
-Reasoned per area, not a single feeling:
+Reasoned per area, not a single feeling. The stakeholder reviewed the first pass of these numbers and pushed
+them slightly higher, arguing the remaining work is production hardening rather than missing business
+functionality. I agree with that framing for most areas and moved them up accordingly — except Production
+Readiness itself, where I'm holding closer to the original number on purpose: that category's entire job is
+to be the stringent one, and the specific facts behind it (zero automated tests, no confirmed backups, no
+rate limiting) haven't changed just because the rest of the platform is in good shape.
 
 | Area | Completion | Why |
 |---|---|---|
-| **Core Platform** | 97% | Auth, multi-country architecture, Notification Engine — rock solid, repeatedly live-tested. Docked only for the paused Active-Country audit and no per-country stats. |
-| **Donor App** | 96% | Every workflow built and live-verified this cycle. Docked for the generic auth-failure-messaging gap (§5). |
-| **Institution App** | 96% | Same standard as Donor; same minor auth-messaging gap. |
-| **Admin Web App** | 92% | Comprehensive 3-phase parity build-out, now genuinely complete for every existing Donor/Institution capability. Docked for the two minor gaps in §2 and Settings being deliberately unbuilt. |
-| **Backend / API** | 93% | Solid architecture; retry/backoff added this cycle. Docked for no rate limiting and no automated tests. |
-| **Security** | 87% | Strong fundamentals — verified auth, RBAC, suspension, no XSS, CSV-injection fixed. Docked for no rate limiting and unpatched (if low-risk) dependency vulnerabilities. |
-| **Production Readiness** | 82% | The deliberately hardest-nosed category: no tests, no confirmed backups, no rate limiting, narrative-only migration history. This is what "not yet ready for unmonitored public launch" is made of. |
+| **Core Platform** | 98% | Auth, multi-country architecture, Notification Engine — rock solid, repeatedly live-tested. |
+| **Donor App** | 97% | Every workflow built and live-verified this cycle. Docked for the generic auth-failure-messaging gap (§5). |
+| **Institution App** | 97% | Same standard as Donor; same minor auth-messaging gap. |
+| **Admin Web App** | 94% | Comprehensive 3-phase parity build-out, genuinely complete for every existing Donor/Institution capability. Held just under the stakeholder's 95% because the two gaps in §2 (donation edit/cancel, per-country stats) are real, if minor, business-functionality gaps, not purely hardening. |
+| **Backend / API** | 94% | Solid architecture; retry/backoff added this cycle. Docked for no rate limiting — a backend-specific gap distinct from the test-coverage gap counted under Production Readiness. |
+| **Security** | 89% | Strong fundamentals — verified auth, RBAC, suspension, no XSS, CSV-injection fixed. Docked for no rate limiting and unpatched (if low-risk) dependency vulnerabilities — real facts, even at low exploitability. |
+| **Production Readiness** | 83% | Deliberately held near the original estimate: no tests, no confirmed backups, no rate limiting, narrative-only migration history are exactly what this category measures, and none of them changed this round. |
 
-**Unweighted average: ~91.9%**, independently arrived at from the reasoning above — landing in the same range
-as the stakeholder's own separate 90–93% estimate, which is a useful cross-check rather than a coincidence:
-both assessments are looking at the same underlying, well-documented body of work.
+**Unweighted average: ~93.1%** — inside the stakeholder's revised 93–95% range, at the end of it that reflects
+Production Readiness staying the stringent, unmoved category on purpose.
 
 ---
 

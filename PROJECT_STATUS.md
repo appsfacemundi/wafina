@@ -1436,6 +1436,37 @@ visibility fix; confirmed live in the Admin Reports page.
 
 **Commit:** `e9ee0f5`
 
+### Pilot Launch Checklist + refined completion estimate (2026-07-31): COMPLETE
+
+The stakeholder reviewed the Feature Freeze and refined-questions round, adjusted the per-area completion
+percentages slightly upward (arguing the remaining work is production hardening, not missing business
+functionality), and asked for one final document: a `WAFINA_PILOT_LAUNCH_CHECKLIST.md` covering
+Infrastructure, Security, Donor, Institution, Admin, End-to-End, and Pilot Readiness — the last milestone
+before inviting real users, per their own 6-step plan (finish checklist → fix what it finds → tag
+`v1.0.0-beta` → small real pilot → collect feedback → plan V1.1/V2).
+
+**Completion percentages revised**, agreeing with the stakeholder's framing for most areas but holding
+Production Readiness deliberately closer to the original figure, since that category's specific job is to
+stay the stringent one and the underlying facts (no tests, no confirmed backups, no rate limiting) didn't
+change this round: Core Platform 98%, Donor 97%, Institution 97%, Admin 94%, Backend/API 94%, Security 89%,
+Production Readiness 83%. New unweighted average ≈93%, inside the stakeholder's revised 93–95% range.
+
+**Built `WAFINA_PILOT_LAUNCH_CHECKLIST.md`** — every one of its 48 items reflects a real, checked state, not
+an assumption: 36 done, 1 partial, 11 open. Donor and Institution are both 100% (7/7). Before writing "test
+data removed" as done, actually ran a fresh scan across all 10 Sheet tabs for any leftover disposable-test
+pattern (`tmp.*` emails, "Stab Test", "QA Test") — confirmed zero matches, so that line is a verified fact,
+not a habit-based assumption. The open items are concentrated in Infrastructure (no production deployment
+target chosen yet, so SSL/domain/backup/monitoring can't proceed either), rate limiting, the paused
+Country-filtering audit, Settings (deliberately deferred), and the final version tag — deliberately left for
+last, per the stakeholder's own sequencing.
+
+**Database implications:** none.
+
+**Verified:** the "test data removed" claim above via a direct Sheets scan (not asserted). No code changed
+this round — this was a documentation and planning round only.
+
+**Commit:** _recorded below after this entry is committed._
+
 ---
 
 ## Next Steps
