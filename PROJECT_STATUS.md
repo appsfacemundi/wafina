@@ -655,7 +655,7 @@ placeholder) — confirmed broken before the fix (screenshot), confirmed renderi
 using the exact same donation row for both to prove the migration path too. `npm run typecheck` and
 `npm run lint` clean across all 8 workspaces. Disposable test accounts/rows cleaned up afterward.
 
-**Commit:** (recorded below once committed)
+**Commit:** `fac1840`
 
 ### Module 6 — Institution App Polish & Workflow: IN PROGRESS
 Stakeholder's own testing surfaced a further, larger set of findings after the photo bug — organized into
