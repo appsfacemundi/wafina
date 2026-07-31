@@ -1393,7 +1393,7 @@ low-value change on top of that; revisit only if a specific page is shown to sti
 
 **Verified:** `npm run typecheck` and `npm run lint` clean across all 8 workspaces.
 
-**Commit:** _pending — recorded immediately after this entry is committed._
+**Commit:** `f5bd127`
 
 ---
 
