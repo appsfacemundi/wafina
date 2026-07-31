@@ -10,3 +10,4 @@ export * from './session';
 export * from './notification';
 export * from './success-story';
 export * from './admin-dashboard-stats';
+export * from './invitation-code';

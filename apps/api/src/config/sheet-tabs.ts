@@ -14,4 +14,6 @@ export const SHEET_TABS = {
   geoRegions: 'Geo_Regions',
   /** Phase 3A Module 2 — MVP. See packages/shared/src/types/success-story.ts. */
   successStories: 'Success_Stories',
+  /** Admin Web App Parity Phase B — replaces treating Corporate_Account_ID itself as the invite code. */
+  invitationCodes: 'Invitation_Codes',
 } as const;

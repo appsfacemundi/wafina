@@ -1144,6 +1144,60 @@ not part of Users management itself.
 
 **Commit:** `6bdbc5f`
 
+### Admin Web App Parity Program — Phase B: Corporate Accounts + real Invitation Codes: COMPLETE
+
+Closes the two remaining gaps that needed real new schema, not just an Admin screen.
+
+*Invitation Codes — new entity:* previously `findCorporateAccountByInviteCode` treated a company's own
+`Corporate_Account_ID` as its "invite code" — no expiration, no usage limit, no way to have more than one
+code per company, and the raw account ID itself worked as a permanent, unrevocable code. New `Invitation_Codes`
+Sheet tab (`Code, Corporate_Account_ID, Max_Uses, Uses_Count, Expires_At, Date_Created, Active`) and
+`apps/api/src/services/invitation-codes.ts`: `createInvitationCode` (short random code, excludes look-alike
+characters like `0/O/1/I`), `listCodesForAccount`, `deactivateCode`, `redeemInvitationCode` (validates
+Active/not-expired/under-limit, then increments `Uses_Count`). `apps/api/src/routes/donor.ts`'s
+`POST /donor/corporate/join` now calls this instead of the old lookup.
+
+Found and fixed a real ordering bug during testing: `redeemInvitationCode` was incrementing `Uses_Count`
+*before* the caller checked whether the company itself was suspended — so a rejected join (company suspended)
+would still silently burn one of a limited-use code's uses. Moved the company-suspended check inside
+`redeemInvitationCode` itself, before the increment. Verified live: generated a fresh single-use code on a
+suspended test company, attempted to redeem it as a fresh disposable donor (correctly rejected with "This
+company account is not currently accepting new members"), then confirmed via the Admin UI the code still
+showed `0/1 utilizações` — the rejected attempt didn't consume it.
+
+*Corporate Accounts — full CRUD:* previously documented as "Creation stays Admin-only via AppSheet" — stale
+now that AppSheet is retired. Added `Status` (`Active`/`Suspended`, additive migration) to `Corporate_Accounts`.
+`apps/api/src/services/corporate-accounts.ts` gained `createCorporateAccount`, `updateCorporateAccount`,
+`suspendCorporateAccount`, `reactivateCorporateAccount`, `getCorporateAccountById`, and
+`listAllCorporateAccounts` (joins Users/Donations for employee and donation counts — new
+`AdminCorporateAccountView` type). New Admin routes under `/admin/corporate-accounts/...` (CRUD, suspend/
+reactivate, code generation/listing) and `/admin/invitation-codes/:code/deactivate`. New Admin page
+`/companies`: create/edit/suspend companies, per-company code generation (max uses + optional expiry) and
+code list with deactivate, employee/donation counts. Added a nav entry.
+
+**Database implications:** New `Invitation_Codes` tab (additive). `Corporate_Accounts` gained `Status`
+(additive; zero existing rows to backfill — confirmed via direct Sheet read that no real corporate accounts
+exist yet, despite one real Donor's `Corporate_Account_ID` pointing at a non-existent one — pre-existing
+orphaned test data from earlier in the project, not touched, out of scope for this phase).
+
+**Verified:** `npm run typecheck` and `npm run lint` clean across all 8 workspaces. Live end-to-end with
+disposable data: created "QA Test Corp", generated a multi-use code, redeemed it as a disposable donor
+(confirmed employee count and usage counter both updated correctly), deactivated the code, suspended/
+reactivated the company, then the ordering-bug scenario above. All disposable Firebase users, Sheet rows,
+and the scripts used to create/clean them up were deleted afterward.
+
+**Known Issues / Deferred:** live-testing surfaced that new `ValidationError` messages in `redeemInvitationCode`
+were in English, reaching the donor verbatim (frontend `catch` branches show `err.message` directly) —
+inconsistent with `DEVELOPMENT_RULES.md` §9 ("all user-facing strings must be externalized... Portuguese
+complete for launch"). Translated those four (invalid/inactive/expired/limit-reached/suspended-company) since
+they're the ones a real donor can actually hit. Left the pre-existing English messages on `donor.ts`'s
+already-linked/missing-code checks and every Admin-only validation error (Users/Countries/Disputes/Companies)
+untouched — this is a platform-wide i18n gap spanning every module built so far, not something to fix
+wholesale inside this phase; a dedicated pass translating every backend validation message is separate,
+deferred work.
+
+**Commit:** _recorded below after this entry is committed._
+
 ---
 
 ## Next Steps

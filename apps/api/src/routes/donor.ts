@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
-import { findCorporateAccountByInviteCode } from '../services/corporate-accounts';
+import { getCorporateAccountById } from '../services/corporate-accounts';
+import { redeemInvitationCode } from '../services/invitation-codes';
 import { completeProfile, findUserById, linkCorporateAccount } from '../services/users';
 import { ValidationError } from '../services/validation-error';
 
@@ -30,7 +31,12 @@ donorRouter.patch(
   }),
 );
 
-/** Spec 13.2 — links an existing Donor to a company account via Admin-issued invite code. */
+/**
+ * Spec 13.2 — links an existing Donor to a company account via an
+ * Admin-generated invitation code (Admin Web App Parity Phase B — codes are
+ * their own entity now, with expiration/usage limits, rather than the
+ * Corporate_Account_ID itself doubling as the code).
+ */
 donorRouter.post(
   '/donor/corporate/join',
   requireAuth,
@@ -44,10 +50,11 @@ donorRouter.post(
     const inviteCode = req.body?.inviteCode as string | undefined;
     if (!inviteCode) throw new ValidationError('inviteCode is required');
 
-    const account = await findCorporateAccountByInviteCode(inviteCode);
-    if (!account) throw new ValidationError('Invalid invite code');
+    // redeemInvitationCode already verifies the company exists and isn't suspended before returning.
+    const corporateAccountId = await redeemInvitationCode(inviteCode);
+    const account = await getCorporateAccountById(corporateAccountId);
 
-    await linkCorporateAccount(user.userId, account.Corporate_Account_ID);
+    await linkCorporateAccount(user.userId, corporateAccountId);
     res.json(account);
   }),
 );

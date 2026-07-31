@@ -8,10 +8,18 @@ import {
   listPendingChangeRequests,
   rejectChangeRequest,
 } from '../services/change-requests';
+import {
+  createCorporateAccount,
+  listAllCorporateAccounts,
+  reactivateCorporateAccount,
+  suspendCorporateAccount,
+  updateCorporateAccount,
+} from '../services/corporate-accounts';
 import { listInFlightDonationsForAdmin } from '../services/donations';
 import { listAllOpenDisputes, resolveDispute } from '../services/disputes';
 import { createCountry, listAllCountries, setCountryActive } from '../services/geo-regions';
 import { listPendingInstitutions, rejectInstitution, verifyInstitution } from '../services/institutions';
+import { createInvitationCode, deactivateCode, listCodesForAccount } from '../services/invitation-codes';
 import { approveSuccessStory, listPendingSuccessStories, rejectSuccessStory } from '../services/success-stories';
 import { listAllUsers, reactivateUser, setUserRole, suspendUser } from '../services/users';
 import { ValidationError } from '../services/validation-error';
@@ -233,5 +241,86 @@ adminRouter.post(
   requireRole('Admin'),
   asyncHandler(async (req, res) => {
     res.json(await resolveDispute(req.params.id, req.body?.resolutionNotes));
+  }),
+);
+
+/**
+ * Corporate Accounts management (Admin Web App Parity Phase B, 2026-07-31) —
+ * previously "Creation stays Admin-only via AppSheet"; stale now that
+ * AppSheet is retired. Invitation codes are their own entity (see
+ * services/invitation-codes.ts) rather than the account ID doubling as one.
+ */
+adminRouter.get(
+  '/admin/corporate-accounts',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listAllCorporateAccounts());
+  }),
+);
+
+adminRouter.post(
+  '/admin/corporate-accounts',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await createCorporateAccount(req.body?.companyName, req.body?.country));
+  }),
+);
+
+adminRouter.patch(
+  '/admin/corporate-accounts/:id',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await updateCorporateAccount(req.params.id, req.body ?? {}));
+  }),
+);
+
+adminRouter.post(
+  '/admin/corporate-accounts/:id/suspend',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await suspendCorporateAccount(req.params.id));
+  }),
+);
+
+adminRouter.post(
+  '/admin/corporate-accounts/:id/reactivate',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await reactivateCorporateAccount(req.params.id));
+  }),
+);
+
+adminRouter.get(
+  '/admin/corporate-accounts/:id/codes',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await listCodesForAccount(req.params.id));
+  }),
+);
+
+adminRouter.post(
+  '/admin/corporate-accounts/:id/codes',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    const maxUses = Number(req.body?.maxUses) || 1;
+    const expiresAt = req.body?.expiresAt || null;
+    res.json(await createInvitationCode(req.params.id, maxUses, expiresAt));
+  }),
+);
+
+adminRouter.post(
+  '/admin/invitation-codes/:code/deactivate',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    await deactivateCode(req.params.code);
+    res.json({ ok: true });
   }),
 );

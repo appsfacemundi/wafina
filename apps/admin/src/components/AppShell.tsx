@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: '/users', label: 'Utilizadores' },
   { href: '/countries', label: 'Países' },
   { href: '/disputes', label: 'Ocorrências' },
+  { href: '/companies', label: 'Empresas' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
