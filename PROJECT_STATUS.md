@@ -616,13 +616,59 @@ Xcode/Simulator gap as Module 3).
 
 **Commit:** `4881e58`
 
-### Modules 6+: not yet started
-Sequenced dynamically based on stakeholder priority rather than a fixed order — Module 4 and Module 5 both
-jumped the original queue by explicit instruction. Known upcoming work: Donation Workflow States + Expected
-Delivery Date (the split-off from this module); Active-Country filtering audit across Success
-Stories/Notifications; Success Stories v2 + Admin approval; corporate secure invitations; corporate
-dashboard. Next module starts only after the stakeholder has personally tested Module 5 per
-`DEVELOPMENT_RULES.md` §14.
+### Production bug fix (2026-07-31): donation/logo/success-story photos not rendering — ROOT-CAUSED AND FIXED
+
+Found during the stakeholder's own Institution app testing (reported as "donation photos are not
+displayed"). Root-caused with direct evidence, not guessed — this directly contradicted Module 5's own
+"verified" claim, because that verification used an external placeholder image (picsum.photos) for its one
+successful-looking screenshot, never a real Google Drive upload. The one real Drive-hosted photo seen during
+Module 5 testing (an old real donation) was in fact already broken, but was dismissed as unrelated legacy
+data rather than investigated — that assumption was wrong.
+
+**Root cause:** `uploadPhoto()` (`apps/api/src/config/drive.ts`) returned URLs in the
+`https://drive.google.com/uc?id=...` format. That endpoint's final redirect target
+(`drive.usercontent.google.com/download`) sends `Cross-Origin-Resource-Policy: same-site`, which browsers
+correctly enforce by refusing to render it as a cross-origin `<img>` embed. It "works" via `curl` (no
+browser CORP enforcement) and via direct top-level navigation (CORP doesn't restrict navigation) — which is
+exactly why a spot-check can look fine while the real feature is silently broken. Confirmed precisely via a
+live browser probe: `naturalWidth: 0` despite `complete: true` on the `<img>` element. This affected **every**
+donation photo, institution logo, and (future) success story image across every app.
+
+**Fix:** `uploadPhoto()` now returns `https://drive.google.com/thumbnail?id=...&sz=w1000` instead — confirmed
+via the same live probe to render correctly cross-origin, no CORP header on that response at all. One-line
+root-cause fix in the single function every photo upload already goes through, so it self-propagates to
+donations, institution logos, and success stories without touching each call site. Existing real Drive URLs
+in the Sheet (`Donations.Photo`, `Institutions.Logo`, `Success_Stories.Image`) were migrated in place to the
+new format — 6 real donation photos updated (the ones already using this codebase's Drive integration; older
+legacy rows using a different, pre-existing URL scheme were correctly left untouched, not something this fix
+should guess about).
+
+**Also added (the stakeholder's "never leave an empty space" requirement):** a new shared `Photo` component
+(`packages/ui` for web, `components/Photo.tsx` in each mobile app) that shows a placeholder icon whenever a
+photo is missing *or* fails to load for any reason (not just this bug) — `onError` fallback, not a one-time
+patch. Applied everywhere a donation photo, donor logo, or institution logo is displayed: institution
+donation cards (available + claimed, both platforms), institution's own logo in Settings (both platforms),
+and the donor-facing Institutions list (both platforms).
+
+**Verified:** live end-to-end with a real Drive upload through the actual `uploadPhoto()` path (not a
+placeholder) — confirmed broken before the fix (screenshot), confirmed rendering correctly after (screenshot),
+using the exact same donation row for both to prove the migration path too. `npm run typecheck` and
+`npm run lint` clean across all 8 workspaces. Disposable test accounts/rows cleaned up afterward.
+
+**Commit:** (recorded below once committed)
+
+### Module 6 — Institution App Polish & Workflow: IN PROGRESS
+Stakeholder's own testing surfaced a further, larger set of findings after the photo bug — organized into
+Bugs (Success Stories screens incomplete, Expected Delivery Date missing), UX Improvements (success feedback
+on every action, disabled-after-success buttons, a full progress/timeline indicator), and Information
+improvements (richer cards, an Institution Dashboard, a post-delivery Success Story prompt). This un-splits
+the Donation Workflow States + Expected Delivery Date item that Module 5 had deferred — the stakeholder's
+explicit recommendation is to do it all together as one dedicated module before any further Admin Web App
+work. In progress; see the next update for what shipped.
+
+### Modules 7+: not yet started
+Sequenced dynamically based on stakeholder priority. Known upcoming work after Module 6: Active-Country
+filtering audit across Success Stories/Notifications; corporate secure invitations; corporate dashboard.
 
 ---
 

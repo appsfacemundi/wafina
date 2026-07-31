@@ -1,7 +1,7 @@
 'use client';
 
 import { daysAgoLabel, type GeoRegion, type InstitutionDonationView } from '@wafina/shared';
-import { Button, Card, EmptyState, Input } from '@wafina/ui';
+import { Button, Card, EmptyState, Input, Photo } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
@@ -102,10 +102,9 @@ export default function AvailableDonationsPage() {
           <div className="stack">
             {filtered.map((d) => (
               <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
-                <img
+                <Photo
                   src={d.Photo}
-                  alt=""
-                  style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }}
+                  style={{ width: '100%', height: 200, objectFit: 'cover', display: 'flex' }}
                 />
                 <div className="stack" style={{ padding: 'var(--space-4)', gap: 6 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
@@ -132,15 +131,11 @@ export default function AvailableDonationsPage() {
                   )}
                   {d.Donor_Display_Name && (
                     <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {d.Donor_Display_Logo ? (
-                        <img
-                          src={d.Donor_Display_Logo}
-                          alt=""
-                          style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover' }}
-                        />
-                      ) : (
-                        '👤'
-                      )}
+                      <Photo
+                        src={d.Donor_Display_Logo}
+                        placeholderIcon="👤"
+                        style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover' }}
+                      />
                       {d.Donor_Display_Name}
                     </p>
                   )}

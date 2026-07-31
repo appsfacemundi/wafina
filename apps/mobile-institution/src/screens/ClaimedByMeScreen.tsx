@@ -7,12 +7,13 @@ import {
 } from '@wafina/shared';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { FlatList, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
+import { Photo } from '@/components/Photo';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
 import type { ClaimedByMeStackParamList } from '@/navigation/RootNavigator';
@@ -86,7 +87,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
         keyExtractor={(item) => item.Donation_ID}
         renderItem={({ item }) => (
           <Card style={styles.card}>
-            <Image source={{ uri: item.Photo }} style={styles.photo} />
+            <Photo uri={item.Photo} style={styles.photo} />
             <View style={styles.cardBody}>
               <View style={styles.rowBetween}>
                 <Text style={styles.itemType}>{item.Item_Type}</Text>
@@ -110,11 +111,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
               )}
               {item.Donor_Display_Name && (
                 <View style={styles.donorRow}>
-                  {item.Donor_Display_Logo ? (
-                    <Image source={{ uri: item.Donor_Display_Logo }} style={styles.donorLogo} />
-                  ) : (
-                    <Text>👤</Text>
-                  )}
+                  <Photo uri={item.Donor_Display_Logo} placeholderIcon="👤" style={styles.donorLogo} />
                   <Text style={styles.meta}>{item.Donor_Display_Name}</Text>
                 </View>
               )}

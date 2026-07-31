@@ -1,9 +1,10 @@
 import type { GeoRegion } from '@wafina/shared';
 import { useEffect, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
+import { Photo } from '@/components/Photo';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
@@ -73,11 +74,7 @@ export function InstitutionsScreen() {
         renderItem={({ item }) => (
           <Card style={styles.card}>
             <View style={styles.headerRow}>
-              {item.Logo ? (
-                <Image source={{ uri: item.Logo }} style={styles.logo} />
-              ) : (
-                <View style={[styles.logo, styles.logoPlaceholder]} />
-              )}
+              <Photo uri={item.Logo} placeholderIcon="🏢" style={styles.logo} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{item.Name}</Text>
                 <Text style={styles.meta}>

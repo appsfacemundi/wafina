@@ -1,6 +1,6 @@
 'use client';
 
-import { Badge, Button, Card, Select } from '@wafina/ui';
+import { Badge, Button, Card, Photo, Select } from '@wafina/ui';
 import { useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
@@ -93,30 +93,10 @@ export default function SettingsPage() {
 
         <Card className="stack">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {institution?.Logo ? (
-              <img
-                src={institution.Logo}
-                alt=""
-                style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover' }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 12,
-                  background: 'var(--color-surface-2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--color-text-faint)',
-                  fontSize: 11,
-                  textAlign: 'center',
-                }}
-              >
-                Sem logótipo
-              </div>
-            )}
+            <Photo
+              src={institution?.Logo}
+              style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover' }}
+            />
             <div style={{ flex: 1 }}>
               <p style={{ fontWeight: 600 }}>{institution?.Name}</p>
               {institution?.Verified && <Badge tone="success">Verificado</Badge>}

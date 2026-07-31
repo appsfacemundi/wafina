@@ -34,6 +34,18 @@ function getClient(): drive_v3.Drive {
  * Uploads a file to the Shared Drive, makes it publicly viewable (read-only,
  * link-only — nothing sensitive, these are donation photos), and returns a
  * direct-viewable URL to store in Donations.Photo.
+ *
+ * URL format (2026-07-31 fix): `drive.google.com/thumbnail?id=...`, NOT the
+ * more obvious `drive.google.com/uc?id=...`. Root-caused a real bug where
+ * every photo/logo rendered as a broken image in every app: the `uc?id=`
+ * endpoint's final redirect target (`drive.usercontent.google.com/download`)
+ * sends `Cross-Origin-Resource-Policy: same-site`, which browsers correctly
+ * enforce by refusing to render it as a cross-origin `<img>` embed — it only
+ * ever "worked" via curl or a direct top-level navigation, neither of which
+ * is what an `<img src>` on our own domains actually does. Confirmed via a
+ * direct browser probe that `thumbnail?id=` carries no such header and
+ * renders correctly. `sz=w1000` caps width at 1000px, plenty for donation/
+ * logo display.
  */
 export async function uploadPhoto(
   buffer: Buffer,
@@ -57,5 +69,5 @@ export async function uploadPhoto(
     supportsAllDrives: true,
   });
 
-  return `https://drive.google.com/uc?id=${fileId}`;
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
 }

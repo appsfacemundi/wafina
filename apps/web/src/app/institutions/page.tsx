@@ -2,7 +2,7 @@
 
 import type { GeoRegion } from '@wafina/shared';
 import { useEffect, useState } from 'react';
-import { Card, EmptyState } from '@wafina/ui';
+import { Card, EmptyState, Photo } from '@wafina/ui';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
@@ -67,23 +67,10 @@ export default function InstitutionsPage() {
             {institutions.map((inst) => (
               <Card key={inst.Institution_ID} className="institution-card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {inst.Logo ? (
-                    <img
-                      src={inst.Logo}
-                      alt=""
-                      style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 10,
-                        background: 'var(--color-surface-2)',
-                        flexShrink: 0,
-                      }}
-                    />
-                  )}
+                  <Photo
+                    src={inst.Logo}
+                    style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
+                  />
                   <div>
                     <p style={{ fontWeight: 600, fontSize: 16 }}>{inst.Name}</p>
                     <p className="needs">

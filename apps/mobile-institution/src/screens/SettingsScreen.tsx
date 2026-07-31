@@ -33,6 +33,7 @@ export function SettingsScreen() {
 
   const [logoError, setLogoError] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
 
   async function onPickLogo() {
     setLogoError('');
@@ -55,6 +56,7 @@ export function SettingsScreen() {
         type: photo.mimeType ?? 'image/jpeg',
       } as unknown as Blob);
       await apiFetch('/institutions/me/logo', { method: 'PATCH', idToken, body: form });
+      setLogoLoadFailed(false);
       await refetch();
     } catch (err) {
       setLogoError(err instanceof ApiError ? err.message : 'Não foi possível enviar o logótipo.');
@@ -108,8 +110,12 @@ export function SettingsScreen() {
 
         <Card style={{ gap: spacing[2] }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
-            {institution?.Logo ? (
-              <Image source={{ uri: institution.Logo }} style={styles.logo} />
+            {institution?.Logo && !logoLoadFailed ? (
+              <Image
+                source={{ uri: institution.Logo }}
+                style={styles.logo}
+                onError={() => setLogoLoadFailed(true)}
+              />
             ) : (
               <View style={[styles.logo, styles.logoPlaceholder]}>
                 <Text style={styles.logoPlaceholderText}>Sem{'\n'}logótipo</Text>
