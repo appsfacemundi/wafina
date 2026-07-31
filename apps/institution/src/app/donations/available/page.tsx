@@ -1,7 +1,7 @@
 'use client';
 
 import { daysAgoLabel, type GeoRegion, type InstitutionDonationView } from '@wafina/shared';
-import { Button, Card, EmptyState, Input, Photo } from '@wafina/ui';
+import { Button, Card, EmptyState, Input, Photo, useToast } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
@@ -12,6 +12,7 @@ export default function AvailableDonationsPage() {
   const session = useRequireSession();
   const { firebaseUser } = useAuth();
   const { institution } = useOwnInstitution();
+  const { showToast } = useToast();
   const [donations, setDonations] = useState<InstitutionDonationView[] | null>(null);
   const [countryName, setCountryName] = useState('');
   const [error, setError] = useState('');
@@ -61,6 +62,7 @@ export default function AvailableDonationsPage() {
       const idToken = await firebaseUser?.getIdToken();
       await apiFetch(`/donations/${donationId}/claim`, { method: 'POST', idToken });
       await load();
+      showToast('Doação aceite com sucesso! Já pode agendar a recolha em "Doações Aceites".');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível aceitar a doação.');
     } finally {

@@ -1,0 +1,75 @@
+import {
+  DONATION_JOURNEY_DATE_FIELD,
+  DONATION_JOURNEY_STEPS,
+  DONATION_STATUS_LABEL,
+  formatDateLabel,
+  type Donation,
+} from '@wafina/shared';
+import { StyleSheet, Text, View } from 'react-native';
+import { colors, spacing } from '@/theme/tokens';
+
+/**
+ * Institution App Polish module — mirrors packages/ui/src/DonationTimeline.tsx
+ * for React Native. Same logic: reached steps show their date, current step
+ * is highlighted, future steps are dimmed.
+ */
+export function DonationTimeline({ donation }: { donation: Donation }) {
+  const currentIndex = (DONATION_JOURNEY_STEPS as string[]).indexOf(donation.Status);
+
+  return (
+    <View style={{ gap: 2 }}>
+      {DONATION_JOURNEY_STEPS.map((step, index) => {
+        const dateField = DONATION_JOURNEY_DATE_FIELD[step];
+        const date = donation[dateField];
+        const reached = index <= currentIndex;
+        const isCurrent = index === currentIndex;
+        return (
+          <View key={step} style={styles.row}>
+            <View style={[styles.dot, reached && styles.dotReached, isCurrent && styles.dotCurrent]} />
+            <Text style={[styles.label, reached && styles.labelReached, isCurrent && styles.labelCurrent]}>
+              {DONATION_STATUS_LABEL[step]}
+            </Text>
+            {date && <Text style={styles.date}>· {formatDateLabel(date)}</Text>}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.border,
+  },
+  dotReached: {
+    backgroundColor: colors.accent,
+  },
+  dotCurrent: {
+    borderWidth: 2,
+    borderColor: colors.accentSoft,
+  },
+  label: {
+    fontFamily: 'WorkSans-400',
+    fontSize: 12.5,
+    color: colors.textFaint,
+  },
+  labelReached: {
+    color: colors.text,
+  },
+  labelCurrent: {
+    fontFamily: 'WorkSans-700',
+  },
+  date: {
+    fontFamily: 'WorkSans-400',
+    fontSize: 11.5,
+    color: colors.textFaint,
+  },
+});

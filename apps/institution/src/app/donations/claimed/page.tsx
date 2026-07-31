@@ -4,10 +4,11 @@ import {
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   daysAgoLabel,
+  formatDateLabel,
   type InstitutionDonationView,
   type SuccessStory,
 } from '@wafina/shared';
-import { Badge, Button, Card, EmptyState, Photo } from '@wafina/ui';
+import { Badge, Button, Card, DonationTimeline, EmptyState, Photo, useToast } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -18,10 +19,12 @@ export default function ClaimedDonationsPage() {
   const session = useRequireSession();
   const { firebaseUser } = useAuth();
   const router = useRouter();
+  const { showToast } = useToast();
   const [donations, setDonations] = useState<InstitutionDonationView[] | null>(null);
   const [storiesByDonation, setStoriesByDonation] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
-  const [deliveringId, setDeliveringId] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
+  const [deliveredPrompt, setDeliveredPrompt] = useState<{ donationId: string; code: string } | null>(null);
 
   async function load() {
     if (!firebaseUser) return;
@@ -42,17 +45,26 @@ export default function ClaimedDonationsPage() {
     load();
   }, [firebaseUser]);
 
-  async function onDeliver(donationId: string) {
-    setDeliveringId(donationId);
+  const SUCCESS_MESSAGE: Record<'schedule-collection' | 'collect' | 'deliver', string> = {
+    'schedule-collection': 'Recolha agendada com sucesso!',
+    collect: 'Doação marcada como recolhida!',
+    deliver: 'Entrega confirmada com sucesso!',
+  };
+
+  async function onAction(donationId: string, action: 'schedule-collection' | 'collect' | 'deliver', failMessage: string) {
+    const code = donations?.find((d) => d.Donation_ID === donationId)?.Public_Donation_Code ?? '';
+    setActingId(donationId);
     setError('');
     try {
       const idToken = await firebaseUser?.getIdToken();
-      await apiFetch(`/donations/${donationId}/deliver`, { method: 'POST', idToken });
+      await apiFetch(`/donations/${donationId}/${action}`, { method: 'POST', idToken });
       await load();
+      showToast(SUCCESS_MESSAGE[action]);
+      if (action === 'deliver') setDeliveredPrompt({ donationId, code });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível confirmar a entrega.');
+      setError(err instanceof ApiError ? err.message : failMessage);
     } finally {
-      setDeliveringId(null);
+      setActingId(null);
     }
   }
 
@@ -62,6 +74,30 @@ export default function ClaimedDonationsPage() {
     <AppShell>
       <div className="stack">
         <h1 style={{ fontSize: 24 }}>Doações Aceites</h1>
+        {deliveredPrompt && (
+          <Card className="stack" style={{ background: 'var(--success-100)' }}>
+            <p style={{ fontWeight: 700 }}>Parabéns! 🎉</p>
+            <p style={{ fontSize: 13.5 }}>
+              A doação {deliveredPrompt.code} foi entregue com sucesso. Gostaria de criar uma História de Impacto
+              agora?
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button
+                onClick={() => {
+                  router.push(
+                    `/success-stories/new?donationId=${deliveredPrompt.donationId}&code=${encodeURIComponent(deliveredPrompt.code)}`,
+                  );
+                  setDeliveredPrompt(null);
+                }}
+              >
+                Criar História
+              </Button>
+              <Button variant="ghost" onClick={() => setDeliveredPrompt(null)}>
+                Mais tarde
+              </Button>
+            </div>
+          </Card>
+        )}
         {error && <div className="banner banner-error">{error}</div>}
         {!error && donations === null && (
           <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>
@@ -117,14 +153,42 @@ export default function ClaimedDonationsPage() {
                   <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
                     📅 {daysAgoLabel(d.Date_Submitted)}
                   </p>
+                  {(d.Expected_Collection_Date || d.Expected_Delivery_Date) && (
+                    <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+                      {d.Expected_Collection_Date && `Recolha estimada: ${formatDateLabel(d.Expected_Collection_Date)}`}
+                      {d.Expected_Collection_Date && d.Expected_Delivery_Date && ' · '}
+                      {d.Expected_Delivery_Date && `Entrega estimada: ${formatDateLabel(d.Expected_Delivery_Date)}`}
+                    </p>
+                  )}
+                  <div style={{ marginTop: 4, marginBottom: 4 }}>
+                    <DonationTimeline donation={d} />
+                  </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 4 }}>
                     {d.Status === 'Claimed' && (
                       <Button
                         variant="secondary"
-                        onClick={() => onDeliver(d.Donation_ID)}
-                        disabled={deliveringId === d.Donation_ID}
+                        onClick={() => onAction(d.Donation_ID, 'schedule-collection', 'Não foi possível agendar a recolha.')}
+                        disabled={actingId === d.Donation_ID}
                       >
-                        {deliveringId === d.Donation_ID ? 'A confirmar…' : 'Confirmar entrega'}
+                        {actingId === d.Donation_ID ? 'A agendar…' : 'Confirmar recolha agendada'}
+                      </Button>
+                    )}
+                    {d.Status === 'Collection_Scheduled' && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => onAction(d.Donation_ID, 'collect', 'Não foi possível marcar como recolhida.')}
+                        disabled={actingId === d.Donation_ID}
+                      >
+                        {actingId === d.Donation_ID ? 'A confirmar…' : 'Marcar como recolhida'}
+                      </Button>
+                    )}
+                    {d.Status === 'Collected' && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => onAction(d.Donation_ID, 'deliver', 'Não foi possível confirmar a entrega.')}
+                        disabled={actingId === d.Donation_ID}
+                      >
+                        {actingId === d.Donation_ID ? 'A confirmar…' : 'Confirmar entrega'}
                       </Button>
                     )}
                     <Button

@@ -1,6 +1,6 @@
 'use client';
 
-import type { Donation } from '@wafina/shared';
+import type { Donation, InstitutionDonationView, Notification, SuccessStory } from '@wafina/shared';
 import { Card } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -8,31 +8,56 @@ import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { apiFetch } from '@/lib/api';
 
+/** yyyy-mm-dd for "today", compared against Expected_Collection_Date. */
+function todayDateOnly(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function HomePage() {
   const session = useRequireSession();
   const { firebaseUser } = useAuth();
   const { institution } = useOwnInstitution();
-  const [donations, setDonations] = useState<Donation[] | null>(null);
+  const [available, setAvailable] = useState<InstitutionDonationView[] | null>(null);
+  const [claimedByMe, setClaimedByMe] = useState<InstitutionDonationView[] | null>(null);
+  const [stories, setStories] = useState<SuccessStory[] | null>(null);
+  const [notifications, setNotifications] = useState<Notification[] | null>(null);
 
   useEffect(() => {
     if (!firebaseUser) return;
     (async () => {
       try {
         const idToken = await firebaseUser.getIdToken();
-        setDonations(await apiFetch<Donation[]>('/donations/claimed-by-me', { idToken }));
+        const [availableList, claimedList, storyList, notificationList] = await Promise.all([
+          apiFetch<InstitutionDonationView[]>('/donations/available', { idToken }),
+          apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
+          apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }),
+          apiFetch<Notification[]>('/notifications', { idToken }),
+        ]);
+        setAvailable(availableList);
+        setClaimedByMe(claimedList);
+        setStories(storyList);
+        setNotifications(notificationList);
       } catch {
-        setDonations(null);
+        // Non-critical — the dashboard just shows "—" for whichever counts failed to load.
       }
     })();
   }, [firebaseUser]);
 
   const stats = useMemo(() => {
-    if (!donations) return null;
+    const today = todayDateOnly();
     return {
-      claimed: donations.filter((d) => d.Status === 'Claimed').length,
-      delivered: donations.filter((d) => d.Status === 'Delivered').length,
+      available: available?.length ?? null,
+      accepted: claimedByMe ? claimedByMe.filter((d: Donation) => d.Status === 'Claimed').length : null,
+      collectionsToday: claimedByMe
+        ? claimedByMe.filter(
+            (d: Donation) => d.Status === 'Collection_Scheduled' && d.Expected_Collection_Date?.slice(0, 10) === today,
+          ).length
+        : null,
+      deliveriesPending: claimedByMe ? claimedByMe.filter((d: Donation) => d.Status === 'Collected').length : null,
+      storiesPublished: stories?.length ?? null,
+      unreadNotifications: notifications ? notifications.filter((n) => !n.Read_At).length : null,
     };
-  }, [donations]);
+  }, [available, claimedByMe, stories, notifications]);
 
   if (!session) return null;
 
@@ -46,16 +71,32 @@ export default function HomePage() {
 
         <div className="stats-grid">
           <Card className="stack">
+            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.available ?? '—'}</p>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Doações disponíveis</p>
+          </Card>
+          <Card className="stack">
+            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.accepted ?? '—'}</p>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Aceites</p>
+          </Card>
+          <Card className="stack">
+            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.collectionsToday ?? '—'}</p>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Recolhas hoje</p>
+          </Card>
+          <Card className="stack">
+            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.deliveriesPending ?? '—'}</p>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Entregas pendentes</p>
+          </Card>
+          <Card className="stack">
+            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.storiesPublished ?? '—'}</p>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Histórias publicadas</p>
+          </Card>
+          <Card className="stack">
+            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.unreadNotifications ?? '—'}</p>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Notificações por ler</p>
+          </Card>
+          <Card className="stack">
             <p style={{ fontSize: 28, fontWeight: 700 }}>{institution?.Total_Items_Received ?? '—'}</p>
             <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Itens recebidos (total)</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats ? stats.claimed : '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Aceites por entregar</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats ? stats.delivered : '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Doações entregues</p>
           </Card>
         </div>
       </div>

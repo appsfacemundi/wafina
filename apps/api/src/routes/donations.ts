@@ -13,6 +13,9 @@ import {
   listDonationsByCorporateAccount,
   listDonationsByDonor,
   listDonationsClaimedByInstitution,
+  markCollected,
+  scheduleCollection,
+  setExpectedDates,
 } from '../services/donations';
 import { getInstitutionByUserId } from '../services/institutions';
 import { ValidationError } from '../services/validation-error';
@@ -134,6 +137,30 @@ donationsRouter.post(
   }),
 );
 
+/** Institution App Polish module — "Confirmar recolha agendada" step, between Claim and Collect. */
+donationsRouter.post(
+  '/donations/:id/schedule-collection',
+  requireAuth,
+  requireRole('Institution'),
+  requireVerified,
+  asyncHandler(async (req, res) => {
+    const institution = await requireOwnInstitution(req.user!.userId);
+    res.json(await scheduleCollection(institution.Institution_ID, req.params.id));
+  }),
+);
+
+/** Institution App Polish module — "Marcar como recolhida" step, between Schedule and Deliver. */
+donationsRouter.post(
+  '/donations/:id/collect',
+  requireAuth,
+  requireRole('Institution'),
+  requireVerified,
+  asyncHandler(async (req, res) => {
+    const institution = await requireOwnInstitution(req.user!.userId);
+    res.json(await markCollected(institution.Institution_ID, req.params.id));
+  }),
+);
+
 donationsRouter.post(
   '/donations/:id/deliver',
   requireAuth,
@@ -142,5 +169,25 @@ donationsRouter.post(
   asyncHandler(async (req, res) => {
     const institution = await requireOwnInstitution(req.user!.userId);
     res.json(await confirmDelivery(institution.Institution_ID, req.params.id));
+  }),
+);
+
+/**
+ * Admin Web App — sets/updates the informational Expected_Collection_Date /
+ * Expected_Delivery_Date estimate. Admin-only; not gated on donation status
+ * since Admin may want to set an estimate as soon as a donation is claimed.
+ */
+donationsRouter.patch(
+  '/donations/:id/expected-dates',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    const { Expected_Collection_Date, Expected_Delivery_Date } = req.body;
+    res.json(
+      await setExpectedDates(req.params.id, {
+        expectedCollectionDate: Expected_Collection_Date,
+        expectedDeliveryDate: Expected_Delivery_Date,
+      }),
+    );
   }),
 );

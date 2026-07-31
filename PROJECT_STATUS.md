@@ -1,8 +1,8 @@
 # Project Status - WAFINA Platform
 
 **Last updated:** 2026-07-31
-**Updated by:** Claude Code, after completing Phase 3A Module 5 (Institution App UX & Workflow Improvements)
-**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1–5 are implemented. The stakeholder has repeatedly inserted new modules ahead of the original Module 5–10 queue based on their own live testing (Module 4: Admin Foundation, unblocking institution verification; Module 5: this UX pass, based on hands-on Institution app testing) — the queue is being resequenced dynamically rather than followed rigidly, which is working as intended. See "Modules 6+" below for the current queue.
+**Updated by:** Claude Code, after completing Phase 3A Module 6 (Institution App Polish & Workflow)
+**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1–6 are implemented. The stakeholder has repeatedly inserted new modules ahead of the original queue based on their own live testing (Module 4: Admin Foundation; Module 5: Institution UX pass; Module 6: this polish/workflow pass, driven by detailed stakeholder feedback after Module 5) — the queue is being resequenced dynamically rather than followed rigidly, which is working as intended. See "Modules 7+" below for the current queue.
 
 ---
 
@@ -657,18 +657,117 @@ using the exact same donation row for both to prove the migration path too. `npm
 
 **Commit:** `fac1840`
 
-### Module 6 — Institution App Polish & Workflow: IN PROGRESS
-Stakeholder's own testing surfaced a further, larger set of findings after the photo bug — organized into
-Bugs (Success Stories screens incomplete, Expected Delivery Date missing), UX Improvements (success feedback
-on every action, disabled-after-success buttons, a full progress/timeline indicator), and Information
+### Module 6 — Institution App Polish & Workflow: COMPLETE
+
+Stakeholder's own testing surfaced a further set of findings after the photo bug — organized into Bugs
+(Success Stories screens incomplete, Expected Delivery Date missing), UX Improvements (success feedback on
+every action, disabled-after-success buttons, a full progress/timeline indicator), and Information
 improvements (richer cards, an Institution Dashboard, a post-delivery Success Story prompt). This un-splits
-the Donation Workflow States + Expected Delivery Date item that Module 5 had deferred — the stakeholder's
-explicit recommendation is to do it all together as one dedicated module before any further Admin Web App
-work. In progress; see the next update for what shipped.
+the Donation Workflow States + Expected Delivery Date item that Module 5 had deferred — done together as one
+dedicated module, per the stakeholder's explicit recommendation, before any further Admin Web App work.
+
+**What was implemented:**
+
+*Donation workflow states:* `Collection_Scheduled` and `Collected` inserted between `Claimed` and
+`Delivered` in `DONATION_STATUSES` (pure insertion — existing values/meaning unchanged). New service
+functions `scheduleCollection()`/`markCollected()` (institution-triggered, same ownership-check pattern as
+existing `claimDonation()`), and `confirmDelivery()`'s guard now requires `Collected` (was `Claimed`) so the
+institution must progress through every step in order. New routes: `POST /donations/:id/schedule-collection`,
+`POST /donations/:id/collect`. New institution-facing buttons ("Confirmar recolha agendada" → "Marcar como
+recolhida" → "Confirmar entrega") replace the old single "Confirmar entrega" button on both Web and
+`mobile-institution`.
+
+*Expected Delivery Date:* new `Expected_Collection_Date`/`Expected_Delivery_Date` fields (plus
+`Date_Collection_Scheduled`/`Date_Collected` for the new states) on `Donation`. New Admin-only
+`PATCH /donations/:id/expected-dates` (`setExpectedDates()` service function) and `GET /admin/donations`
+(`listInFlightDonationsForAdmin()`, every donation past `Pending` with the claiming institution's identity
+attached). New Admin Web App page (`/donations`) lets Admin set both dates per donation. Both dates display
+on institution and donor donation cards (`formatDateLabel()`, new in `packages/shared`). **Notifies both
+donor and institution** if a date that was already set changes — but deliberately not on the first set,
+since that's not yet a "change" from the recipient's perspective.
+
+*Success feedback + Timeline:* new shared `ToastProvider`/`useToast()` (`packages/ui` for web,
+`context/ToastContext.tsx` for `mobile-institution`) — a global ✅/⚠️ toast on every institution action
+(accept, schedule, collect, deliver, publish story, save settings, upload logo/photo). New shared
+`DonationTimeline` component (`packages/ui` + a mirrored RN version per mobile app) shows the complete dated
+journey (Aceite → Recolha Agendada → Recolhida → Entregue) with the current step highlighted and future
+steps dimmed — not just the current status badge. Shown on institution's Claimed cards and the donor's My
+Donations cards. New `DONATION_JOURNEY_DATE_FIELD` mapping in `packages/shared` backs it.
+
+*Post-delivery Success Story prompt:* confirming delivery now shows "Parabéns! 🎉 ... Gostaria de criar uma
+História de Impacto agora?" with "Criar História"/"Mais tarde" (a `Card` prompt on Web, `Alert.alert` on
+mobile), pre-filled with the donation's public code if accepted.
+
+*Success Stories screens (was Module 6's originally-planned scope, done here too):* new "Histórias de
+Impacto" list page (Web: `/success-stories`; mobile: `MySuccessStoriesScreen`, reached from a header link on
+Claimed) with status filter tabs (Todas/Publicada/Pendente de aprovação/Rejeitada), reusing the existing
+`SUCCESS_STORY_STATUSES` enum that already had unused moderation values from Module 2.
+
+*Institution Home dashboard:* replaced the old 3-stat dashboard with 7: Doações disponíveis, Aceites,
+Recolhas hoje (`Collection_Scheduled` donations whose `Expected_Collection_Date` is today), Entregas
+pendentes (`Collected`, awaiting delivery), Histórias publicadas, Notificações por ler, Itens recebidos
+(total) — both Web and `mobile-institution`.
+
+**A bug found and fixed during this module's own verification (blocks this module's feature, not deferred):**
+`packages/ui`'s `tsc` build emits `"use strict"` before the `'use client'` directive in compiled output
+(`Toast.js`), so Next.js doesn't recognize `ToastProvider` as a client-component boundary when it's used
+directly inside a Server Component (`apps/institution/src/app/layout.tsx`, which has no `'use client'` of
+its own) — this crashed the entire Institution app ("Element type is invalid... Check the render method of
+`RootLayout`") the moment `ToastProvider` was wired in. Confirmed via `preview_logs`, not guessed. Fixed with
+a thin local wrapper (`apps/institution/src/components/ToastProvider.tsx`, `'use client'` as its own literal
+first line, re-exporting the shared one) — Next's own SWC compiles this file fresh from source, so the
+directive survives. This is the same reason `AuthProvider` (a local file) already worked directly in
+`layout.tsx` while nothing from `packages/ui` had ever been used that way before. Any other packages/ui
+component that later needs to be a direct Server-Component child will need the same wrapper pattern, or
+`packages/ui`'s build should switch off CommonJS — not done here, out of scope for this fix.
+
+**Database implications:** Additive only. `Donations` gained `Date_Collection_Scheduled`, `Date_Collected`,
+`Expected_Collection_Date`, `Expected_Delivery_Date` (migrated onto the real Sheet's header row). No
+existing column changed meaning.
+
+**Verified (live, per the module-completion rule):** API, Web (Donor + Institution + Admin) all running
+together throughout; full real lifecycle exercised with disposable test accounts (donor, institution, and a
+throwaway Admin account created via `getFirebaseAuth()` + a `Role='Admin'` Users row, mirroring how the real
+Super Admin account was provisioned): donor signs up → submits a donation (`AO-000026`) → fresh institution
+registers → approved via the real Admin app (confirmed the actual pending real institution, AJAPRAZ, was
+left untouched) → institution accepts the donation (toast confirmed) → "Confirmar recolha agendada" →
+"Marcar como recolhida" → "Confirmar entrega" (timeline updated live at every step, each with today's date) →
+post-delivery prompt appeared → "Criar História" → story published, appears in the new filtered list →
+donor's My Donations shows the same full timeline + the published story. Admin set Expected_Collection_Date/
+Expected_Delivery_Date on `AO-000026` from the new `/donations` page — confirmed on both the institution's
+and donor's cards. Changed the delivery date a second time — confirmed the "already sent" notification fired
+correctly on this occasion, addressed to **both** the donor and the institution, while the first (initial)
+set correctly sent none. `npm run typecheck` clean across all 8 workspaces (`packages/shared`, `packages/ui`,
+`apps/api`, `apps/institution`, `apps/admin`, `apps/web`, `apps/mobile-institution`, `apps/mobile-donor`) —
+this required rebuilding `packages/shared`/`packages/ui` mid-session more than once after their dist output
+went stale relative to source, a recurring gotcha in this monorepo worth remembering. All disposable
+accounts/rows (Firebase users + Users/Institutions/Donations/Success_Stories/Notifications rows) deleted
+afterward; confirmed real data back to 11 Users / 5 Institutions / 25 Donations / 0 Success_Stories. Mobile
+(`mobile-institution`/`mobile-donor`) changes mirror the verified web implementation line-for-line and
+typecheck clean, but weren't exercised live in a simulator this pass — same outstanding, previously-accepted
+Xcode/Simulator gap as Modules 3 and 5.
+
+**Not done in this module:**
+- No changes to donor-facing Success Story screens beyond what already existed (donor sees stories inline on
+  their own donation cards; no separate donor-facing gallery/list page was requested).
+- Corporate Dashboard, corporate secure invitations, Active-Country filtering audit — still queued for later
+  modules, unchanged from Module 5's list.
+
+**Known Issues / Deferred Items:**
+- The `institution_approved` notification text still reads "Já pode reclamar doações" (old pre-Module-5
+  terminology) — found live during this module's testing (not this module's own feature, so not fixed here
+  per Scope Discipline; it's a one-line leftover from the Module 5 terminology sweep in
+  `apps/api/src/services/institutions.ts`).
+- `packages/ui`'s tsc-built dist emits `"use strict"` before any `'use client'` directive (see the bug entry
+  above) — worked around locally for `ToastProvider`, but the underlying build-config issue is unfixed. The
+  next `packages/ui` component that needs to be a *direct* Server-Component child (not just used from within
+  an already-client page) will hit the same failure and need the same wrapper, or a build fix.
+
+**Commit:** (pending — see below)
 
 ### Modules 7+: not yet started
-Sequenced dynamically based on stakeholder priority. Known upcoming work after Module 6: Active-Country
-filtering audit across Success Stories/Notifications; corporate secure invitations; corporate dashboard.
+Sequenced dynamically based on stakeholder priority. Known upcoming work: Active-Country filtering audit
+across Success Stories/Notifications; corporate secure invitations; corporate dashboard.
 
 ---
 

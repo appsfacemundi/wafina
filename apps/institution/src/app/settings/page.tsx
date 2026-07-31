@@ -1,6 +1,6 @@
 'use client';
 
-import { Badge, Button, Card, Photo, Select } from '@wafina/ui';
+import { Badge, Button, Card, Photo, Select, useToast } from '@wafina/ui';
 import { useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const session = useRequireSession();
   const { firebaseUser, signOutUser } = useAuth();
   const { institution, loading, refetch } = useOwnInstitution();
+  const { showToast } = useToast();
   const reasonId = useId();
 
   const [field, setField] = useState('');
@@ -56,6 +57,7 @@ export default function SettingsPage() {
       setSuccess(true);
       setField('');
       setReason('');
+      showToast('Pedido de alteração enviado ao Admin.');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível enviar o pedido.');
     } finally {
@@ -75,6 +77,7 @@ export default function SettingsPage() {
       form.append('logo', file);
       await apiFetch('/institutions/me/logo', { method: 'PATCH', idToken, body: form });
       await refetch();
+      showToast('Logótipo atualizado com sucesso!');
     } catch (err) {
       setLogoError(err instanceof ApiError ? err.message : 'Não foi possível enviar o logótipo.');
     } finally {

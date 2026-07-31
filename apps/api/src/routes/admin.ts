@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { listInFlightDonationsForAdmin } from '../services/donations';
 import { listPendingInstitutions, rejectInstitution, verifyInstitution } from '../services/institutions';
 
 /**
@@ -35,5 +36,19 @@ adminRouter.post(
   requireRole('Admin'),
   asyncHandler(async (req, res) => {
     res.json(await rejectInstitution(req.params.id, req.body?.reason));
+  }),
+);
+
+/**
+ * Institution App Polish module — donations Admin can set logistics
+ * estimates for. Also usable in /donations/:id/expected-dates (defined in
+ * donations.ts route) to actually write the estimate.
+ */
+adminRouter.get(
+  '/admin/donations',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listInFlightDonationsForAdmin());
   }),
 );

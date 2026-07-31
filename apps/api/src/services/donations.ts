@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Donation, DonationStatus, InstitutionDonationView } from '@wafina/shared';
+import type { AdminDonationView, Donation, DonationStatus, InstitutionDonationView } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetLatLong, nowIso, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
@@ -31,9 +31,13 @@ function rowToDonation(row: Record<string, string>): Donation {
     Claimed_By_Institution_ID: row.Claimed_By_Institution_ID || null,
     Date_Submitted: row.Date_Submitted,
     Date_Claimed: row.Date_Claimed || null,
+    Date_Collection_Scheduled: row.Date_Collection_Scheduled || null,
+    Date_Collected: row.Date_Collected || null,
     Date_Delivered: row.Date_Delivered || null,
     Country_ID: row.Country_ID,
     City: row.City || null,
+    Expected_Collection_Date: row.Expected_Collection_Date || null,
+    Expected_Delivery_Date: row.Expected_Delivery_Date || null,
   };
 }
 
@@ -136,9 +140,13 @@ export async function createDonation(
     Date_Submitted: nowIso(),
     Date_Claimed: '',
     Claimed_By_Institution_ID: '',
+    Date_Collection_Scheduled: '',
+    Date_Collected: '',
     Date_Delivered: '',
     Country_ID: activeCountryId,
     City: input.City?.trim() ?? '',
+    Expected_Collection_Date: '',
+    Expected_Delivery_Date: '',
   };
 
   await appendRow(SHEET_TABS.donations, row);
@@ -242,6 +250,35 @@ export async function listDonationsClaimedByInstitution(
   return toInstitutionDonationViews(filtered);
 }
 
+/**
+ * Admin Web App — every donation past Pending (Claimed onward), across all
+ * institutions/countries, so Admin can set Expected_Collection_Date /
+ * Expected_Delivery_Date with visibility into who's handling each one.
+ * Newest-claimed first, since those are the ones most likely to need a fresh
+ * estimate.
+ */
+export async function listInFlightDonationsForAdmin(): Promise<AdminDonationView[]> {
+  const rows = await getRows(SHEET_TABS.donations);
+  const filtered = rows
+    .filter((row) => row.Status !== 'Pending')
+    .sort((a, b) => (b.Date_Claimed || '').localeCompare(a.Date_Claimed || ''));
+
+  const views = await toInstitutionDonationViews(filtered);
+  const institutionRows = await getRows(SHEET_TABS.institutions);
+  const institutionById = new Map(institutionRows.map((r) => [r.Institution_ID, r]));
+
+  return views.map((view) => {
+    const institution = view.Claimed_By_Institution_ID
+      ? institutionById.get(view.Claimed_By_Institution_ID)
+      : undefined;
+    return {
+      ...view,
+      Claimed_By_Institution_Name: institution?.Name || null,
+      Claimed_By_Institution_Logo: institution?.Logo || null,
+    };
+  });
+}
+
 /** Donor may edit their own donation only while it's still Pending (spec 11.1.2). */
 export async function editDonation(
   donorId: string,
@@ -303,10 +340,55 @@ export async function claimDonation(institutionId: string, donationId: string): 
   return updated;
 }
 
-export async function confirmDelivery(institutionId: string, donationId: string): Promise<Donation> {
+/**
+ * Institution App Polish module — the institution marks that it has arranged
+ * a collection time/logistics with the donor. Purely a physical-progress
+ * marker; it does not set or require Expected_Collection_Date (that's
+ * Admin's separate estimate — see setExpectedDates).
+ */
+export async function scheduleCollection(institutionId: string, donationId: string): Promise<Donation> {
   const existing = await getDonation(donationId);
   if (!existing) throw new ValidationError('Donation not found');
   if (existing.Status !== 'Claimed') throw new ValidationError('Donation is not in Claimed status');
+  if (existing.Claimed_By_Institution_ID !== institutionId) {
+    throw new ValidationError('Donation was not claimed by this institution');
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
+    Status: 'Collection_Scheduled',
+    Date_Collection_Scheduled: nowIso(),
+  });
+
+  const updated = await getDonation(donationId);
+  if (!updated) throw new Error('Donation vanished after scheduling collection');
+  return updated;
+}
+
+/** Institution marks the item as physically collected from the donor. */
+export async function markCollected(institutionId: string, donationId: string): Promise<Donation> {
+  const existing = await getDonation(donationId);
+  if (!existing) throw new ValidationError('Donation not found');
+  if (existing.Status !== 'Collection_Scheduled') {
+    throw new ValidationError('Donation is not in Collection_Scheduled status');
+  }
+  if (existing.Claimed_By_Institution_ID !== institutionId) {
+    throw new ValidationError('Donation was not claimed by this institution');
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
+    Status: 'Collected',
+    Date_Collected: nowIso(),
+  });
+
+  const updated = await getDonation(donationId);
+  if (!updated) throw new Error('Donation vanished after marking collected');
+  return updated;
+}
+
+export async function confirmDelivery(institutionId: string, donationId: string): Promise<Donation> {
+  const existing = await getDonation(donationId);
+  if (!existing) throw new ValidationError('Donation not found');
+  if (existing.Status !== 'Collected') throw new ValidationError('Donation is not in Collected status');
   if (existing.Claimed_By_Institution_ID !== institutionId) {
     throw new ValidationError('Donation was not claimed by this institution');
   }
@@ -327,6 +409,69 @@ export async function confirmDelivery(institutionId: string, donationId: string)
     entityId: updated.Donation_ID,
     message: `A sua doação de ${updated.Item_Type} foi entregue.`,
   });
+
+  return updated;
+}
+
+/**
+ * Admin Web App — sets/updates the informational delivery estimate. Either
+ * date may be set independently. If a date that was already set changes,
+ * both the donor and the claiming institution are notified — per the
+ * stakeholder's explicit requirement that a changed estimate notify both
+ * parties, not just silently update.
+ */
+export async function setExpectedDates(
+  donationId: string,
+  dates: { expectedCollectionDate?: string; expectedDeliveryDate?: string },
+): Promise<Donation> {
+  const existing = await getDonation(donationId);
+  if (!existing) throw new ValidationError('Donation not found');
+
+  const patch: Record<string, string> = {};
+  const changes: string[] = [];
+
+  if (dates.expectedCollectionDate !== undefined) {
+    const isChange =
+      existing.Expected_Collection_Date && existing.Expected_Collection_Date !== dates.expectedCollectionDate;
+    if (isChange) changes.push('a data de recolha estimada');
+    patch.Expected_Collection_Date = dates.expectedCollectionDate;
+  }
+  if (dates.expectedDeliveryDate !== undefined) {
+    const isChange =
+      existing.Expected_Delivery_Date && existing.Expected_Delivery_Date !== dates.expectedDeliveryDate;
+    if (isChange) changes.push('a data de entrega estimada');
+    patch.Expected_Delivery_Date = dates.expectedDeliveryDate;
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, patch);
+  const updated = await getDonation(donationId);
+  if (!updated) throw new Error('Donation vanished after setting expected dates');
+
+  if (changes.length > 0) {
+    const message = `A estimativa da sua doação de ${updated.Item_Type} foi atualizada: ${changes.join(' e ')} mudou.`;
+    await createNotification({
+      recipientUserId: updated.Donor_ID,
+      notificationType: 'donation_delivered',
+      entityType: 'Donation',
+      entityId: updated.Donation_ID,
+      message,
+    });
+    if (updated.Claimed_By_Institution_ID) {
+      const institutionUser = await findRow(
+        SHEET_TABS.institutions,
+        (r) => r.Institution_ID === updated.Claimed_By_Institution_ID,
+      );
+      if (institutionUser?.User_ID) {
+        await createNotification({
+          recipientUserId: institutionUser.User_ID,
+          notificationType: 'donation_delivered',
+          entityType: 'Donation',
+          entityId: updated.Donation_ID,
+          message,
+        });
+      }
+    }
+  }
 
   return updated;
 }

@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { Input } from '@/components/Input';
 import { Photo } from '@/components/Photo';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { apiFetch, ApiError } from '@/lib/api';
 import { colors, fonts, spacing } from '@/theme/tokens';
@@ -15,6 +16,7 @@ import { colors, fonts, spacing } from '@/theme/tokens';
 export function AvailableDonationsScreen() {
   const { firebaseUser } = useAuth();
   const { institution } = useOwnInstitution();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const [donations, setDonations] = useState<InstitutionDonationView[] | null>(null);
   const [countryName, setCountryName] = useState('');
@@ -65,6 +67,7 @@ export function AvailableDonationsScreen() {
       const idToken = await firebaseUser?.getIdToken();
       await apiFetch(`/donations/${donationId}/claim`, { method: 'POST', idToken });
       await load();
+      showToast('Doação aceite com sucesso! Já pode agendar a recolha em "Doações Aceites".');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível aceitar a doação.');
     } finally {

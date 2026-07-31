@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Card, Input } from '@wafina/ui';
+import { Button, Card, Input, useToast } from '@wafina/ui';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState, type FormEvent } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -22,6 +22,7 @@ function NewSuccessStoryForm() {
   const session = useRequireSession();
   const { firebaseUser } = useAuth();
   const router = useRouter();
+  const { showToast } = useToast();
   const searchParams = useSearchParams();
   const donationId = searchParams.get('donationId') ?? '';
   const code = searchParams.get('code') ?? '';
@@ -86,6 +87,7 @@ function NewSuccessStoryForm() {
       form.append('image', image);
 
       await apiFetch('/success-stories', { method: 'POST', idToken, body: form });
+      showToast('História de impacto publicada com sucesso!');
       router.push('/donations/claimed');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível publicar a história.');

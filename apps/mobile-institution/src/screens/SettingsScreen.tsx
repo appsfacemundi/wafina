@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { ApiError, apiFetch } from '@/lib/api';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
@@ -23,6 +24,7 @@ const FIELD_LABEL: Record<string, string> = {
 export function SettingsScreen() {
   const { session, firebaseUser, signOutUser } = useAuth();
   const { institution, loading, refetch } = useOwnInstitution();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
 
   const [field, setField] = useState('');
@@ -58,6 +60,7 @@ export function SettingsScreen() {
       await apiFetch('/institutions/me/logo', { method: 'PATCH', idToken, body: form });
       setLogoLoadFailed(false);
       await refetch();
+      showToast('Logótipo atualizado com sucesso!');
     } catch (err) {
       setLogoError(err instanceof ApiError ? err.message : 'Não foi possível enviar o logótipo.');
     } finally {
@@ -89,6 +92,7 @@ export function SettingsScreen() {
       setSuccess(true);
       setField('');
       setReason('');
+      showToast('Pedido de alteração enviado ao Admin.');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível enviar o pedido.');
     } finally {

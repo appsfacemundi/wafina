@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { ApiError, apiFetch } from '@/lib/api';
 import type { ClaimedByMeStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
@@ -20,6 +21,7 @@ type Props = NativeStackScreenProps<ClaimedByMeStackParamList, 'NewSuccessStory'
 export function NewSuccessStoryScreen({ route, navigation }: Props) {
   const { donationId, publicCode } = route.params;
   const { firebaseUser } = useAuth();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
 
   const [title, setTitle] = useState('');
@@ -77,6 +79,7 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
       } as unknown as Blob);
 
       await apiFetch('/success-stories', { method: 'POST', idToken, body: form });
+      showToast('História de impacto publicada com sucesso!');
       navigation.navigate('ClaimedByMeList');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível publicar a história.');

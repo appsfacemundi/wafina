@@ -30,7 +30,20 @@ export interface Donation {
   Claimed_By_Institution_ID: string | null;
   Date_Submitted: string;
   Date_Claimed: string | null;
+  /** Institution App Polish module (2026-07-31) — set when the institution marks collection scheduled/collected. */
+  Date_Collection_Scheduled: string | null;
+  Date_Collected: string | null;
   Date_Delivered: string | null;
+  /**
+   * Institution App Polish module — Admin-set estimates, informational only
+   * (never gate the institution's own status transitions). The Admin may
+   * consider distance, transport, institution capacity, etc. when setting
+   * these; this schema doesn't model those factors, just the resulting dates.
+   * Both donor and institution get notified if Admin changes either after
+   * it's been set once.
+   */
+  Expected_Collection_Date: string | null;
+  Expected_Delivery_Date: string | null;
   /**
    * Phase 3A Module 1 — a permanent snapshot of the donor's Active_Country_ID at
    * the moment this donation was created. Deliberately NOT derived live from
@@ -62,4 +75,15 @@ export interface Donation {
 export interface InstitutionDonationView extends Donation {
   Donor_Display_Name: string | null;
   Donor_Display_Logo: string | null;
+}
+
+/**
+ * Admin Web App — same as InstitutionDonationView plus the claiming
+ * institution's identity, so Admin can tell who's handling each donation
+ * when setting Expected_Collection_Date / Expected_Delivery_Date. Only ever
+ * returned from admin-facing endpoints.
+ */
+export interface AdminDonationView extends InstitutionDonationView {
+  Claimed_By_Institution_Name: string | null;
+  Claimed_By_Institution_Logo: string | null;
 }

@@ -1,9 +1,16 @@
-import { DONATION_STATUS_LABEL, DONATION_STATUS_TONE, type Donation, type SuccessStory } from '@wafina/shared';
+import {
+  DONATION_STATUS_LABEL,
+  DONATION_STATUS_TONE,
+  formatDateLabel,
+  type Donation,
+  type SuccessStory,
+} from '@wafina/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
+import { DonationTimeline } from '@/components/DonationTimeline';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
@@ -96,6 +103,14 @@ export function MyDonationsScreen() {
                 </View>
                 <Badge tone={DONATION_STATUS_TONE[item.Status]}>{DONATION_STATUS_LABEL[item.Status]}</Badge>
               </View>
+              {(item.Expected_Collection_Date || item.Expected_Delivery_Date) && (
+                <Text style={styles.donationId}>
+                  {item.Expected_Collection_Date && `Recolha estimada: ${formatDateLabel(item.Expected_Collection_Date)}`}
+                  {item.Expected_Collection_Date && item.Expected_Delivery_Date && ' · '}
+                  {item.Expected_Delivery_Date && `Entrega estimada: ${formatDateLabel(item.Expected_Delivery_Date)}`}
+                </Text>
+              )}
+              {item.Status !== 'Pending' && <DonationTimeline donation={item} />}
               {story && (
                 <View style={styles.storyCard}>
                   <Image source={{ uri: story.Image }} style={styles.storyImage} />

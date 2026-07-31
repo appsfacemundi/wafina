@@ -8,6 +8,7 @@ import { AvailableDonationsScreen } from '@/screens/AvailableDonationsScreen';
 import { ClaimedByMeScreen } from '@/screens/ClaimedByMeScreen';
 import { DisputesListScreen } from '@/screens/DisputesListScreen';
 import { HomeScreen } from '@/screens/HomeScreen';
+import { MySuccessStoriesScreen } from '@/screens/MySuccessStoriesScreen';
 import { NewDisputeScreen } from '@/screens/NewDisputeScreen';
 import { NewSuccessStoryScreen } from '@/screens/NewSuccessStoryScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
@@ -41,6 +42,7 @@ export type ClaimedByMeStackParamList = {
   ClaimedByMeList: undefined;
   /** publicCode is the only donation identifier ever shown on screen — donationId is API-only. */
   NewSuccessStory: { donationId: string; publicCode: string };
+  MySuccessStories: undefined;
 };
 
 export type AppTabParamList = {
@@ -88,6 +90,7 @@ function ClaimedByMeNavigator() {
     <ClaimedByMeStack.Navigator screenOptions={{ headerShown: false }}>
       <ClaimedByMeStack.Screen name="ClaimedByMeList" component={ClaimedByMeScreen} />
       <ClaimedByMeStack.Screen name="NewSuccessStory" component={NewSuccessStoryScreen} />
+      <ClaimedByMeStack.Screen name="MySuccessStories" component={MySuccessStoriesScreen} />
     </ClaimedByMeStack.Navigator>
   );
 }

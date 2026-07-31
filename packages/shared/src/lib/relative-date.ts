@@ -12,3 +12,15 @@ export function daysAgoLabel(isoDate: string): string {
   if (days === 1) return 'Publicado há 1 dia';
   return `Publicado há ${days} dias`;
 }
+
+/**
+ * Institution App Polish module — dd/mm/yyyy for Expected_Collection_Date /
+ * Expected_Delivery_Date. Absolute, not relative: these are future estimates,
+ * so "in N days" would need constant recomputation for no real benefit over
+ * a plain calendar date.
+ */
+export function formatDateLabel(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}

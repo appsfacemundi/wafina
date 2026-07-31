@@ -1,7 +1,13 @@
 'use client';
 
-import { DONATION_STATUS_LABEL, DONATION_STATUS_TONE, type Donation, type SuccessStory } from '@wafina/shared';
-import { Badge, Button, Card, EmptyState } from '@wafina/ui';
+import {
+  DONATION_STATUS_LABEL,
+  DONATION_STATUS_TONE,
+  formatDateLabel,
+  type Donation,
+  type SuccessStory,
+} from '@wafina/shared';
+import { Badge, Button, Card, DonationTimeline, EmptyState } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -104,6 +110,14 @@ export default function DonationsPage() {
                       {DONATION_STATUS_LABEL[d.Status]}
                     </Badge>
                   </div>
+                  {(d.Expected_Collection_Date || d.Expected_Delivery_Date) && (
+                    <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+                      {d.Expected_Collection_Date && `Recolha estimada: ${formatDateLabel(d.Expected_Collection_Date)}`}
+                      {d.Expected_Collection_Date && d.Expected_Delivery_Date && ' · '}
+                      {d.Expected_Delivery_Date && `Entrega estimada: ${formatDateLabel(d.Expected_Delivery_Date)}`}
+                    </p>
+                  )}
+                  {d.Status !== 'Pending' && <DonationTimeline donation={d} />}
                   {story && (
                     <div
                       style={{

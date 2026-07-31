@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: '/home', label: 'Início' },
   { href: '/donations/available', label: 'Doações Disponíveis' },
   { href: '/donations/claimed', label: 'Doações Aceites' },
+  { href: '/success-stories', label: 'Histórias de Impacto' },
   { href: '/disputes', label: 'Ocorrências' },
   { href: '/notifications', label: 'Notificações' },
   { href: '/settings', label: 'Definições' },

@@ -1,4 +1,4 @@
-import type { Donation } from '@wafina/shared';
+import type { Donation, InstitutionDonationView, Notification, SuccessStory } from '@wafina/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,31 +8,55 @@ import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { apiFetch } from '@/lib/api';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
+function todayDateOnly(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function HomeScreen() {
   const { session, firebaseUser } = useAuth();
   const { institution } = useOwnInstitution();
   const insets = useSafeAreaInsets();
-  const [donations, setDonations] = useState<Donation[] | null>(null);
+  const [available, setAvailable] = useState<InstitutionDonationView[] | null>(null);
+  const [claimedByMe, setClaimedByMe] = useState<InstitutionDonationView[] | null>(null);
+  const [stories, setStories] = useState<SuccessStory[] | null>(null);
+  const [notifications, setNotifications] = useState<Notification[] | null>(null);
 
   useEffect(() => {
     if (!firebaseUser) return;
     (async () => {
       try {
         const idToken = await firebaseUser.getIdToken();
-        setDonations(await apiFetch<Donation[]>('/donations/claimed-by-me', { idToken }));
+        const [availableList, claimedList, storyList, notificationList] = await Promise.all([
+          apiFetch<InstitutionDonationView[]>('/donations/available', { idToken }),
+          apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
+          apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }),
+          apiFetch<Notification[]>('/notifications', { idToken }),
+        ]);
+        setAvailable(availableList);
+        setClaimedByMe(claimedList);
+        setStories(storyList);
+        setNotifications(notificationList);
       } catch {
-        setDonations(null);
+        // Non-critical — the dashboard just shows "—" for whichever counts failed to load.
       }
     })();
   }, [firebaseUser]);
 
   const stats = useMemo(() => {
-    if (!donations) return null;
+    const today = todayDateOnly();
     return {
-      claimed: donations.filter((d) => d.Status === 'Claimed').length,
-      delivered: donations.filter((d) => d.Status === 'Delivered').length,
+      available: available?.length ?? null,
+      accepted: claimedByMe ? claimedByMe.filter((d: Donation) => d.Status === 'Claimed').length : null,
+      collectionsToday: claimedByMe
+        ? claimedByMe.filter(
+            (d: Donation) => d.Status === 'Collection_Scheduled' && d.Expected_Collection_Date?.slice(0, 10) === today,
+          ).length
+        : null,
+      deliveriesPending: claimedByMe ? claimedByMe.filter((d: Donation) => d.Status === 'Collected').length : null,
+      storiesPublished: stories?.length ?? null,
+      unreadNotifications: notifications ? notifications.filter((n) => !n.Read_At).length : null,
     };
-  }, [donations]);
+  }, [available, claimedByMe, stories, notifications]);
 
   return (
     <ScrollView
@@ -48,16 +72,32 @@ export function HomeScreen() {
 
       <View style={styles.statsGrid}>
         <Card style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.available ?? '—'}</Text>
+          <Text style={styles.statLabel}>Doações disponíveis</Text>
+        </Card>
+        <Card style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.accepted ?? '—'}</Text>
+          <Text style={styles.statLabel}>Aceites</Text>
+        </Card>
+        <Card style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.collectionsToday ?? '—'}</Text>
+          <Text style={styles.statLabel}>Recolhas hoje</Text>
+        </Card>
+        <Card style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.deliveriesPending ?? '—'}</Text>
+          <Text style={styles.statLabel}>Entregas pendentes</Text>
+        </Card>
+        <Card style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.storiesPublished ?? '—'}</Text>
+          <Text style={styles.statLabel}>Histórias publicadas</Text>
+        </Card>
+        <Card style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.unreadNotifications ?? '—'}</Text>
+          <Text style={styles.statLabel}>Notificações por ler</Text>
+        </Card>
+        <Card style={styles.statCard}>
           <Text style={styles.statValue}>{institution?.Total_Items_Received ?? '—'}</Text>
           <Text style={styles.statLabel}>Itens recebidos (total)</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{stats ? stats.claimed : '—'}</Text>
-          <Text style={styles.statLabel}>Aceites por entregar</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{stats ? stats.delivered : '—'}</Text>
-          <Text style={styles.statLabel}>Doações entregues</Text>
         </Card>
       </View>
     </ScrollView>

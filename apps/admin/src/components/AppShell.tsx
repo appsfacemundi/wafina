@@ -5,7 +5,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
-const NAV_ITEMS = [{ href: '/home', label: 'Instituições Pendentes' }];
+const NAV_ITEMS = [
+  { href: '/home', label: 'Instituições Pendentes' },
+  { href: '/donations', label: 'Doações' },
+];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { signOutUser } = useAuth();

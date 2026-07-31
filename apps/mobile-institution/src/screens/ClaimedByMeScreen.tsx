@@ -2,19 +2,22 @@ import {
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   daysAgoLabel,
+  formatDateLabel,
   type InstitutionDonationView,
   type SuccessStory,
 } from '@wafina/shared';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { DonationTimeline } from '@/components/DonationTimeline';
 import { EmptyState } from '@/components/EmptyState';
 import { Photo } from '@/components/Photo';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { apiFetch, ApiError } from '@/lib/api';
 import type { ClaimedByMeStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, spacing } from '@/theme/tokens';
@@ -23,11 +26,12 @@ type Props = NativeStackScreenProps<ClaimedByMeStackParamList, 'ClaimedByMeList'
 
 export function ClaimedByMeScreen({ navigation }: Props) {
   const { firebaseUser } = useAuth();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const [donations, setDonations] = useState<InstitutionDonationView[] | null>(null);
   const [storiesByDonation, setStoriesByDonation] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
-  const [deliveringId, setDeliveringId] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
 
   async function load() {
     if (!firebaseUser) return;
@@ -48,17 +52,42 @@ export function ClaimedByMeScreen({ navigation }: Props) {
     load();
   }, [firebaseUser]);
 
-  async function onDeliver(donationId: string) {
-    setDeliveringId(donationId);
+  const SUCCESS_MESSAGE: Record<'schedule-collection' | 'collect' | 'deliver', string> = {
+    'schedule-collection': 'Recolha agendada com sucesso!',
+    collect: 'Doação marcada como recolhida!',
+    deliver: 'Entrega confirmada com sucesso!',
+  };
+
+  async function onAction(
+    donationId: string,
+    action: 'schedule-collection' | 'collect' | 'deliver',
+    failMessage: string,
+  ) {
+    const publicCode = donations?.find((d) => d.Donation_ID === donationId)?.Public_Donation_Code ?? '';
+    setActingId(donationId);
     setError('');
     try {
       const idToken = await firebaseUser?.getIdToken();
-      await apiFetch(`/donations/${donationId}/deliver`, { method: 'POST', idToken });
+      await apiFetch(`/donations/${donationId}/${action}`, { method: 'POST', idToken });
       await load();
+      showToast(SUCCESS_MESSAGE[action]);
+      if (action === 'deliver') {
+        Alert.alert(
+          'Parabéns! 🎉',
+          'A doação foi entregue com sucesso. Gostaria de criar uma História de Impacto agora?',
+          [
+            { text: 'Mais tarde', style: 'cancel' },
+            {
+              text: 'Criar História',
+              onPress: () => navigation.navigate('NewSuccessStory', { donationId, publicCode }),
+            },
+          ],
+        );
+      }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível confirmar a entrega.');
+      setError(err instanceof ApiError ? err.message : failMessage);
     } finally {
-      setDeliveringId(null);
+      setActingId(null);
     }
   }
 
@@ -68,7 +97,12 @@ export function ClaimedByMeScreen({ navigation }: Props) {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
-            <Text style={styles.title}>Doações Aceites</Text>
+            <View style={styles.headerRow}>
+              <Text style={styles.title}>Doações Aceites</Text>
+              <Pressable onPress={() => navigation.navigate('MySuccessStories')}>
+                <Text style={styles.mapLink}>Histórias de Impacto</Text>
+              </Pressable>
+            </View>
             {error && (
               <View style={styles.errorBanner}>
                 <Text style={styles.errorText}>{error}</Text>
@@ -116,14 +150,42 @@ export function ClaimedByMeScreen({ navigation }: Props) {
                 </View>
               )}
               <Text style={styles.dateLabel}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
+              {(item.Expected_Collection_Date || item.Expected_Delivery_Date) && (
+                <Text style={styles.meta}>
+                  {item.Expected_Collection_Date && `Recolha estimada: ${formatDateLabel(item.Expected_Collection_Date)}`}
+                  {item.Expected_Collection_Date && item.Expected_Delivery_Date && ' · '}
+                  {item.Expected_Delivery_Date && `Entrega estimada: ${formatDateLabel(item.Expected_Delivery_Date)}`}
+                </Text>
+              )}
+              <View style={{ marginTop: 4, marginBottom: 4 }}>
+                <DonationTimeline donation={item} />
+              </View>
               <View style={styles.actions}>
                 {item.Status === 'Claimed' && (
                   <Button
                     variant="secondary"
-                    onPress={() => onDeliver(item.Donation_ID)}
-                    disabled={deliveringId === item.Donation_ID}
+                    onPress={() => onAction(item.Donation_ID, 'schedule-collection', 'Não foi possível agendar a recolha.')}
+                    disabled={actingId === item.Donation_ID}
                   >
-                    {deliveringId === item.Donation_ID ? 'A confirmar…' : 'Confirmar entrega'}
+                    {actingId === item.Donation_ID ? 'A agendar…' : 'Confirmar recolha agendada'}
+                  </Button>
+                )}
+                {item.Status === 'Collection_Scheduled' && (
+                  <Button
+                    variant="secondary"
+                    onPress={() => onAction(item.Donation_ID, 'collect', 'Não foi possível marcar como recolhida.')}
+                    disabled={actingId === item.Donation_ID}
+                  >
+                    {actingId === item.Donation_ID ? 'A confirmar…' : 'Marcar como recolhida'}
+                  </Button>
+                )}
+                {item.Status === 'Collected' && (
+                  <Button
+                    variant="secondary"
+                    onPress={() => onAction(item.Donation_ID, 'deliver', 'Não foi possível confirmar a entrega.')}
+                    disabled={actingId === item.Donation_ID}
+                  >
+                    {actingId === item.Donation_ID ? 'A confirmar…' : 'Confirmar entrega'}
                   </Button>
                 )}
                 <Button
@@ -174,6 +236,11 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 24,
     color: colors.text,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing[4],
   },
   loading: {
