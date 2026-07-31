@@ -1626,7 +1626,7 @@ from UI alone. Full-tab Sheets scan (plus a Firebase-user check) confirms zero t
 including a mid-session data point: a broadcast-notification test from the earlier round was independently
 re-confirmed clean here too.
 
-**Commit:** _(pending — see below)_
+**Commit:** `e4b8707`
 
 ---
 
