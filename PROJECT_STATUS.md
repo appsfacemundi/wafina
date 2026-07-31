@@ -1542,7 +1542,7 @@ round. Full E2E workflow live-tested against the running API (not just typecheck
 live-tested both the failure and success paths in the browser. Backup script live-run against production.
 Full-tab Sheets scan confirms no test debris remains.
 
-**Commit:** _(pending — see below)_
+**Commit:** `ee137f3`
 
 ---
 
