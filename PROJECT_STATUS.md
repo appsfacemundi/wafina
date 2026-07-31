@@ -847,7 +847,7 @@ Notifications / 0 Success_Stories, unchanged from before this review pass. Mobil
 in-scope code fixes (notification toast on dispute submission) and typecheck clean, but weren't exercised
 live in a simulator this pass — same outstanding, previously-accepted gap as Modules 3, 5, and 6.
 
-**Commit:** (pending — see below)
+**Commit:** `563fe41`
 
 ### Modules 7+: not yet started
 Sequenced dynamically based on stakeholder priority. Known upcoming work: Active-Country filtering audit
