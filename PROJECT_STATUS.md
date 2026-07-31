@@ -1260,6 +1260,92 @@ permanent policy governing every future module: no new Donor/Institution feature
 
 ---
 
+## Platform Stabilization & Production Readiness (2026-07-31): COMPLETE
+
+After the Admin Parity program, the stakeholder redirected priorities: pause the planned Active-Country
+filtering audit and instead run a full stabilization pass — re-verify every fix made across the last several
+modules is actually holding up live, then perform one complete end-to-end platform workflow test — before
+any new feature work. Country filtering audit (and a later Phase 4 logistics-display change, not started
+here) were explicitly deferred with a stop-and-review gate: development should not continue past this phase
+without the stakeholder's own review.
+
+**Method:** rather than re-fixing items blind, re-verified each item the stakeholder listed live, since most
+had already been addressed in the stabilization module and Admin Parity phases earlier this same session.
+Created one disposable Donor + Institution account pair and ran them through a single continuous real
+workflow, checking off each specific item along the way, then reusing the exact same run as the required
+full end-to-end verification (Donor → Institution → Admin → Success Story → Donor/Institution → Reports →
+Notifications → Stats) rather than a separate redundant pass.
+
+**Donor App — confirmed still correct, no new issues:**
+- GPS/address flow: no manual Lat/Lng anywhere; address→geocode confirmed working end-to-end live.
+- Quantity: 75,000 accepted with no error (old 10,000 cap fully gone).
+- Impact Moments tab: present in nav, correctly empty before a story exists, correctly shows the published
+  story afterward with deep-linking from its notification.
+- Country simulator: simulating Portugal correctly produces **no** switch prompt, since Portugal's
+  `Geo_Regions.Active` is still `FALSE` — this is the by-design behavior confirmed during the earlier root-
+  cause investigation, not a bug. (Whether to activate Portugal remains the stakeholder's own decision.)
+- General UX: donation card display, notifications, institutions list all rendered correctly with real data.
+
+**Institution App — confirmed still correct, no new issues:**
+- Needed Items: the Settings change-request dropdown and confirmation toast both show "Itens Necessários",
+  never the raw `Needs_List` column name — confirmed live by actually submitting a change request.
+- Success Story workflow: submission defaults to Pending, Admin-only visibility until approved, status filter
+  tabs (Todas/Publicada/Pendente de aprovação/Rejeitada) all present and correctly labeled.
+- Timeline: every stage (Aceite/Recolha Agendada/Recolhida/Entregue) shows date **and** time.
+- Confirmation toasts: present at every stage of the donation lifecycle and on Success Story submission.
+- Photo visibility: donation and story photos render correctly (the one broken thumbnail seen was Google
+  Drive's thumbnailer failing on a deliberately tiny synthetic 1×1 test PNG used for this test run — not a
+  real-photo issue; every real photo already in the sheet rendered fine throughout this session).
+
+**Admin App — confirmed still correct, no new issues:** verified live in the same run: institution approval,
+donation-pipeline visibility, Success Story approval, Reports (Success Stories report showed real approved
+data), and dashboard stats (verified institutions, in-flight donations, and pending stories all incremented
+and decremented correctly as the test data moved through the pipeline, then returned to the exact real-data
+baseline after cleanup).
+
+**One real gap surfaced and root-caused (not a code bug):** confirming delivery briefly showed both the
+success prompt *and* an "Internal server error" banner, with the card appearing stale until reload. Checked
+the network log and API trace: `POST .../deliver` returned 200 (the action genuinely succeeded); only the
+follow-up `GET /donations/claimed-by-me` and `GET /success-stories/mine` refetches hit Google Sheets' real
+per-minute read quota (429) from testing several lifecycle actions in rapid succession — the same known
+characteristic documented earlier this project (the "login suddenly stopped working" incident). Reloading
+immediately showed the correct `Entregue` state. No code change made — this is a genuine rate-limit
+characteristic of the current Sheets-based architecture under rapid *automated* testing, not something a real
+user performing one action at a time would hit, and not something to paper over with a code change without a
+clearer signal it affects real usage.
+
+**Full end-to-end workflow — verified in one continuous real run:** Donor creates a donation (GPS/address,
+uncapped quantity, real photo upload) → Institution accepts it → schedules collection → marks collected →
+confirms delivery → submits a Success Story → Admin approves the institution and separately approves the
+story → the story appears on both the Donor App (`/impact`) and the Institution's own list → Admin Reports
+reflect the data → notifications fire correctly at each step (institution verified, donation accepted, story
+published) with working deep-links → Admin dashboard stats update at every stage. All disposable accounts,
+the donation, the story, and their notifications deleted afterward; dashboard confirmed back to the exact
+real-data baseline (4 verified institutions, 30 in-flight donations) with zero test-data pollution left
+behind.
+
+**Database implications:** none — this was a verification pass, no schema or code changes.
+
+**Verified:** `npm run typecheck` and `npm run lint` clean across all 8 workspaces (unchanged, since no code
+was modified — confirms nothing regressed from the Admin Parity phases).
+
+**Known Issues / Deferred:**
+- Country filtering audit — explicitly paused by the stakeholder; not started.
+- Phase 4 (logistics display: "Collection Scheduled / In Transit / Delivered" without promised dates) —
+  explicitly "later" per the stakeholder's own ordering; not started. Flagged directly to the stakeholder
+  that Expected_Collection_Date/Expected_Delivery_Date (Admin-settable estimates) already exist from Module
+  6 — there was no prior decision to skip logistics dates, so this is new guidance for a future pass, not
+  confirmation of something already done.
+- The Sheets-API rate-limit characteristic under rapid automated testing (see above) is accepted as inherent
+  to the current architecture, not fixed.
+
+**Commit:** _no commit — no code changed this phase; PROJECT_STATUS.md itself is the artifact._
+
+**Per the stakeholder's explicit gate: stopping here for review before the Active-Country filtering audit or
+any further roadmap item.**
+
+---
+
 ## Next Steps
 
 1. Stakeholder reviews `PHASE3_ARCHITECTURE_REVIEW.md` and approves/adjusts which Medium/Major items to
