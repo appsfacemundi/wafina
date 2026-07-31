@@ -1142,7 +1142,7 @@ sign-in with no message" behavior) predates this phase and isn't specific to sus
 *why* sign-in failed would touch every app's auth context equally and is a separate, small UX improvement,
 not part of Users management itself.
 
-**Commit:** _recorded below after this entry is committed._
+**Commit:** `6bdbc5f`
 
 ---
 
