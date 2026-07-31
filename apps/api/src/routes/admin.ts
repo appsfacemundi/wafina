@@ -15,7 +15,7 @@ import {
   suspendCorporateAccount,
   updateCorporateAccount,
 } from '../services/corporate-accounts';
-import { listInFlightDonationsForAdmin } from '../services/donations';
+import { listAllDonationsForAdmin, listInFlightDonationsForAdmin } from '../services/donations';
 import { listAllOpenDisputes, resolveDispute } from '../services/disputes';
 import { createCountry, listAllCountries, setCountryActive } from '../services/geo-regions';
 import {
@@ -45,7 +45,7 @@ type ReportType = (typeof REPORT_TYPES)[number];
 async function getReportData(type: ReportType) {
   switch (type) {
     case 'donations':
-      return listInFlightDonationsForAdmin();
+      return listAllDonationsForAdmin();
     case 'institutions':
       return listAllInstitutions();
     case 'companies':

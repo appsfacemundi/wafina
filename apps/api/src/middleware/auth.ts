@@ -96,10 +96,11 @@ export function requireRole(...roles: Role[]) {
  * themselves, since those are exactly what an unverified institution needs.
  *
  * Checks Institutions.Verified directly rather than the session's `verified`
- * flag (which mirrors Users.Verified): Admin approves institutions by editing
- * the Institutions row in AppSheet, and there's no automation keeping a
- * Users.Verified copy in sync. Institutions.Verified is the single source of
- * truth here — checking it directly avoids depending on that sync existing.
+ * flag (which mirrors Users.Verified): Admin approves institutions via
+ * verifyInstitution() (services/institutions.ts), which sets
+ * Institutions.Verified but has no automation keeping a Users.Verified copy
+ * in sync. Institutions.Verified is the single source of truth here —
+ * checking it directly avoids depending on that sync existing.
  */
 export const requireVerified = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const institution = req.user ? await getInstitutionByUserId(req.user.userId) : null;

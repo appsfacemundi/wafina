@@ -281,6 +281,37 @@ export async function listInFlightDonationsForAdmin(): Promise<AdminDonationView
   });
 }
 
+/**
+ * Production Readiness Report follow-up (2026-07-31) — `listInFlightDonationsForAdmin`
+ * deliberately excludes Pending donations (it backs the logistics page, where
+ * setting a collection/delivery estimate makes no sense before an institution
+ * has claimed the donation). That left Admin with genuinely zero visibility
+ * into a donation between submission and claim — nowhere in the Admin app
+ * could a brand-new, not-yet-claimed donation be seen at all, contradicting
+ * the explicit "view every donation" requirement. This is the unfiltered
+ * counterpart, for Reports specifically, where the job is comprehensive
+ * visibility rather than a logistics action.
+ */
+export async function listAllDonationsForAdmin(): Promise<AdminDonationView[]> {
+  const rows = await getRows(SHEET_TABS.donations);
+  const sorted = [...rows].sort((a, b) => (b.Date_Submitted || '').localeCompare(a.Date_Submitted || ''));
+
+  const views = await toInstitutionDonationViews(sorted);
+  const institutionRows = await getRows(SHEET_TABS.institutions);
+  const institutionById = new Map(institutionRows.map((r) => [r.Institution_ID, r]));
+
+  return views.map((view) => {
+    const institution = view.Claimed_By_Institution_ID
+      ? institutionById.get(view.Claimed_By_Institution_ID)
+      : undefined;
+    return {
+      ...view,
+      Claimed_By_Institution_Name: institution?.Name || null,
+      Claimed_By_Institution_Logo: institution?.Logo || null,
+    };
+  });
+}
+
 /** Donor may edit their own donation only while it's still Pending (spec 11.1.2). */
 export async function editDonation(
   donorId: string,
