@@ -1465,7 +1465,7 @@ last, per the stakeholder's own sequencing.
 **Verified:** the "test data removed" claim above via a direct Sheets scan (not asserted). No code changed
 this round — this was a documentation and planning round only.
 
-**Commit:** _recorded below after this entry is committed._
+**Commit:** `0c2d47a`
 
 ---
 
