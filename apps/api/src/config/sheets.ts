@@ -1,6 +1,7 @@
 import { google, sheets_v4 } from 'googleapis';
 import { ConfigurationError } from './configuration-error';
 import { env, isSheetsConfigured } from './env';
+import { TransientServiceError } from '../services/transient-service-error';
 
 /**
  * Thin, generic Google Sheets client keyed by each tab's own header row —
@@ -10,6 +11,51 @@ import { env, isSheetsConfigured } from './env';
  */
 
 let client: sheets_v4.Sheets | null = null;
+
+const MAX_ATTEMPTS = 4;
+const BASE_DELAY_MS = 500; // 500, 1000, 2000 between the 4 attempts
+
+/** True for a Google Sheets per-minute read/write quota error (429 / RESOURCE_EXHAUSTED). */
+function isRateLimitError(err: unknown): boolean {
+  const e = err as { code?: number | string; status?: number; response?: { status?: number } };
+  return e?.code === 429 || e?.status === 429 || e?.response?.status === 429;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Stabilization follow-up (2026-07-31, stakeholder-requested) — Google
+ * Sheets' per-minute quota is real and gets hit during bursts of rapid
+ * activity (documented earlier as the root cause of a production incident,
+ * and again during this session's own rapid automated testing). Every raw
+ * Sheets API call in this file goes through this wrapper so a transient 429
+ * is retried with exponential backoff and, in the common case, never
+ * reaches the client as an error at all. Only after MAX_ATTEMPTS attempts
+ * does it surface — as a TransientServiceError with a plain-language
+ * message, not the raw Google error — so the user sees "try again in a
+ * moment" instead of "Internal server error" for what is, from their
+ * perspective, a temporary backend hiccup.
+ */
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isLastAttempt = attempt === MAX_ATTEMPTS - 1;
+      if (!isRateLimitError(err)) throw err;
+      if (isLastAttempt) {
+        throw new TransientServiceError(
+          'O sistema está temporariamente ocupado. Por favor, tente novamente dentro de alguns instantes.',
+        );
+      }
+      await sleep(BASE_DELAY_MS * 2 ** attempt);
+    }
+  }
+  // Unreachable — the loop above always returns or throws.
+  throw new TransientServiceError('O sistema está temporariamente ocupado. Por favor, tente novamente dentro de alguns instantes.');
+}
 
 function getClient(): sheets_v4.Sheets {
   if (!isSheetsConfigured()) {
@@ -42,20 +88,24 @@ function trimHeader(header: string[]): string[] {
 
 async function getHeader(tab: string): Promise<string[]> {
   const sheets = getClient();
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: env.googleSheets.spreadsheetId!,
-    range: `${tab}!1:1`,
-  });
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: env.googleSheets.spreadsheetId!,
+      range: `${tab}!1:1`,
+    }),
+  );
   return trimHeader((data.values?.[0] as string[] | undefined) ?? []);
 }
 
 /** Reads a whole tab as row objects keyed by its header row. */
 export async function getRows(tab: string): Promise<Record<string, string>[]> {
   const sheets = getClient();
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: env.googleSheets.spreadsheetId!,
-    range: tab,
-  });
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: env.googleSheets.spreadsheetId!,
+      range: tab,
+    }),
+  );
 
   const [rawHeader, ...rows] = (data.values as string[][] | undefined) ?? [];
   if (!rawHeader) return [];
@@ -70,13 +120,15 @@ export async function appendRow(tab: string, row: Record<string, string>): Promi
   const header = await getHeader(tab);
   const values = [header.length > 0 ? header.map((key) => row[key] ?? '') : Object.values(row)];
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: env.googleSheets.spreadsheetId!,
-    range: tab,
-    valueInputOption: 'RAW',
-    insertDataOption: 'INSERT_ROWS',
-    requestBody: { values },
-  });
+  await withRetry(() =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId: env.googleSheets.spreadsheetId!,
+      range: tab,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values },
+    }),
+  );
 }
 
 /** Returns the first row matching `predicate`, or null. */
@@ -111,10 +163,12 @@ export async function updateRow(
   patch: Record<string, string>,
 ): Promise<void> {
   const sheets = getClient();
-  const { data } = await sheets.spreadsheets.values.get({
-    spreadsheetId: env.googleSheets.spreadsheetId!,
-    range: tab,
-  });
+  const { data } = await withRetry(() =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId: env.googleSheets.spreadsheetId!,
+      range: tab,
+    }),
+  );
 
   const [rawHeader, ...rows] = (data.values as string[][] | undefined) ?? [];
   if (!rawHeader) {
@@ -137,10 +191,12 @@ export async function updateRow(
 
   // +2: 1-based Sheets rows, plus the header row itself.
   const targetRow = rowIndex + 2;
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: env.googleSheets.spreadsheetId!,
-    range: `${tab}!A${targetRow}:${columnLetter(header.length)}${targetRow}`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [merged] },
-  });
+  await withRetry(() =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId: env.googleSheets.spreadsheetId!,
+      range: `${tab}!A${targetRow}:${columnLetter(header.length)}${targetRow}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [merged] },
+    }),
+  );
 }

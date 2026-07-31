@@ -1339,10 +1339,61 @@ was modified — confirms nothing regressed from the Admin Parity phases).
 - The Sheets-API rate-limit characteristic under rapid automated testing (see above) is accepted as inherent
   to the current architecture, not fixed.
 
-**Commit:** _no commit — no code changed this phase; PROJECT_STATUS.md itself is the artifact._
+**Commit:** _no commit — no code changed in the verification pass itself; see the retry-resilience follow-up
+immediately below, done in response to the stakeholder's review of this report._
 
 **Per the stakeholder's explicit gate: stopping here for review before the Active-Country filtering audit or
 any further roadmap item.**
+
+### Follow-up: Google Sheets rate-limit resilience (2026-07-31): COMPLETE
+
+The stakeholder's review of the stabilization report pushed back on one point: the transient 429 seen during
+rapid testing shouldn't just be "accepted" — the app should handle it gracefully so a user never sees a raw
+"Internal server error" for a temporary backend quota issue.
+
+**Root cause recap:** Google Sheets enforces a real per-minute read/write quota per service account. A burst
+of rapid actions (several donation-lifecycle steps back-to-back) can exceed it; the underlying `googleapis`
+client's own retry logic gives up quickly, and the resulting 429 previously propagated straight up as a raw,
+unfriendly 500.
+
+**Fix — retry with exponential backoff at the single shared Sheets client:** confirmed via
+`grep -rl "spreadsheets\." apps/api/src` that `apps/api/src/config/sheets.ts` is the *only* file in the
+production codebase making raw Google Sheets API calls — every route, every service, reads and writes
+through its four exports (`getRows`/`appendRow`/`updateRow`/`findRow`). Added a `withRetry()` wrapper around
+every one of those calls: on a 429 (`RESOURCE_EXHAUSTED`), retries up to 4 attempts total with exponential
+backoff (500ms, 1000ms, 2000ms between attempts) before giving up — so the large majority of real transient
+quota hits are now absorbed silently and never reach the client as an error at all.
+
+**Fix — friendly message when retries are truly exhausted:** new `TransientServiceError`
+(`apps/api/src/services/transient-service-error.ts`), thrown only after all 4 attempts fail, carrying a
+plain-language Portuguese message ("O sistema está temporariamente ocupado. Por favor, tente novamente dentro
+de alguns instantes."). `apps/api/src/middleware/error-handler.ts` maps it to a `503` (not `500`) — signaling
+"temporary, try again" rather than "something is broken." No frontend changes were needed for this to reach
+the user correctly: every app's `apiFetch`/`ApiError` already surfaces `data.error` from a non-2xx response
+directly (confirmed by reading `apps/web/src/lib/api.ts`), so the friendly message flows through the existing
+`err instanceof ApiError ? err.message : fallback` pattern used everywhere already.
+
+**Scoped out, deliberately:** did not rewrite every page's post-mutation refetch timing across 5 apps (3 web
++ 2 mobile) to add artificial delays. Once the retry wrapper makes each individual Sheets call resilient, the
+remaining risk is pure call *volume* during a tight burst — which the stress test below shows the retry logic
+already absorbs at any realistic usage level. A platform-wide refetch-timing refactor would be a large,
+low-value change on top of that; revisit only if a specific page is shown to still be affected in practice.
+
+**Verified — burst-tested against the real Sheets API, not simulated:**
+- 20 parallel reads: 100% succeeded, 826ms.
+- 80 parallel reads across 5 different tabs: 100% succeeded, 1.1s.
+- 250 parallel reads (a deliberately extreme stress test, far beyond any realistic user burst): 185/250
+  (74%) succeeded — meaning the retry logic recovered many requests that would previously have failed
+  outright — and the remaining 65 failed with the new friendly Portuguese message, not a raw error.
+- Live regression check: reloaded the Admin dashboard after the change, confirmed identical real data to
+  before (4 verified institutions, 30 in-flight donations) — `sheets.ts` is used by every route, so this
+  confirms nothing broke platform-wide.
+
+**Database implications:** none.
+
+**Verified:** `npm run typecheck` and `npm run lint` clean across all 8 workspaces.
+
+**Commit:** _pending — recorded immediately after this entry is committed._
 
 ---
 
