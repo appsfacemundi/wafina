@@ -1064,7 +1064,7 @@ changed meaning.
 **7. Continuing automatically:** Per the stakeholder's explicit instruction, work continues directly into
 Module 7 without stopping for approval on this stabilization pass.
 
-**Commit:** _pending — recorded immediately after this entry is committed._
+**Commit:** `a1239bb`
 
 ### Modules 7+: not yet started
 Sequenced dynamically based on stakeholder priority. Known upcoming work: Active-Country filtering audit
