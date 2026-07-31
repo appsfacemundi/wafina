@@ -1243,7 +1243,7 @@ Admin page (Notifications: single send + scoped broadcast + validation guard; Re
 rendered, the Location-object bug found and fixed). Deleted the one real test notification created during
 verification afterward, and the one-off script used to do it.
 
-**Commit:** _recorded below after this entry is committed._
+**Commit:** `8aee6d6`
 
 ---
 
