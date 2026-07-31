@@ -1546,6 +1546,90 @@ Full-tab Sheets scan confirms no test debris remains.
 
 ---
 
+### Android Production Verification: real photo-upload bug found and fixed (2026-07-31): COMPLETE
+
+The stakeholder asked for a dedicated Android Production Verification before declaring mobile ready for
+launch — install/run the app, test sign up/in, donation flow, institution workflow, notifications, GPS,
+camera/photo upload, offline behavior, and confirm no crashes. iOS was deferred in the same request pending
+the stakeholder installing full Xcode (this Mac only had command-line tools) — not started this round.
+
+**Environment:** no dedicated simulator tool for Android in this session, but a real SDK was found
+pre-installed via Homebrew (`adb`, `emulator`, and an existing `Wafina_Pixel` AVD from an earlier session).
+Drove it directly with `adb` (screenshots, taps, text input, `uiautomator dump` for exact element bounds) —
+functional verification against the real backend via Expo Go, not a signed release APK (no `eas.json`/EAS
+CLI exists yet in either mobile app, a separate, already-tracked gap).
+
+**Real, launch-blocking bug found and fixed: donation/logo/success-story photo uploads were completely
+broken on Android.** React Native 0.86's New Architecture networking layer rejects both of the ways this
+codebase built multipart file uploads: the classic `{ uri, name, type }` object literal (throws "Unsupported
+FormDataPart implementation") and a real `Blob` appended via `FormData.append(name, blob, filename)` (throws
+a bare "undefined is not a function") — confirmed by reproducing each live and reading the actual thrown
+error via a temporary debug log, not guessed at. This affected all three photo-upload call sites in both
+mobile apps: donation photo (`DonateScreen.tsx`), institution logo (`SettingsScreen.tsx`), and Success Story
+photo (`NewSuccessStoryScreen.tsx`) — every one of them was silently failing with a generic "Não foi possível
+submeter..." message and no way to actually donate a physical item via the Android app.
+
+**Fixed** by installing `expo-file-system` in both mobile apps and adding a shared `uploadFile()` helper
+(`lib/api.ts` in each app) built on `expo-file-system/legacy`'s `uploadAsync` — Expo's own native multipart
+uploader, which sidesteps RN's FormData/Blob layer entirely instead of fighting it. All three call sites
+rewritten to use it. Live-verified end-to-end against the real API and real Google Drive: a donation created
+with a real photo (`POST /donations` → 201, photo confirmed present in the Sheet row with a real Drive
+thumbnail URL) and a Success Story published with a real photo (`POST /success-stories` → 201). The
+institution-logo path uses the identical helper and was code-reviewed but not independently re-tested live —
+the test institution was pre-verified, which locks the Logo field by business rule (request-a-change-instead)
+before a direct upload could be attempted.
+
+**Also found and fixed: the same silent auth-failure bug from the earlier web-app round exists identically
+in both mobile apps.** `AuthContext.signIn()` only performed the Firebase step; if the backend then rejected
+the session, `onSubmit` never threw, so the sign-in screen just stopped spinning with zero explanation and
+no navigation — arguably worse than the web version, which at least redirected somewhere. Fixed with the
+same pattern already used on web: `signIn()` now resolves the session itself and rethrows on failure, so the
+screen's own catch reacts immediately. Live-verified on Android: a suspended test account now shows "Esta
+conta foi suspensa" directly on the sign-in form; a normal active account still signs in and reaches Home
+correctly. Also translated the same untranslated `Request failed (...)` fallback string in both mobile apps'
+`api.ts` that had already been fixed on web.
+
+**Full live workflow verified on the Android emulator, real backend, real Google Sheets/Drive:**
+- Donor: sign-in (success and suspended-failure paths), profile completion, GPS location capture (via
+  emulator mock location — real `expo-location` code path, not stubbed), photo picker, donation creation.
+- Institution: sign-in, claim the donation, schedule collection → mark collected → confirm delivery (full
+  timeline with real timestamps at every step, matching web/iOS behavior), post-delivery Success Story
+  prompt, Success Story creation with photo.
+- Tab bar renders correctly on all 6 tabs in both apps, no icon-box/status-bar-overlap regressions from
+  earlier fixes.
+- No crashes at any point across the entire session (multiple sign-ins, screen transitions, uploads,
+  network toggling).
+
+**Minor, non-blocking finding:** a brief visual artifact where the previous screen's content (e.g. the
+sign-in form) appears to bleed through behind a newly-loaded list for a moment before settling — observed
+2-3 times during screen transitions, always self-resolved within a second or two, never blocked interaction
+or caused incorrect data. Not investigated further given it's cosmetic and non-reproducible on demand;
+flagged here rather than silently ignored.
+
+**Offline behavior — inconclusive, environment-limited.** Disabling WiFi/data made Expo Go itself show
+"Cannot connect to Expo CLI" and the app became unresponsive to taps — but this is Expo Go's *own* dev-mode
+dependency on a live Metro connection, not necessarily how a real signed release build (which bundles its
+JS and has no Metro dependency at runtime) behaves offline. This needs re-testing against an actual release
+build once one exists; not a conclusion about production offline behavior.
+
+**Camera specifically not exercised** — the donation/success-story photo pickers in both apps currently only
+call `launchImageLibraryAsync` (gallery); there is no in-app "take a photo" option in either flow today. The
+underlying upload code path is identical regardless of image source, so the fix applies equally, but this is
+worth a explicit stakeholder decision (add a camera option, or confirm gallery-only is intentional) rather
+than something to silently add — logged, not built, per the Feature Freeze.
+
+**Database implications:** none.
+
+**Verified:** `npm run typecheck` and `npm run lint` clean across all 8 workspaces after every change.
+Real API responses (201/200) confirmed via structured server logs for every mutating action, not assumed
+from UI alone. Full-tab Sheets scan (plus a Firebase-user check) confirms zero test debris remains,
+including a mid-session data point: a broadcast-notification test from the earlier round was independently
+re-confirmed clean here too.
+
+**Commit:** _(pending — see below)_
+
+---
+
 ## Next Steps
 
 1. Stakeholder reviews `PHASE3_ARCHITECTURE_REVIEW.md` and approves/adjusts which Medium/Major items to

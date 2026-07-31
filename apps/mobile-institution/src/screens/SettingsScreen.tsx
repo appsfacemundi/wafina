@@ -11,7 +11,7 @@ import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
-import { ApiError, apiFetch } from '@/lib/api';
+import { ApiError, apiFetch, uploadFile } from '@/lib/api';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 export function SettingsScreen() {
@@ -44,13 +44,11 @@ export function SettingsScreen() {
     setUploadingLogo(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
-      const form = new FormData();
-      form.append('logo', {
-        uri: photo.uri,
-        name: photo.fileName ?? 'logo.jpg',
-        type: photo.mimeType ?? 'image/jpeg',
-      } as unknown as Blob);
-      await apiFetch('/institutions/me/logo', { method: 'PATCH', idToken, body: form });
+      await uploadFile('/institutions/me/logo', 'logo', photo.uri, {
+        method: 'PATCH',
+        idToken,
+        mimeType: photo.mimeType ?? 'image/jpeg',
+      });
       setLogoLoadFailed(false);
       await refetch();
       showToast('Logótipo atualizado com sucesso!');

@@ -7,13 +7,15 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, ApiError } from '@/lib/api';
 import { firebaseAuth } from '@/lib/firebase';
 
 interface AuthContextValue {
   firebaseUser: FirebaseUser | null;
   session: AuthenticatedUser | null;
   loading: boolean;
+  /** Why the last sign-in attempt didn't reach a session (e.g. suspended account, backend unavailable) — see AuthProvider. */
+  sessionError: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOutUser: () => Promise<void>;
@@ -36,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [session, setSession] = useState<AuthenticatedUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
     return onAuthStateChanged(firebaseAuth, async (user) => {
@@ -43,8 +46,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) {
         try {
           setSession(await resolveSession(user));
-        } catch {
+          setSessionError(null);
+        } catch (err) {
+          // Firebase login succeeded but the backend rejected the session
+          // (e.g. account suspended, or Sheets briefly unavailable). Without
+          // this, RootNavigator just never swaps stacks — the sign-in button
+          // silently stops spinning with no error and no navigation at all.
           setSession(null);
+          setSessionError(err instanceof ApiError ? err.message : 'Não foi possível iniciar sessão. Tente novamente.');
+          await signOut(firebaseAuth);
         }
       } else {
         setSession(null);
@@ -57,8 +67,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     firebaseUser,
     session,
     loading,
+    sessionError,
     async signIn(email, password) {
-      await signInWithEmailAndPassword(firebaseAuth, email, password);
+      setSessionError(null);
+      const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+      try {
+        setSession(await resolveSession(credential.user));
+      } catch (err) {
+        // Rethrown so SignInScreen's own catch reacts immediately, instead of
+        // relying only on the onAuthStateChanged listener above — that path
+        // resolves asynchronously and left the screen looking like the button
+        // just did nothing.
+        await signOut(firebaseAuth);
+        throw err;
+      }
     },
     async signUp(email, password) {
       await createUserWithEmailAndPassword(firebaseAuth, email, password);

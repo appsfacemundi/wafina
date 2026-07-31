@@ -9,7 +9,7 @@ import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { ApiError, apiFetch } from '@/lib/api';
+import { ApiError, uploadFile } from '@/lib/api';
 import type { ClaimedByMeStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
@@ -68,17 +68,15 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
     setSubmitting(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
-      const form = new FormData();
-      form.append('Donation_ID', donationId);
-      form.append('Title', title);
-      form.append('Description', description);
-      form.append('image', {
-        uri: photo.uri,
-        name: photo.fileName ?? 'success-story.jpg',
-        type: photo.mimeType ?? 'image/jpeg',
-      } as unknown as Blob);
-
-      await apiFetch('/success-stories', { method: 'POST', idToken, body: form });
+      await uploadFile('/success-stories', 'image', photo.uri, {
+        idToken,
+        mimeType: photo.mimeType ?? 'image/jpeg',
+        parameters: {
+          Donation_ID: donationId,
+          Title: title,
+          Description: description,
+        },
+      });
       showToast('História enviada para aprovação do Admin!');
       navigation.navigate('ClaimedByMeList');
     } catch (err) {

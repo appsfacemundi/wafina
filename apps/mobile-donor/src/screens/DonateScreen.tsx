@@ -11,7 +11,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { ApiError, apiFetch } from '@/lib/api';
+import { ApiError, apiFetch, uploadFile } from '@/lib/api';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 type LocationStatus = 'capturing' | 'captured' | 'failed' | 'geocoding' | 'geocoded';
@@ -115,20 +115,18 @@ export function DonateScreen() {
     setSubmitting(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
-      const form = new FormData();
-      form.append('Item_Type', itemType);
-      form.append('Quantity', quantity);
-      form.append('Condition', condition);
-      form.append('City', city);
-      form.append('Location_lat', lat);
-      form.append('Location_lng', lng);
-      form.append('photo', {
-        uri: photo.uri,
-        name: photo.fileName ?? 'donation.jpg',
-        type: photo.mimeType ?? 'image/jpeg',
-      } as unknown as Blob);
-
-      await apiFetch('/donations', { method: 'POST', idToken, body: form });
+      await uploadFile('/donations', 'photo', photo.uri, {
+        idToken,
+        mimeType: photo.mimeType ?? 'image/jpeg',
+        parameters: {
+          Item_Type: itemType,
+          Quantity: quantity,
+          Condition: condition,
+          City: city,
+          Location_lat: lat,
+          Location_lng: lng,
+        },
+      });
       setSuccess(true);
       setQuantity('');
       setPhoto(null);
