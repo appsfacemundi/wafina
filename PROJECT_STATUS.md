@@ -1,8 +1,8 @@
 # Project Status - WAFINA Platform
 
 **Last updated:** 2026-07-31
-**Updated by:** Claude Code, after completing Phase 3A Module 6 (Institution App Polish & Workflow)
-**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1–6 are implemented. The stakeholder has repeatedly inserted new modules ahead of the original queue based on their own live testing (Module 4: Admin Foundation; Module 5: Institution UX pass; Module 6: this polish/workflow pass, driven by detailed stakeholder feedback after Module 5) — the queue is being resequenced dynamically rather than followed rigidly, which is working as intended. See "Modules 7+" below for the current queue.
+**Updated by:** Claude Code, after a full post-hoc QA review of the Institution app (Module 6 sign-off)
+**Current state:** Phase 3 review complete. Phase 3A underway, working module by module. Modules 1–6 are implemented and Module 6 has been through a dedicated end-to-end QA review (bugs found and fixed — see that entry). The stakeholder has repeatedly inserted new modules ahead of the original queue based on their own live testing (Module 4: Admin Foundation; Module 5: Institution UX pass; Module 6: polish/workflow pass, driven by detailed stakeholder feedback after Module 5, followed by this QA review pass before Module 7) — the queue is being resequenced dynamically rather than followed rigidly, which is working as intended. See "Modules 7+" below for the current queue.
 
 ---
 
@@ -764,6 +764,90 @@ Xcode/Simulator gap as Modules 3 and 5.
   an already-client page) will hit the same failure and need the same wrapper, or a build fix.
 
 **Commit:** `af69256`
+
+### Module 6 — Post-hoc QA Review (2026-07-31): bugs found and fixed, before Module 7
+
+Stakeholder explicitly asked for a full end-to-end manual review of the Institution app (mirroring the
+Donor app review done earlier) before Module 6 could be considered truly complete and Module 7 could start —
+covering login, dashboard, the full donation workflow, success stories, notifications, settings, country
+handling, photos, navigation, error handling, and mobile responsiveness. Done with a fresh disposable
+donor/institution/admin triplet, exercising the entire journey live a second time end-to-end.
+
+**Bugs found and fixed (in scope):**
+
+1. **Invalid HTML nesting causing a real React hydration error, on every card showing a donor/institution
+   without a photo.** The shared `Photo` component (`packages/ui/src/Photo.tsx`) rendered a `<div>` for its
+   no-photo placeholder; several call sites (donor/institution identity rows) place `<Photo>` inside a `<p>`,
+   and a `<div>` is not valid HTML inside a `<p>`. Confirmed via a live console error ("In HTML, `<div>`
+   cannot be a descendant of `<p>`. This will cause a hydration error") on the Available Donations page the
+   moment a donor without a name-visibility logo was shown. Root-cause fixed by rendering `<span>` instead —
+   valid inside `<p>`, and the same shared component already used everywhere, so the fix self-propagates to
+   every affected surface (available/claimed donation cards, Admin's donations page) without touching each
+   call site.
+2. **A systemic reliability bug in every donation-lifecycle action**, found by direct reproduction (not
+   guessed): `claimDonation()` (and every sibling — `scheduleCollection()`, `markCollected()`,
+   `confirmDelivery()`, `setExpectedDates()`) updates the Donation row first, *then* writes a notification.
+   When the notification write hit a transient Google Sheets 429 (rate limit, from rapid test actions), the
+   whole request threw a 500 and the Institution app showed "Internal server error" — but the donation had
+   *already* been claimed. Confirmed directly: after the error, the donation had vanished from Available
+   Donations (i.e. really was claimed) while the UI told the institution the action had failed. A retry
+   would then have failed for a second, unrelated, confusing reason ("Donation is no longer available").
+   **Root-cause fixed** at the single shared write path: `createNotification()`
+   (`apps/api/src/services/notifications.ts`) now catches and logs failures instead of throwing — a missed
+   in-app notification is a strictly better failure mode than falsely reporting that an already-succeeded
+   action failed. This is a design decision, not a shortcut: notifications are explicitly a side-effect of
+   the action that owns them, never the action itself.
+3. **Leftover pre-rename terminology**: the `institution_approved` notification (fired by `verifyInstitution()`
+   in `apps/api/src/services/institutions.ts`) still read "Já pode reclamar doações" — missed by Module 5's
+   terminology sweep. Fixed to "Já pode aceitar doações". Grepped the whole codebase afterward for any other
+   `reclamad?[ao]s?`/`disputas?` leftovers — none found.
+4. **Missing success toast** on "Comunicar Ocorrência" (dispute submission) — every other action in the app
+   got a toast in Module 6, this one was missed. Added on both `apps/institution` and `apps/mobile-institution`.
+
+**Verified correct, not bugs (explicitly checked, not assumed):**
+- Country switching / institution registration: institutions register only into fully-active countries
+  (`/geo-regions/countries`), never the "Coming Soon" CPLP list (`/geo-regions/all-countries`) — confirmed
+  intentional, matches the "institutions stay single-country, active-country-only" architecture decision.
+- The complete Module 6 workflow (accept → schedule → collect → deliver → post-delivery prompt → success
+  story → Histórias de Impacto list with working filters) re-verified end-to-end with a second, independent
+  disposable account set — all correct.
+- Donor identity (name + placeholder icon), institution logo, Public Donation Code, Expected Collection/
+  Delivery dates, and the full timeline all render correctly across Available/Claimed/Admin donation views.
+- Web responsive layout (institution app + admin app) checked at 375×812 (mobile) on the dashboard, the
+  Claimed Donations card (photo + timeline + actions), and Admin's date-input form — all reflow cleanly, no
+  overflow or broken layout.
+- Client-side validation messages (empty change-request reason, empty dispute description, wrong login
+  credentials) are all clear, in Portuguese, correctly triggered.
+
+**Known Issues / Deferred (found, explicitly not fixed — out of scope or too large for this pass):**
+- **Every `ValidationError` message across the entire API is in English** (`apps/api/src/services/*.ts` —
+  donations, disputes, users, change-requests, notifications; dozens of call sites). This is a pre-existing,
+  codebase-wide pattern from every prior module, not something Module 6 introduced. It only reaches a real
+  user in rare edge cases — e.g. navigating directly to `/success-stories/new` with no `donationId` in the
+  URL (bypassing the normal "Publicar história" button, which always carries one) surfaces the raw English
+  "Donation not found" instead of a Portuguese message. Reproduced directly, not guessed. A proper fix means
+  either translating every message in the API or having every frontend catch-block ignore `err.message` in
+  favor of a generic Portuguese fallback (losing today's more specific messages) — a full i18n pass, not a
+  quick fix, and out of scope for a single module.
+- The notification-resilience fix above (item 2) trades a false action-failure for a possible silently-
+  dropped notification if the write genuinely fails — confirmed live: the donor's "doação aceite" notification
+  from the very claim that hit the 429 never arrived, since the retry-less write was the one that failed.
+  No notification retry/outbox mechanism exists. Acceptable given the alternative (already documented above),
+  but worth knowing if "why didn't I get notified about X" ever comes up in real usage.
+- `packages/ui`'s `"use strict"`-before-`'use client'` build issue (documented in the Module 6 entry above)
+  remains unfixed at the build-config level — only worked around locally in `apps/institution`.
+
+**Verified:** `npm run typecheck` clean across all 8 workspaces after every fix. Full second live pass with a
+fresh disposable donor/institution/admin triplet through the entire journey (sign-up → registration →
+Admin approval → accept → schedule → collect → deliver → success story → filtered list → notifications →
+settings → dispute) on Web (Institution + Admin + Donor) with the API running throughout. All disposable
+Firebase users and Sheet rows (Users/Institutions/Donations/Disputes/Notifications/Success_Stories) deleted
+afterward; confirmed real data back to exactly 11 Users / 5 Institutions / 25 Donations / 8 Disputes / 16
+Notifications / 0 Success_Stories, unchanged from before this review pass. Mobile apps received the same two
+in-scope code fixes (notification toast on dispute submission) and typecheck clean, but weren't exercised
+live in a simulator this pass — same outstanding, previously-accepted gap as Modules 3, 5, and 6.
+
+**Commit:** (pending — see below)
 
 ### Modules 7+: not yet started
 Sequenced dynamically based on stakeholder priority. Known upcoming work: Active-Country filtering audit

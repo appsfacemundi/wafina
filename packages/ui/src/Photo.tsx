@@ -21,7 +21,7 @@ export function Photo({ src, alt = '', style, placeholderIcon = '📷' }: PhotoP
 
   if (!src || errored) {
     return (
-      <div
+      <span
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -33,7 +33,7 @@ export function Photo({ src, alt = '', style, placeholderIcon = '📷' }: PhotoP
         }}
       >
         {placeholderIcon}
-      </div>
+      </span>
     );
   }
 

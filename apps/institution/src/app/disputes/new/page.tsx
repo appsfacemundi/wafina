@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Card } from '@wafina/ui';
+import { Button, Card, useToast } from '@wafina/ui';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useId, useState, type FormEvent } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -21,6 +21,7 @@ function NewDisputeForm() {
   const session = useRequireSession();
   const { firebaseUser } = useAuth();
   const router = useRouter();
+  const { showToast } = useToast();
   const searchParams = useSearchParams();
   const donationId = searchParams.get('donationId') ?? '';
   const code = searchParams.get('code') ?? '';
@@ -45,6 +46,7 @@ function NewDisputeForm() {
         idToken,
         body: { Donation_ID: donationId, Issue_Description: description },
       });
+      showToast('Ocorrência comunicada com sucesso.');
       router.push('/disputes');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível enviar a ocorrência.');

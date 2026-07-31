@@ -171,7 +171,7 @@ export async function verifyInstitution(institutionId: string): Promise<Institut
     notificationType: 'institution_approved',
     entityType: 'Institution',
     entityId: institutionId,
-    message: 'A sua instituição foi verificada! Já pode reclamar doações.',
+    message: 'A sua instituição foi verificada! Já pode aceitar doações.',
   });
 
   const institution = await getInstitutionById(institutionId);

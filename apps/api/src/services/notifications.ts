@@ -47,21 +47,38 @@ export interface CreateNotificationInput {
  * would only start at 'Pending' for a future scheduled/reminder notification
  * that isn't due to send yet; nothing in this codebase creates one of those.
  */
+/**
+ * Institution App Polish module (found during QA review, 2026-07-31) —
+ * failures here are swallowed (logged, not thrown) on purpose. Every caller
+ * of this function has already completed its real state-changing write
+ * (e.g. claimDonation already marked the donation Claimed) before sending the
+ * notification; letting a transient failure here (a Sheets 429 during a
+ * burst of requests was the real-world trigger) bubble up as a 500 falsely
+ * told the client the whole action failed, when the donation had actually
+ * already been claimed — the client would show "Internal server error" and
+ * a retry would then fail for a *different*, confusing reason ("Donation is
+ * no longer available"). A missed in-app notification is a strictly better
+ * failure mode than that.
+ */
 export async function createNotification(input: CreateNotificationInput): Promise<void> {
-  await appendRow(SHEET_TABS.notifications, {
-    Notification_ID: randomUUID(),
-    Notification_Type: input.notificationType,
-    Entity_Type: input.entityType,
-    Entity_ID: input.entityId,
-    Recipient_User_ID: input.recipientUserId,
-    Priority: input.priority ?? 'Normal',
-    Delivery_Channel: 'in_app',
-    Status: 'Delivered',
-    Message: input.message,
-    Metadata: input.metadata ?? '',
-    Created_At: nowIso(),
-    Read_At: '',
-  });
+  try {
+    await appendRow(SHEET_TABS.notifications, {
+      Notification_ID: randomUUID(),
+      Notification_Type: input.notificationType,
+      Entity_Type: input.entityType,
+      Entity_ID: input.entityId,
+      Recipient_User_ID: input.recipientUserId,
+      Priority: input.priority ?? 'Normal',
+      Delivery_Channel: 'in_app',
+      Status: 'Delivered',
+      Message: input.message,
+      Metadata: input.metadata ?? '',
+      Created_At: nowIso(),
+      Read_At: '',
+    });
+  } catch (err) {
+    console.error('createNotification failed (swallowed, does not fail the caller\'s action):', err);
+  }
 }
 
 /** Inbox (spec 9.1) — newest first. */

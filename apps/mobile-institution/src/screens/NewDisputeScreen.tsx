@@ -6,6 +6,7 @@ import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { ApiError, apiFetch } from '@/lib/api';
 import type { DisputesStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, spacing } from '@/theme/tokens';
@@ -17,6 +18,7 @@ type Props = NativeStackScreenProps<DisputesStackParamList, 'NewDispute'>;
 export function NewDisputeScreen({ route, navigation }: Props) {
   const { donationId, publicCode } = route.params;
   const { firebaseUser } = useAuth();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
@@ -36,6 +38,7 @@ export function NewDisputeScreen({ route, navigation }: Props) {
         idToken,
         body: { Donation_ID: donationId, Issue_Description: description },
       });
+      showToast('Ocorrência comunicada com sucesso.');
       navigation.navigate('DisputesList');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível enviar a ocorrência.');
