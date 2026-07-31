@@ -1434,7 +1434,7 @@ invitations, full backend i18n pass).
 **Verified:** `npm run typecheck` and `npm run lint` clean across all 8 workspaces after the donation-
 visibility fix; confirmed live in the Admin Reports page.
 
-**Commit:** _recorded below after this entry is committed._
+**Commit:** `e9ee0f5`
 
 ---
 
