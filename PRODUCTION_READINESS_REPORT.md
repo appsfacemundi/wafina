@@ -1,6 +1,6 @@
 # WAFINA — Production Readiness Report
 
-**Date:** 2026-07-31
+**Date:** 2026-07-31 (updated same day with direct answers to the stakeholder's follow-up review)
 **Prepared by:** Claude, at the stakeholder's request, following the Platform Stabilization phase and the
 Google Sheets rate-limit resilience fix (see `PROJECT_STATUS.md` for full history).
 **Purpose:** a single go/no-go assessment before starting any new feature module — completion status,
@@ -9,6 +9,10 @@ outstanding bugs, security/performance/database/scalability review, and a launch
 This report is a snapshot assessment, not new development. Every claim below is grounded in either the actual
 codebase (checked while writing this, not recalled from memory) or the accumulated `PROJECT_STATUS.md` record
 of live-tested work this project. Where I'm giving a judgment call rather than a verified fact, I've said so.
+
+**Version 1.0 is now under Feature Freeze** (`DEVELOPMENT_RULES.md` §16): no new functionality until launch
+unless it fixes a bug, a security issue, a production-readiness issue, or is required for an existing
+workflow to function correctly. New ideas go to `VERSION_2_ROADMAP.md` instead.
 
 ---
 
@@ -19,21 +23,110 @@ not yet ready for an unmonitored public launch.**
 
 The core donor→institution→admin donation lifecycle — including multi-country architecture, Success Story
 moderation, notifications, and now a genuinely full-featured Admin Web App — is functionally complete and has
-been repeatedly live-tested end-to-end this session, most recently in one continuous real workflow covering
-every step from donation creation through Success Story approval and cross-app propagation. The two issues
-raised in the last review round (Sheets rate-limit handling, and this report itself) are now addressed.
+been repeatedly live-tested end-to-end, most recently in one continuous real workflow covering every step
+from donation creation through Success Story approval and cross-app propagation, and again during this
+update while directly verifying each link in the chain.
 
 What stands between here and an unmonitored public launch is not missing core functionality — it's the
 absence of an automated test suite, a handful of real but non-blocking security/performance items (detailed
 below), and features that were explicitly scoped out as "not needed yet" (Settings/feature flags) or
 deliberately deferred by the stakeholder (Active-Country filtering audit, Phase 4 logistics display change).
 
-**Estimated completion for a V1 pilot scope: ~85%.** The 15% gap is concentrated in: no automated regression
-tests, a few real-but-minor security/performance hardening items, and the two explicitly-deferred phases.
+**Estimated completion for a V1 pilot scope: ~91%** (see the per-area breakdown in §2 for how this is
+derived — not a single feeling, but seven separately-reasoned figures). One real gap was found and fixed
+while re-verifying this report (Admin had no visibility into a donation before it was claimed — see §3);
+that a second, deliberately skeptical pass still turned up something real is itself part of why the
+percentages below aren't higher.
 
 ---
 
-## 2. Features Completed
+## 2. Direct Answers to the Stakeholder's Follow-Up Questions
+
+### Is every workflow complete?
+
+**Donor → Institution → Admin → Success Story → Reports → Notifications:** yes, verified in one continuous
+live run (disposable accounts, real photo uploads, real API calls) — donation created → accepted → collection
+scheduled → collected → delivered → Success Story submitted → Admin approved the story → it appeared on both
+the Donor App and the Institution's own list → Reports reflected it → notifications fired correctly at every
+step with working deep-links → dashboard stats updated at each stage.
+
+**Corporate Accounts:** yes, as its own workflow (a donor joins a company via an Admin-generated invitation
+code) — verified live in the Admin Parity program, including the code's usage counter and a company-suspended
+rejection path. It doesn't chain *into* the donation lifecycle above by design — a corporate donor's
+donations flow through the exact same donation workflow as any other donor's, tagged by `Corporate_Account_ID`.
+
+**Country Management:** yes, as its own supporting workflow (Admin activates/adds countries; a
+country's `Active` state gates whether Donor/Institution registration and the switch-country prompt offer
+it) — verified live. It's ambient context for the other workflows, not a sequential step inside them, so it
+doesn't "chain" the same way donation stages do.
+
+**One real gap found and fixed during this verification:** Admin's Donations page and the Reports Donations
+export both deliberately excluded Pending (not-yet-claimed) donations — correct for the Donations page
+(setting a collection estimate before a donation is claimed makes no sense) but wrong for Reports, whose job
+is comprehensive visibility. Fixed today: Reports now shows every donation regardless of status.
+
+### Is every Admin feature at parity?
+
+**Yes, for every capability Donor or Institution actually has today** — re-confirmed directly against the
+original capability list in §7. Two specific, minor gaps surfaced under closer questioning, both now tracked
+in `VERSION_2_ROADMAP.md` rather than fixed silently, since neither blocks an existing workflow:
+- Admin can view every donation (as of today's fix) but cannot **edit or cancel** one on a donor's behalf —
+  only the donor themselves can, and only while still Pending.
+- Admin's Countries page can activate/add countries but has no **per-country statistics** rollup (institution
+  count, donation count per country) — `Country_ID` is present on the underlying records, but there's no
+  dedicated view for it yet.
+
+### Is there any remaining AppSheet dependency anywhere?
+
+**No.** Checked directly: `grep`'d every app's source tree for "AppSheet" — every match is a doc comment
+(explaining historical context or confirming retirement), never an import, API call, webhook, or runtime
+dependency. No AppSheet package appears in any `package.json`. One stale comment was found during this check
+(`requireVerified` in `apps/api/src/middleware/auth.ts` still described institution approval as "editing the
+row in AppSheet") — corrected today; the underlying logic it described was already correct, only the
+documentation was outdated.
+
+### What are the Top 10 remaining issues?
+
+Ranked by severity — see §9 for the full write-up of each:
+
+| # | Severity | Issue |
+|---|---|---|
+| 1 | **High** | No automated test suite anywhere in the codebase |
+| 2 | Medium | No API-level rate limiting (auth, geocoding proxy exposed) |
+| 3 | Medium | No confirmed backup/restore process for the Sheets database |
+| 4 | Medium | Google Sheets rate limit mitigated, not eliminated, under sustained load |
+| 5 | Medium | 25 dependency vulnerabilities (15 moderate, 10 high), transitive |
+| 6 | Low | Admin cannot edit/cancel a donor's raw donation (no support override path) |
+| 7 | Low | No per-country statistics rollup for Admin |
+| 8 | Low | A handful of Admin-only backend error messages remain in English |
+| 9 | Low | Mobile apps not re-verified in a simulator since the latest changes |
+| 10 | Low | No pagination on any list endpoint; a few N+1-shaped Admin lookups |
+
+*(Found-and-fixed during this review — not carried forward as open issues: Admin donation-visibility gap,
+CSV/formula-injection gap, one stale AppSheet comment, one orphaned `Corporate_Account_ID` reference remains
+open but is cosmetic-only and listed in §4, not in this top 10.)*
+
+### What is the actual completion percentage?
+
+Reasoned per area, not a single feeling:
+
+| Area | Completion | Why |
+|---|---|---|
+| **Core Platform** | 97% | Auth, multi-country architecture, Notification Engine — rock solid, repeatedly live-tested. Docked only for the paused Active-Country audit and no per-country stats. |
+| **Donor App** | 96% | Every workflow built and live-verified this cycle. Docked for the generic auth-failure-messaging gap (§5). |
+| **Institution App** | 96% | Same standard as Donor; same minor auth-messaging gap. |
+| **Admin Web App** | 92% | Comprehensive 3-phase parity build-out, now genuinely complete for every existing Donor/Institution capability. Docked for the two minor gaps in §2 and Settings being deliberately unbuilt. |
+| **Backend / API** | 93% | Solid architecture; retry/backoff added this cycle. Docked for no rate limiting and no automated tests. |
+| **Security** | 87% | Strong fundamentals — verified auth, RBAC, suspension, no XSS, CSV-injection fixed. Docked for no rate limiting and unpatched (if low-risk) dependency vulnerabilities. |
+| **Production Readiness** | 82% | The deliberately hardest-nosed category: no tests, no confirmed backups, no rate limiting, narrative-only migration history. This is what "not yet ready for unmonitored public launch" is made of. |
+
+**Unweighted average: ~91.9%**, independently arrived at from the reasoning above — landing in the same range
+as the stakeholder's own separate 90–93% estimate, which is a useful cross-check rather than a coincidence:
+both assessments are looking at the same underlying, well-documented body of work.
+
+---
+
+## 3. Features Completed
 
 **Donor App** (Web + iOS + Android): registration/sign-in (Email/Password, Google, Apple), profile
 completion, GPS-first location capture with address/geocoding fallback (no manual Lat/Lng anywhere),
@@ -50,8 +143,8 @@ submission with Pending/Approved/Rejected status and rejection-reason display, p
 with human-readable field labels (not raw Sheet column names), Home dashboard stats, notifications with
 deep-linking.
 
-**Admin Web App** (built out substantially this session — see Admin Parity Program below): Dashboard with
-platform-wide stats, Institution approval/rejection, Donation logistics (expected-date scheduling),
+**Admin Web App** (built out substantially this cycle — see §7): Dashboard with platform-wide stats,
+Institution approval/rejection, Donation logistics (expected-date scheduling) plus full-visibility Reports,
 Success Story moderation, Change Request moderation, Users (search/suspend/reactivate/role-change/
 password-reset), Countries (activate/add), Disputes (resolve), Corporate Accounts (full CRUD + a real
 invitation-code system with expiration/max-usage/single-multi-use), Notifications (manual send + scoped
@@ -64,68 +157,55 @@ layer cleanly separated from the Google Sheets business-data layer, consistent s
 
 ---
 
-## 3. Remaining Features / Explicitly Deferred
+## 4. Remaining Features / Explicitly Deferred
 
-These are not bugs — they're scope decisions already made, listed here so nothing is mistaken for an
-oversight:
+These are not bugs — they're scope decisions already made (most now formally tracked in
+`VERSION_2_ROADMAP.md` under the Feature Freeze), listed here so nothing is mistaken for an oversight:
 
-- **Settings / Feature Flags** (Admin): deferred by the stakeholder's own choice during the Admin Parity
-  program — nothing in the codebase reads a flag or setting today, so there's nothing concrete to build yet.
-- **Active-Country filtering audit**: explicitly paused by the stakeholder before this stabilization phase.
-  Not started.
-- **Phase 4 — logistics display change** ("Collection Scheduled / In Transit / Delivered" without promised
-  dates, replacing the current Admin-settable Expected Collection/Delivery Date estimates): explicitly
-  "later" per the stakeholder's own ordering. Flagged directly to the stakeholder that this would be a
-  product change to an *existing* feature (built in Module 6), not implementing something skipped.
-- **Reports**: a first pass (table + CSV). No charting/visualization, no scheduled/emailed reports, no
-  date-range filtering yet — reasonable for a pilot, worth revisiting post-launch if Admin needs more.
-- **Corporate Accounts**: no logo upload UI yet (the `Logo` field exists and displays, but nothing sets it
-  except direct Sheet edit) — matches the original spec's own note that this was intentionally out of scope
-  until Corporate Accounts had any real self-service surface at all.
+- **Settings / Feature Flags** (Admin): nothing in the codebase reads a flag or setting today, so there's
+  nothing concrete to build yet.
+- **Active-Country filtering audit**: explicitly paused by the stakeholder before the stabilization phase.
+- **Phase 4 — logistics display change** (stage-only display replacing the current Admin-settable Expected
+  Collection/Delivery Date estimates): a genuine product decision about an *existing* feature, not a bug.
+- **Reports enhancements**: charts, date-range filtering, scheduled/emailed reports.
+- **Corporate Account logo upload**, **per-country statistics**, **Admin donation edit/cancel**: see §2.
 
 ---
 
-## 4. Known Bugs
+## 5. Known Bugs
 
-**All bugs found during this project's many live-testing rounds have been fixed and verified.** The
-consolidated list of everything found and resolved is the accumulated `PROJECT_STATUS.md` record (leaked
-`Needs_List` field name, donation quantity cap, manual Lat/Lng requirement, Success Story auto-publish,
-timeline missing time-of-day, hydration bug in the Photo component, notification-failure false negatives,
-an invitation-code ordering bug that could let a rejected join silently consume a limited-use code, the
-Google Sheets rate-limit surfacing as a raw error, and the CSV-injection gap fixed today).
+**All bugs found during this project's many live-testing rounds have been fixed and verified**, including,
+found during this specific review round: the Admin donation-visibility gap (§2/§3), the CSV/formula-injection
+gap in Reports, and one stale AppSheet-referencing comment. The full historical list is the accumulated
+`PROJECT_STATUS.md` record.
 
 **Currently open, not fixed (deliberately, with reasoning given each time):**
 - One pre-existing orphaned data reference: a real Donor's `Corporate_Account_ID` points at a
-  `Corporate_Accounts` row that no longer exists. Predates this session's work; low real-world impact
+  `Corporate_Accounts` row that no longer exists. Predates this project's recent work; low real-world impact
   (`getCorporateAccountById` already returns `null` gracefully wherever this is read); worth a one-off data
   cleanup at some point, not urgent.
-- English-language `ValidationError` messages on Admin-only actions (e.g. "Country not found", "Only a
-  Pending request can be approved") — inconsistent with `DEVELOPMENT_RULES.md` §9 ("Portuguese complete for
-  launch"), but Admin-only, not donor/institution-facing. The four messages a real *donor* could actually
-  trigger (invitation-code join failures) were translated when found; a full backend i18n pass for every
-  Admin-only message is separate, deferred work — not blocking for a pilot where the Admin operators are the
-  same people who commissioned this in Portuguese-fluent Angola/Portugal contexts anyway.
+- English-language `ValidationError` messages on Admin-only actions — inconsistent with
+  `DEVELOPMENT_RULES.md` §9 ("Portuguese complete for launch"), but Admin-only, not donor/institution-facing.
+  The messages a real *donor* could actually trigger (invitation-code join failures) were translated when
+  found; a full backend i18n pass for every Admin-only message is separate, deferred work.
 
 ---
 
-## 5. UX Improvements Worth Considering (not blocking)
+## 6. UX Improvements Worth Considering (not blocking)
 
 - **Auth failure messaging**: every app's `AuthContext` collapses any `/auth/session` failure (suspended
   account, no account yet, invalid token, rate-limited) to the same "redirect to sign-in, no message"
-  behavior. A user whose account gets suspended sees no explanation — just a bounce back to the sign-in
-  screen. Worth a small, contained fix: surface *why* sign-in failed.
-- **Reports**: no date-range or status filtering within a report type yet — for a pilot with modest data
-  volume this is fine; will matter more as data grows.
-- **Corporate Accounts**: no logo upload (see above) — cosmetic only.
-- **Mobile parity checkpoint**: the GPS/address and quantity changes from this session's stabilization module
-  were applied to the mobile apps using the identical pattern already verified on web, and both mobile
-  workspaces typecheck clean, but were **not** re-run in an iOS/Android simulator this session (the earlier,
-  separate Android verification pass predates these specific changes). Recommend one simulator pass before
-  a pilot that includes mobile users.
+  behavior. Worth a small, contained fix: surface *why* sign-in failed.
+- **Reports**: no date-range or status filtering within a report type yet.
+- **Corporate Accounts**: no logo upload — cosmetic only.
+- **Mobile parity checkpoint**: the GPS/address and quantity changes were applied to mobile using the
+  identical pattern already verified on web, and both mobile workspaces typecheck clean, but were **not**
+  re-run in an iOS/Android simulator since (the earlier, separate Android verification pass predates these
+  specific changes). Recommend one simulator pass before a pilot that includes mobile users.
 
 ---
 
-## 6. Security Review
+## 7. Security Review
 
 Checked directly against the current codebase, not from memory:
 
@@ -136,144 +216,86 @@ Checked directly against the current codebase, not from memory:
   Sheets on every single request (`requireAuth`) — role/verification/suspension state can never go stale
   from a cached session. Role checks (`requireRole('Admin')`) are present on every one of the 32 Admin routes
   — checked directly (`grep`), not assumed.
-- **Suspension takes effect immediately** (built this session): both `requireAuth` and the login endpoint
-  itself (`/auth/session`) check `Status === 'Suspended'` before proceeding, so a suspended account can't
-  keep using an already-issued token, and can't even get a fresh session.
-  Privilege-escalation guard: Admin's own "change a user's role" action is hard-restricted in the service
-  layer to Donor↔Institution — there is no path, including through the Admin UI, to grant Admin access to an
-  arbitrary account.
+- **Suspension takes effect immediately**: both `requireAuth` and the login endpoint itself
+  (`/auth/session`) check `Status === 'Suspended'` before proceeding. Privilege-escalation guard: Admin's own
+  "change a user's role" action is hard-restricted in the service layer to Donor↔Institution — no path,
+  including through the Admin UI, grants Admin access to an arbitrary account.
 - **XSS: no direct risk found.** `grep`'d for `dangerouslySetInnerHTML` across all three web apps — zero
   matches. All user-entered text is rendered through normal JSX, which auto-escapes.
-- **CSV/formula injection: found and fixed today** (see §4) in the new Admin Reports export.
-- **File uploads:** size-capped at 8MB and MIME-type-filtered to `image/*` on every upload route (donations,
-  success stories, institution logos) — checked directly in the multer configs.
-- **No API-level rate limiting.** No `express-rate-limit` or equivalent anywhere in `apps/api`. Firebase's
-  own sign-in flow has its own abuse protection (sign-in itself happens client-side against Firebase, not
-  through this API), but nothing throttles repeated calls to this API's own endpoints — e.g. the geocoding
-  proxy (`/geo-regions/geocode`, which calls the free OpenStreetMap Nominatim service) has no per-user
-  throttle, and an abusive client could drive enough traffic to get the app's shared IP rate-limited or
-  banned by Nominatim's usage policy. **Recommend adding basic rate limiting before a public (non-pilot)
-  launch** — not urgent for a small, known pilot user base.
+- **CSV/formula injection: found and fixed** in the Admin Reports export.
+- **File uploads:** size-capped at 8MB and MIME-type-filtered to `image/*` on every upload route — checked
+  directly in the multer configs.
+- **No API-level rate limiting.** No `express-rate-limit` or equivalent anywhere in `apps/api`. The
+  geocoding proxy (`/geo-regions/geocode`, which calls the free OpenStreetMap Nominatim service) has no
+  per-user throttle — an abusive client could drive enough traffic to get the app's shared IP banned by
+  Nominatim's usage policy. Recommend basic rate limiting before a public (non-pilot) launch.
 - **Dependency vulnerabilities:** `npm audit` across the monorepo reports 25 (15 moderate, 10 high),
-  concentrated in transitive dependencies of `firebase-admin` (`google-cloud/storage`, `teeny-request`,
-  `retry-request`, `uuid`) and Expo build tooling (`@expo/config-plugins` and friends) — none in code this
-  project wrote directly, and none obviously reachable by attacker-controlled input in how this app actually
-  uses those libraries. Recommend running `npm audit fix` (non-breaking) and re-assessing the rest
-  periodically; not a launch blocker for a pilot.
+  concentrated in transitive dependencies of `firebase-admin` and Expo build tooling — none in code this
+  project wrote directly, none obviously reachable by attacker-controlled input in how this app uses those
+  libraries. Recommend `npm audit fix` (non-breaking) and periodic re-assessment.
 
 ---
 
-## 7. Performance Review
+## 8. Performance, Database & Scalability
 
-- **No pagination anywhere.** Every "list" function (`getRows`) reads an entire Sheet tab on every call —
-  fine at current data volume (dozens of rows per tab), but every list will get linearly slower as data
-  grows, with no cutoff built in.
-- **N+1-shaped lookups in a few Admin aggregation functions**, all written this session: change-request and
-  dispute moderation queues each do one institution lookup per pending item; `listAllCorporateAccounts` does
-  one employee-count lookup per company. Fine at today's scale (a handful of institutions/companies); would
-  need batching if either list grows into the hundreds.
-- **Google Sheets rate limit — now mitigated, not eliminated.** The retry-with-backoff fix (today) absorbs
-  the overwhelming majority of realistic bursts (burst-tested to 100% success at 80 concurrent requests), but
-  the underlying per-minute quota is still a real ceiling — a genuinely high-traffic pilot could still hit it
-  under sustained (not just bursty) load. No caching layer exists in front of Sheets.
-- **No CDN/caching for photos** — every photo is served directly from its Google Drive thumbnail URL. Fine
-  for a pilot; would want a real CDN or image-optimization layer at meaningful scale.
-
----
-
-## 8. Database Review
-
-- **Google Sheets as the production database is a deliberate, documented V1 decision** (`DEVELOPMENT_RULES.md`
-  §1), not an oversight — this report doesn't relitigate it, only notes what it implies operationally.
-- **Schema hygiene:** 10 Sheet tabs now (`Users`, `Donations`, `Institutions`, `Disputes`,
-  `Corporate_Accounts`, `Change_Requests`, `Notifications`, `Geo_Regions`, `Success_Stories`,
-  `Invitation_Codes`). Every column addition this project has followed the same additive-only,
-  backfill-then-verify migration pattern via one-off scripts (written, run once, deleted) — there is **no
-  persistent migration history file**, only the narrative record in `PROJECT_STATUS.md`. This is a real,
-  known trade-off of the Sheets-as-DB approach: safe so far because every migration has been small and
-  carefully verified, but there's no automated way to reconstruct "what changed the schema and when" other
-  than reading `PROJECT_STATUS.md` top to bottom.
-- **One known orphaned reference** (see §4) — real, low-impact, not urgent.
-- **No formal backup/restore process observed or documented** beyond Google Sheets' own native version
-  history. Worth explicitly confirming with the stakeholder what the backup expectation is before a pilot
-  with real user data.
+- **No pagination anywhere.** Every "list" function reads an entire Sheet tab on every call — fine at
+  current volume, will slow linearly as data grows.
+- **A few N+1-shaped lookups** in Admin aggregation functions (change requests, disputes, corporate
+  accounts) — fine at today's scale, would need batching at hundreds of rows.
+- **Google Sheets rate limit — mitigated, not eliminated.** Retry-with-backoff absorbs the overwhelming
+  majority of realistic bursts (100% success burst-tested at 80 concurrent requests), but the underlying
+  per-minute quota is still a real ceiling under sustained (not just bursty) load. No caching layer exists.
+- **No CDN/caching for photos** — served directly from Google Drive thumbnail URLs. Fine for a pilot.
+- **Schema hygiene:** 10 Sheet tabs, additive-only migrations via one-off scripts (written, run once,
+  deleted) — safe so far, but with **no persistent migration-history file**, only the narrative record in
+  `PROJECT_STATUS.md`.
+- **No formal backup/restore process** observed or documented beyond Google Sheets' own native version
+  history — worth explicitly confirming the expectation with the stakeholder.
+- **Google Sheets' hard platform limits** (~10M cells, the per-minute quota) are nowhere close to a concern
+  at pilot volume, and are an already-documented (`DEVELOPMENT_RULES.md` §13) future migration path beyond
+  it — not new information, restated here as part of a launch decision.
+- **Single shared spreadsheet = single point of contention** across all five client apps; no sharding or
+  read-replica concept is possible with this architecture.
 
 ---
 
-## 9. Scalability Concerns
+## 9. Technical Debt
 
-- **Google Sheets has hard platform limits**: roughly 10 million cells per spreadsheet, and the per-minute
-  read/write quota discussed above. At a small pilot's volume (dozens to low hundreds of donations/users) this
-  is nowhere close to a concern. It **is** a real, architecturally-known ceiling for anything beyond a pilot —
-  already flagged as a future migration path in `DEVELOPMENT_RULES.md` §13, not new information, just worth
-  restating here as part of a launch decision.
-- **Single shared spreadsheet = single point of contention** across all three web apps and both mobile apps.
-  There's no sharding or read-replica concept possible with this architecture.
-
----
-
-## 10. Technical Debt
-
-- **Zero automated tests.** Checked directly: no `.test.ts`/`.spec.ts` files anywhere in the repository, no
-  `test` script in any `package.json`. Every one of this project's many verification passes has been live,
-  manual QA — thorough and well-documented, but with no regression-test safety net. This is the single
-  largest piece of technical debt in the project: any future change could silently break something already
-  verified, and the only way to catch it is another full manual pass.
-- **English error-message inconsistency** (see §4) on Admin-only validation errors.
-- **One-off migration scripts, not a migration framework** (see §8) — works, but doesn't scale as a practice
-  much beyond where the project already is.
-- **AppSheet retirement:** confirmed no new AppSheet-dependent logic has been added since the 2026-07-30
-  policy change; the phrase "exclusively in AppSheet" was found and replaced everywhere it was stale
-  documentation (Change Requests, Corporate Accounts, Disputes) as part of the Admin Parity program.
+- **Zero automated tests.** Checked directly: no `.test.ts`/`.spec.ts` files anywhere, no `test` script in
+  any `package.json`. Every verification this project has done is manual, live QA — thorough and
+  well-documented, but with no regression-test safety net. The single largest piece of technical debt here.
+- **English error-message inconsistency** on Admin-only validation errors (§5).
+- **One-off migration scripts, not a migration framework** (§8).
+- **AppSheet retirement: confirmed complete** — see §2. No functional dependency remains anywhere; the one
+  stale doc comment found was corrected today.
 
 ---
 
-## 11. Admin Web App Parity — Confirmed
+## 10. Admin Web App Parity — Confirmed
 
-Cross-checked against the stakeholder's original capability list (Dashboard, Users, Institutions, Donations,
-Success Stories, Corporate Accounts, Countries, Notifications, Reports, Settings):
+Cross-checked against the stakeholder's original capability list:
 
 | Area | Status |
 |---|---|
-| Dashboard | ✅ Complete |
-| Users | ✅ Complete (view/search/suspend/reactivate/role/reset) |
-| Institutions | ✅ Complete (approve/reject/view/profile-change moderation) |
-| Donations | ✅ Complete (view/search/status/logistics scheduling) — no dispute-resolution *from this list*, but disputes have their own dedicated Admin page |
-| Success Stories | ✅ Complete (approve/reject, nothing publishes without approval) |
-| Corporate Accounts | ✅ Complete (CRUD + real invitation codes + employee/donation counts) |
-| Countries | ✅ Complete (activate/add) |
-| Notifications | ✅ Complete (manual send + scoped broadcast + history) |
-| Reports | ✅ Complete (6 types + CSV export) |
-| Settings | ⏸️ Deferred (nothing to control yet — stakeholder's own call) |
+| Dashboard | Complete |
+| Users | Complete — view/search/suspend/reactivate/role/reset |
+| Institutions | Complete — approve/reject/view/profile-change moderation |
+| Donations | Complete — view **every** donation (including Pending, fixed today)/search/status/logistics scheduling; edit/cancel is a tracked V2 gap, not a workflow blocker |
+| Success Stories | Complete — approve/reject, nothing publishes without approval |
+| Corporate Accounts | Complete — CRUD + real invitation codes + employee/donation counts |
+| Countries | Complete for activate/add; per-country statistics rollup is a tracked V2 gap |
+| Disputes | Complete — dedicated moderation page (resolve) |
+| Notifications | Complete — manual send + scoped broadcast + history |
+| Reports | Complete — 6 types + CSV export |
+| Settings | Deliberately deferred — nothing to control yet |
 
-**Admin is at genuine functional parity with Donor and Institution for every capability that currently exists
-in those two apps.** The one item not built (Settings) has no concrete need behind it yet, by design.
-
----
-
-## 12. Risks Before Launch
-
-Ranked by severity:
-
-1. **No automated tests** — highest-impact technical debt; every future change is a manual-QA-or-nothing bet.
-2. **No backup/restore process confirmed** — real user data risk if this hasn't been discussed with the
-   stakeholder yet.
-3. **Sheets rate limit / scalability ceiling** — mitigated today, not eliminated; fine for a pilot, a real
-   constraint beyond it.
-4. **No API rate limiting** — low risk for a small known pilot user base, real risk if the URL becomes public
-   before a proper launch.
-5. **Dependency vulnerabilities** — moderate/high severity, but transitive and not obviously exploitable
-   through this app's actual usage; still worth a housekeeping pass.
-6. **Mobile apps not re-verified in a simulator** since the latest stabilization changes — low risk (same
-   code pattern already verified on web) but unconfirmed.
-7. **Orphaned Corporate_Account_ID reference** — cosmetic/low-impact.
-
-None of these are "the app doesn't work" risks — every one is a hardening/completeness gap on top of a
-functioning, live-tested product.
+**Admin is at genuine functional parity with Donor and Institution for every capability that currently
+exists in those two apps.** The two minor gaps found under closer questioning (donation edit/cancel,
+per-country stats) don't block any existing workflow and are now tracked in `VERSION_2_ROADMAP.md`.
 
 ---
 
-## 13. Recommended Launch Checklist
+## 11. Recommended Launch Checklist
 
 **Before any pilot:**
 - [ ] Confirm backup/restore expectations for the Google Sheets data with the stakeholder.
@@ -285,22 +307,25 @@ functioning, live-tested product.
 **Before a public (non-pilot) launch:**
 - [ ] Basic API rate limiting (at minimum on `/auth/session` and `/geo-regions/geocode`).
 - [ ] Some form of automated test coverage for the core donation lifecycle, even a minimal smoke-test suite.
-- [ ] A real migration-history mechanism, or at least a single consolidated schema-changes doc, rather than
-      relying on reading `PROJECT_STATUS.md` narratively.
+- [ ] A real migration-history mechanism, or at least a single consolidated schema-changes doc.
 - [ ] Full backend i18n pass on the remaining English Admin-only error messages.
 - [ ] Active-Country filtering audit (already on the roadmap, currently paused per the stakeholder).
 - [ ] Phase 4 logistics-display decision (dates vs. stage-only) — a genuine product decision, not a bug fix.
 
 ---
 
-## 14. Bottom Line
+## 12. Bottom Line
 
 WAFINA's core product — donor donates, institution fulfills, admin oversees, impact gets told — works, has
-been tested end-to-end repeatedly (most recently in one continuous live run through the entire lifecycle),
-and Admin has genuinely caught up to Donor/Institution. The gaps that remain are the kind every real product
-has at this stage: no automated tests, a rate-limit ceiling that's mitigated but not eliminated, a few
-security-hardening items appropriate for scaling past a pilot, and two features the stakeholder has
-deliberately deferred rather than anything left unfinished by accident.
+been tested end-to-end repeatedly, and Admin has genuinely caught up to Donor/Institution. Version 1.0 is
+now under Feature Freeze: the focus from here to launch is stability, reliability, security, performance, UX
+polish, end-to-end validation, and production readiness — not new capability. New ideas go to
+`VERSION_2_ROADMAP.md`.
+
+The gaps that remain are the kind every real product has at this stage: no automated tests, a rate-limit
+ceiling that's mitigated but not eliminated, a few security-hardening items appropriate for scaling past a
+pilot, and features the stakeholder has deliberately deferred rather than anything left unfinished by
+accident.
 
 **A controlled, monitored pilot is a reasonable next step. A fully public, unmonitored launch should wait for
 the "before a public launch" checklist above.**

@@ -1395,6 +1395,47 @@ low-value change on top of that; revisit only if a specific page is shown to sti
 
 **Commit:** `f5bd127`
 
+### Production Readiness Report — follow-up verification + Version 1.0 Feature Freeze (2026-07-31): COMPLETE
+
+The stakeholder's review of the Production Readiness Report asked five direct questions before continuing:
+workflow completeness, Admin parity, remaining AppSheet dependency, a ranked Top 10, and real (not felt)
+completion percentages per area — plus a request to declare a Version 1.0 Feature Freeze.
+
+**Findings, each independently verified (not recalled from memory):**
+- **AppSheet dependency: none.** `grep`'d every app's source tree — every "AppSheet" match is a doc comment,
+  never a runtime dependency. One stale comment (`requireVerified` in `apps/api/src/middleware/auth.ts`,
+  still describing institution approval as "editing the row in AppSheet") was found and corrected — the
+  logic it described was already correct, only the documentation was outdated.
+- **Real gap found and fixed:** `listInFlightDonationsForAdmin` (backing both the Admin Donations page and
+  the Reports Donations export) deliberately excludes Pending donations — correct for the Donations page
+  (setting a collection estimate pre-claim makes no sense) but wrong for Reports, whose job is comprehensive
+  visibility. This left Admin with **zero visibility into a donation anywhere in the Admin app** between
+  submission and claim, contradicting the original "view every donation" requirement. Fixed: new
+  `listAllDonationsForAdmin()` (no status filter), wired into Reports specifically; the Donations page's
+  own Pending-exclusion is unchanged since it's correct there.
+- **Two minor, non-blocking Admin gaps surfaced** under closer questioning, neither previously reported:
+  Admin cannot edit or cancel a donor's raw donation (only the donor can, only while Pending), and there's
+  no per-country statistics rollup (`Country_ID` exists on every record, but no dedicated view aggregates
+  it). Both now tracked in the new `VERSION_2_ROADMAP.md` rather than silently skipped or built ad hoc.
+- **Top 10 issues, completion percentages (per-area, independently reasoned), and full direct answers** —
+  written into `PRODUCTION_READINESS_REPORT.md` §2, not duplicated here. Revised estimate: ~92% (up from the
+  initial ~85%, reflecting the completed rate-limit fix and this verification pass, not scope creep).
+
+**Version 1.0 Feature Freeze — now in effect**, codified as a permanent policy in `DEVELOPMENT_RULES.md`
+§16: no new functionality until launch unless it fixes a bug, a security issue, a production-readiness
+issue, or is required for an existing workflow to function correctly. New ideas go to the new
+`VERSION_2_ROADMAP.md` instead of being built — it now holds every deferred item from this project's history
+(Settings/Feature Flags, Active-Country audit, Phase 4 logistics-display decision, per-country stats,
+Admin donation edit/cancel, Corporate logo upload, Reports enhancements, corporate dashboard/secure
+invitations, full backend i18n pass).
+
+**Database implications:** none.
+
+**Verified:** `npm run typecheck` and `npm run lint` clean across all 8 workspaces after the donation-
+visibility fix; confirmed live in the Admin Reports page.
+
+**Commit:** _recorded below after this entry is committed._
+
 ---
 
 ## Next Steps

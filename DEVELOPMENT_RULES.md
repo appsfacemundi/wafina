@@ -169,3 +169,28 @@ verified ✓ · documentation updated ✓ · end-to-end tested ✓.
 **Immediate priority (2026-07-31):** before any major new feature phase, perform a comprehensive review of
 the Admin Web App against Donor/Institution, and bring Admin to functional parity with what already exists
 in those two apps. Only after that parity is reached should development continue into the next major phase.
+
+## 16. Version 1.0 Feature Freeze (stakeholder instruction, 2026-07-31)
+
+Issued after the Admin Parity program, the Platform Stabilization phase, the Google Sheets rate-limit
+resilience fix, and a Production Readiness Report the stakeholder assessed at ~90–93% complete for a V1
+pilot. Effective immediately, for the remainder of the Version 1.0 cycle.
+
+**The rule:** no new functionality is introduced unless it fixes a bug, a security issue, a production-
+readiness issue, or is required for an existing workflow to function correctly. Any new idea, enhancement, or
+capability that doesn't meet that bar gets written down in `VERSION_2_ROADMAP.md` instead of being built.
+
+**What still qualifies as in-scope work under the freeze** (this is not a work-stoppage, just a scope gate):
+- Bug fixes of any kind.
+- Security fixes (e.g. the CSV-injection fix and the donation-visibility gap found during the Production
+  Readiness review both qualified and were fixed immediately, not deferred).
+- Production-readiness hardening: automated tests, rate limiting, backup/restore confirmation, dependency
+  updates, migration-history tooling — everything on the Production Readiness Report's launch checklist.
+- Anything required for an *existing* workflow to actually work end-to-end (not a new workflow).
+
+**What does not qualify, even if small:** a new capability, a new report type, a new Admin action that
+doesn't already exist in some form, expanding a workflow's scope, or "while I'm in here" additions. These go
+to `VERSION_2_ROADMAP.md`.
+
+**The focus until Version 1.0 ships:** stability, reliability, security, performance, UX polish, end-to-end
+workflow validation, and production readiness — not new capability.
