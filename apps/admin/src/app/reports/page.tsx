@@ -24,10 +24,23 @@ function cellText(value: unknown): string {
   return String(value);
 }
 
+/**
+ * CSV/formula injection guard: a cell whose text starts with =, +, -, @, tab,
+ * or CR would be interpreted as a formula by Excel/Sheets on open (e.g. a
+ * Company Name of `=HYPERLINK("http://evil","click")`). Since every column
+ * here ultimately comes from user-entered data (institution names, reasons,
+ * descriptions...), prefixing a leading apostrophe neutralizes it as a
+ * formula trigger while leaving the visible text unchanged for a human
+ * reader — the standard OWASP mitigation for this class of export.
+ */
+function escapeFormulaTrigger(text: string): string {
+  return /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+}
+
 function toCsv(rows: ReportRow[]): string {
   if (rows.length === 0) return '';
   const columns = Object.keys(rows[0]);
-  const escape = (value: unknown) => `"${cellText(value).replace(/"/g, '""')}"`;
+  const escape = (value: unknown) => `"${escapeFormulaTrigger(cellText(value)).replace(/"/g, '""')}"`;
   const lines = [columns.join(','), ...rows.map((row) => columns.map((c) => escape(row[c])).join(','))];
   return lines.join('\n');
 }
