@@ -763,7 +763,7 @@ Xcode/Simulator gap as Modules 3 and 5.
   next `packages/ui` component that needs to be a *direct* Server-Component child (not just used from within
   an already-client page) will hit the same failure and need the same wrapper, or a build fix.
 
-**Commit:** (pending — see below)
+**Commit:** `af69256`
 
 ### Modules 7+: not yet started
 Sequenced dynamically based on stakeholder priority. Known upcoming work: Active-Country filtering audit
