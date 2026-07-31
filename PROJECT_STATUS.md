@@ -950,7 +950,7 @@ deliberately left in place. Confirmed no leftover disposable-test rows remain â€
 cleanup belongs to the stakeholder's own real accounts (real donations/stories created via their own live
 testing during this session), not anything created by this review.
 
-**Commit:** (pending â€” see below)
+**Commit:** `33235ec`
 
 ### Modules 7+: not yet started
 Sequenced dynamically based on stakeholder priority. Known upcoming work: Active-Country filtering audit
