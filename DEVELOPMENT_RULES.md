@@ -131,3 +131,41 @@ architectural problem or explicit request. Prioritize maintainability, scalabili
 production readiness over quick fixes. Every feature must be compatible with: multi-country operation,
 Active Country filtering, the future Admin Web App, Google Sheets (current), PostgreSQL (future), iOS,
 Android, and Web.
+
+## 15. Admin Web App Parity — Permanent Rule (stakeholder instruction, 2026-07-31)
+
+Issued as a standing policy for the remainder of the project. Supersedes nothing above, but adds a binding
+constraint on top of every future module.
+
+**The Admin Web App is a first-class application**, equal in importance to the Donor and Institution
+applications, and is the operational control center of the platform. It must evolve together with Donor and
+Institution and must never fall behind them again.
+
+**Permanent development rule:** whenever a new feature is added to Donor or Institution, immediately ask
+*"How will the Admin manage this feature?"* If there is no Admin interface or workflow to manage it, the
+feature is not complete. No user-facing functionality ships without corresponding administrative
+functionality unless the stakeholder explicitly approves a temporary exception.
+
+**Synchronization:** every workflow implemented in Donor or Institution must also have the necessary Admin
+screens, actions, approvals, reports, permissions, and notifications. No workflow bypasses Admin unless
+explicitly designed to.
+
+**Admin's eventual scope** (built incrementally, not all at once): Dashboard (platform/donation/institution/
+donor/company/country/success-story stats, recent activity, pending approvals); Users (view, search,
+suspend, reactivate, manage roles, reset accounts); Institutions (registration review, approval, profile/
+logo review, Needed-Items change approval, verification management); Donations (view/search/filter by
+country/status, donor/institution/photo/Public Donation Code visibility, full lifecycle tracking, dispute
+resolution); Success Stories (review, approve/reject/return-with-comments, publish gating — nothing goes
+live pre-approval); Corporate Accounts (create/edit/suspend companies, invitation codes — single-use,
+multi-use, expiring, max-usage — employee/impact/donation visibility); Countries (Active/Inactive/Coming
+Soon, launch management, per-country settings and stats); Notifications (history, manual send, broadcast,
+delivery review); Reports (donations, institutions, companies, users, countries, success stories, platform
+activity); Settings (platform/country/app configuration, feature flags).
+
+**Before considering any feature complete, verify:** Donor implementation ✓ · Institution implementation ✓ ·
+Admin implementation ✓ · database updated ✓ · notifications updated ✓ · timeline updated ✓ · permissions
+verified ✓ · documentation updated ✓ · end-to-end tested ✓.
+
+**Immediate priority (2026-07-31):** before any major new feature phase, perform a comprehensive review of
+the Admin Web App against Donor/Institution, and bring Admin to functional parity with what already exists
+in those two apps. Only after that parity is reached should development continue into the next major phase.
