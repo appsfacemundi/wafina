@@ -36,7 +36,7 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
   const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : null;
 
   if (!token) {
-    res.status(401).json({ error: 'Missing bearer token' });
+    res.status(401).json({ error: 'Token de autenticação em falta' });
     return;
   }
 
@@ -51,25 +51,25 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
       res.status(503).json({ error: err.message });
       return;
     }
-    res.status(401).json({ error: 'Invalid or expired token' });
+    res.status(401).json({ error: 'Token inválido ou expirado' });
     return;
   }
 
   if (!email) {
-    res.status(401).json({ error: 'Token has no associated email' });
+    res.status(401).json({ error: 'O token não tem um e-mail associado' });
     return;
   }
 
   const userRow = await findUserByEmail(email);
   if (!userRow) {
-    res.status(404).json({ error: 'No Wafina account for this identity yet' });
+    res.status(404).json({ error: 'Ainda não existe uma conta Wafina para esta identidade' });
     return;
   }
 
   // Admin parity Phase A — the row is already fetched fresh on every request,
   // so a suspension takes effect immediately with no Firebase token revocation.
   if (userRow.Status === 'Suspended') {
-    res.status(403).json({ error: 'This account has been suspended' });
+    res.status(403).json({ error: 'Esta conta foi suspensa' });
     return;
   }
 
@@ -82,7 +82,7 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
 export function requireRole(...roles: Role[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user || !roles.includes(req.user.role)) {
-      res.status(403).json({ error: 'Forbidden' });
+      res.status(403).json({ error: 'Acesso não autorizado' });
       return;
     }
     next();
@@ -105,7 +105,7 @@ export function requireRole(...roles: Role[]) {
 export const requireVerified = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const institution = req.user ? await getInstitutionByUserId(req.user.userId) : null;
   if (!institution?.Verified) {
-    res.status(403).json({ error: 'Account is not yet verified' });
+    res.status(403).json({ error: 'A conta ainda não foi verificada' });
     return;
   }
   next();

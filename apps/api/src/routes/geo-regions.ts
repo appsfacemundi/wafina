@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth } from '../middleware/auth';
+import { geocodeLimiter } from '../middleware/rate-limit';
 import { geocodeAddress } from '../services/geocode';
 import { listActiveCountries, listAllCountries, listChildRegions } from '../services/geo-regions';
 
@@ -41,6 +42,7 @@ geoRegionsRouter.get(
 geoRegionsRouter.get(
   '/geo-regions/geocode',
   requireAuth,
+  geocodeLimiter,
   asyncHandler(async (req, res) => {
     const address = typeof req.query.address === 'string' ? req.query.address : '';
     res.json(await geocodeAddress(address));

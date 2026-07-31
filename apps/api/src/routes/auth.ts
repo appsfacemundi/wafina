@@ -4,6 +4,7 @@ import { ConfigurationError } from '../config/configuration-error';
 import { getFirebaseAuth } from '../config/firebase';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth } from '../middleware/auth';
+import { authLimiter } from '../middleware/rate-limit';
 import { createUser, findUserByEmail, toAuthenticatedUser } from '../services/users';
 
 export const authRouter = Router();
@@ -22,12 +23,13 @@ export const authRouter = Router();
  */
 authRouter.post(
   '/auth/session',
+  authLimiter,
   asyncHandler(async (req, res) => {
     const token = req.body?.idToken as string | undefined;
     const requestedRole = req.body?.role as RegistrableRole | undefined;
 
     if (!token) {
-      res.status(400).json({ error: 'idToken is required' });
+      res.status(400).json({ error: 'idToken é obrigatório' });
       return;
     }
 
@@ -42,12 +44,12 @@ authRouter.post(
         res.status(503).json({ error: err.message });
         return;
       }
-      res.status(401).json({ error: 'Invalid or expired token' });
+      res.status(401).json({ error: 'Token inválido ou expirado' });
       return;
     }
 
     if (!email) {
-      res.status(401).json({ error: 'Token has no associated email' });
+      res.status(401).json({ error: 'O token não tem um e-mail associado' });
       return;
     }
 
@@ -55,7 +57,7 @@ authRouter.post(
 
     if (!userRow) {
       if (!requestedRole || !REGISTRABLE_ROLES.includes(requestedRole)) {
-        res.status(400).json({ error: `role must be one of: ${REGISTRABLE_ROLES.join(', ')}` });
+        res.status(400).json({ error: `role deve ser um dos seguintes: ${REGISTRABLE_ROLES.join(', ')}` });
         return;
       }
       userRow = await createUser(email, requestedRole);
@@ -66,7 +68,7 @@ authRouter.post(
     // landed on a half-broken app shell, with only the *next* data call
     // failing. Blocking it here instead gives a clear message right at login.
     if (userRow.Status === 'Suspended') {
-      res.status(403).json({ error: 'This account has been suspended' });
+      res.status(403).json({ error: 'Esta conta foi suspensa' });
       return;
     }
 

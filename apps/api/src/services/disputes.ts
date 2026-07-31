@@ -37,17 +37,17 @@ export async function createDispute(
 ): Promise<Dispute> {
   if (!issueDescription || issueDescription.trim().length < MIN_DESCRIPTION_LENGTH) {
     throw new ValidationError(
-      `Issue_Description must be at least ${MIN_DESCRIPTION_LENGTH} characters`,
+      `A descrição do problema deve ter pelo menos ${MIN_DESCRIPTION_LENGTH} caracteres`,
     );
   }
 
   const donation = await getDonation(donationId);
-  if (!donation) throw new ValidationError('Donation not found');
+  if (!donation) throw new ValidationError('Doação não encontrada');
   if (donation.Status !== 'Claimed' && donation.Status !== 'Delivered') {
-    throw new ValidationError('Disputes can only be raised for Claimed or Delivered donations');
+    throw new ValidationError('Só é possível abrir uma ocorrência para doações aceites ou entregues');
   }
   if (donation.Claimed_By_Institution_ID !== institutionId) {
-    throw new ValidationError('This donation was not claimed by your institution');
+    throw new ValidationError('Esta doação não foi aceite pela sua instituição');
   }
 
   const row = {
@@ -133,18 +133,18 @@ export async function listAllOpenDisputes(): Promise<AdminDisputeView[]> {
 
 async function getDisputeOrThrow(disputeId: string): Promise<Dispute> {
   const row = await findRow(SHEET_TABS.disputes, (r) => r.Dispute_ID === disputeId);
-  if (!row) throw new ValidationError('Dispute not found');
+  if (!row) throw new ValidationError('Ocorrência não encontrada');
   return rowToDispute(row);
 }
 
 /** Admin resolves — notifies the institution user who raised it, with the resolution notes. */
 export async function resolveDispute(disputeId: string, resolutionNotes: string): Promise<Dispute> {
   if (!resolutionNotes || !resolutionNotes.trim()) {
-    throw new ValidationError('Resolution notes are required');
+    throw new ValidationError('As notas de resolução são obrigatórias');
   }
 
   const dispute = await getDisputeOrThrow(disputeId);
-  if (dispute.Status !== 'Open') throw new ValidationError('Only an Open dispute can be resolved');
+  if (dispute.Status !== 'Open') throw new ValidationError('Só é possível resolver uma ocorrência em aberto');
 
   await updateRow(SHEET_TABS.disputes, 'Dispute_ID', disputeId, {
     Status: 'Resolved' satisfies DisputeStatus,

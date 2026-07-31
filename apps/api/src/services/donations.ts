@@ -68,7 +68,7 @@ function assertValidLocation(location: { lat: number; lng: number }): void {
     !Number.isFinite(location?.lng) ||
     (location.lat === 0 && location.lng === 0)
   ) {
-    throw new ValidationError('Location must be a valid, non-zero coordinate pair');
+    throw new ValidationError('A localização deve ser um par de coordenadas válido e diferente de zero');
   }
 }
 
@@ -81,7 +81,7 @@ function assertValidLocation(location: { lat: number; lng: number }): void {
  */
 function assertValidQuantity(quantity: number): void {
   if (!Number.isInteger(quantity) || quantity <= 0) {
-    throw new ValidationError('Quantity must be a positive integer');
+    throw new ValidationError('A quantidade deve ser um número inteiro positivo');
   }
 }
 
@@ -103,8 +103,8 @@ export interface CreateDonationInput {
 export function assertValidDonationFields(
   input: Omit<CreateDonationInput, 'Photo'>,
 ): void {
-  if (!input.Item_Type) throw new ValidationError('Item_Type is required');
-  if (!input.Condition) throw new ValidationError('Condition is required');
+  if (!input.Item_Type) throw new ValidationError('O tipo de item é obrigatório');
+  if (!input.Condition) throw new ValidationError('O estado é obrigatório');
   assertValidQuantity(input.Quantity);
   assertValidLocation(input.Location);
 }
@@ -123,9 +123,9 @@ export async function createDonation(
   input: CreateDonationInput,
 ): Promise<Donation> {
   assertValidDonationFields(input);
-  if (!input.Photo) throw new ValidationError('Photo is required');
+  if (!input.Photo) throw new ValidationError('A fotografia é obrigatória');
   if (!activeCountryId) {
-    throw new ValidationError('Complete your profile (including country) before donating');
+    throw new ValidationError('Complete o seu perfil (incluindo o país) antes de doar');
   }
 
   const row = {
@@ -319,10 +319,10 @@ export async function editDonation(
   patch: Partial<CreateDonationInput>,
 ): Promise<Donation> {
   const existing = await getDonation(donationId);
-  if (!existing) throw new ValidationError('Donation not found');
-  if (existing.Donor_ID !== donorId) throw new ValidationError('Not your donation');
+  if (!existing) throw new ValidationError('Doação não encontrada');
+  if (existing.Donor_ID !== donorId) throw new ValidationError('Esta doação não é sua');
   if (existing.Status !== 'Pending') {
-    throw new ValidationError('Donation can only be edited while Pending');
+    throw new ValidationError('A doação só pode ser editada enquanto estiver Pendente');
   }
 
   if (patch.Quantity !== undefined) assertValidQuantity(patch.Quantity);
@@ -349,8 +349,8 @@ export async function editDonation(
  */
 export async function claimDonation(institutionId: string, donationId: string): Promise<Donation> {
   const existing = await getDonation(donationId);
-  if (!existing) throw new ValidationError('Donation not found');
-  if (existing.Status !== 'Pending') throw new ValidationError('Donation is no longer available');
+  if (!existing) throw new ValidationError('Doação não encontrada');
+  if (existing.Status !== 'Pending') throw new ValidationError('A doação já não está disponível');
 
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
     Status: 'Claimed',
@@ -381,10 +381,10 @@ export async function claimDonation(institutionId: string, donationId: string): 
  */
 export async function scheduleCollection(institutionId: string, donationId: string): Promise<Donation> {
   const existing = await getDonation(donationId);
-  if (!existing) throw new ValidationError('Donation not found');
-  if (existing.Status !== 'Claimed') throw new ValidationError('Donation is not in Claimed status');
+  if (!existing) throw new ValidationError('Doação não encontrada');
+  if (existing.Status !== 'Claimed') throw new ValidationError('A doação não está no estado Aceite');
   if (existing.Claimed_By_Institution_ID !== institutionId) {
-    throw new ValidationError('Donation was not claimed by this institution');
+    throw new ValidationError('Esta doação não foi aceite por esta instituição');
   }
 
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
@@ -400,12 +400,12 @@ export async function scheduleCollection(institutionId: string, donationId: stri
 /** Institution marks the item as physically collected from the donor. */
 export async function markCollected(institutionId: string, donationId: string): Promise<Donation> {
   const existing = await getDonation(donationId);
-  if (!existing) throw new ValidationError('Donation not found');
+  if (!existing) throw new ValidationError('Doação não encontrada');
   if (existing.Status !== 'Collection_Scheduled') {
-    throw new ValidationError('Donation is not in Collection_Scheduled status');
+    throw new ValidationError('A doação não está no estado Recolha Agendada');
   }
   if (existing.Claimed_By_Institution_ID !== institutionId) {
-    throw new ValidationError('Donation was not claimed by this institution');
+    throw new ValidationError('Esta doação não foi aceite por esta instituição');
   }
 
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
@@ -420,10 +420,10 @@ export async function markCollected(institutionId: string, donationId: string): 
 
 export async function confirmDelivery(institutionId: string, donationId: string): Promise<Donation> {
   const existing = await getDonation(donationId);
-  if (!existing) throw new ValidationError('Donation not found');
-  if (existing.Status !== 'Collected') throw new ValidationError('Donation is not in Collected status');
+  if (!existing) throw new ValidationError('Doação não encontrada');
+  if (existing.Status !== 'Collected') throw new ValidationError('A doação não está no estado Recolhida');
   if (existing.Claimed_By_Institution_ID !== institutionId) {
-    throw new ValidationError('Donation was not claimed by this institution');
+    throw new ValidationError('Esta doação não foi aceite por esta instituição');
   }
 
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
@@ -458,7 +458,7 @@ export async function setExpectedDates(
   dates: { expectedCollectionDate?: string; expectedDeliveryDate?: string },
 ): Promise<Donation> {
   const existing = await getDonation(donationId);
-  if (!existing) throw new ValidationError('Donation not found');
+  if (!existing) throw new ValidationError('Doação não encontrada');
 
   const patch: Record<string, string> = {};
   const changes: string[] = [];

@@ -7,7 +7,7 @@ import { ValidationError } from '../services/validation-error';
 
 async function requireOwnInstitutionId(userId: string): Promise<string> {
   const institution = await getInstitutionByUserId(userId);
-  if (!institution) throw new ValidationError('No Institution profile for this account');
+  if (!institution) throw new ValidationError('Esta conta não tem um perfil de Instituição');
   return institution.Institution_ID;
 }
 

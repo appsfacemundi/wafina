@@ -15,7 +15,7 @@ donorRouter.get(
   requireRole('Donor'),
   asyncHandler(async (req, res) => {
     const row = await findUserById(req.user!.userId);
-    if (!row) throw new ValidationError('User not found');
+    if (!row) throw new ValidationError('Utilizador não encontrado');
     res.json({ Name: row.Name, Phone: row.Phone, Home_Country_ID: row.Home_Country_ID });
   }),
 );
@@ -44,11 +44,11 @@ donorRouter.post(
   asyncHandler(async (req, res) => {
     const user = req.user!;
     if (user.corporateAccountId) {
-      throw new ValidationError('Already linked to a corporate account');
+      throw new ValidationError('Já está associado a uma conta empresarial');
     }
 
     const inviteCode = req.body?.inviteCode as string | undefined;
-    if (!inviteCode) throw new ValidationError('inviteCode is required');
+    if (!inviteCode) throw new ValidationError('O código de convite é obrigatório');
 
     // redeemInvitationCode already verifies the company exists and isn't suspended before returning.
     const corporateAccountId = await redeemInvitationCode(inviteCode);

@@ -42,9 +42,9 @@ export async function createChangeRequest(
   fieldRequested: string,
   reason: string,
 ): Promise<ChangeRequest> {
-  if (!fieldRequested) throw new ValidationError('Field_Requested is required');
+  if (!fieldRequested) throw new ValidationError('O campo a alterar é obrigatório');
   if (!reason || reason.trim().length < MIN_REASON_LENGTH) {
-    throw new ValidationError(`Reason must be at least ${MIN_REASON_LENGTH} characters`);
+    throw new ValidationError(`O motivo deve ter pelo menos ${MIN_REASON_LENGTH} caracteres`);
   }
 
   const row = {
@@ -98,7 +98,7 @@ export async function listPendingChangeRequests(): Promise<AdminChangeRequestVie
 
 async function getChangeRequestOrThrow(requestId: string): Promise<ChangeRequest> {
   const row = await findRow(SHEET_TABS.changeRequests, (r) => r.Request_ID === requestId);
-  if (!row) throw new ValidationError('Change request not found');
+  if (!row) throw new ValidationError('Pedido de alteração não encontrado');
   return rowToChangeRequest(row);
 }
 
@@ -110,13 +110,13 @@ async function getChangeRequestOrThrow(requestId: string): Promise<ChangeRequest
  * "lat,lng" here rather than free text.
  */
 export async function approveChangeRequest(requestId: string, newValue: string): Promise<ChangeRequest> {
-  if (!newValue || !newValue.trim()) throw new ValidationError('A new value is required to approve');
+  if (!newValue || !newValue.trim()) throw new ValidationError('É necessário indicar o novo valor para aprovar');
 
   const request = await getChangeRequestOrThrow(requestId);
-  if (request.Status !== 'Pending') throw new ValidationError('Only a Pending request can be approved');
+  if (request.Status !== 'Pending') throw new ValidationError('Só é possível aprovar um pedido pendente');
 
   const institution = await getInstitutionById(request.Institution_ID);
-  if (!institution) throw new ValidationError('Institution not found');
+  if (!institution) throw new ValidationError('Instituição não encontrada');
 
   const fieldPatch: Record<string, string> = {};
   if (request.Field_Requested === 'Location') {
@@ -124,7 +124,7 @@ export async function approveChangeRequest(requestId: string, newValue: string):
     const lat = Number(latRaw);
     const lng = Number(lngRaw);
     if (!latRaw || !lngRaw || Number.isNaN(lat) || Number.isNaN(lng)) {
-      throw new ValidationError('Location must be provided as "lat,lng"');
+      throw new ValidationError('A localização deve ser indicada no formato "lat,lng"');
     }
     fieldPatch.Location = toSheetLatLong({ lat, lng });
   } else {
@@ -158,10 +158,10 @@ export async function approveChangeRequest(requestId: string, newValue: string):
  * hard-fail just because the institution lookup comes back empty.
  */
 export async function rejectChangeRequest(requestId: string, reason: string): Promise<ChangeRequest> {
-  if (!reason || !reason.trim()) throw new ValidationError('Rejection reason is required');
+  if (!reason || !reason.trim()) throw new ValidationError('O motivo de rejeição é obrigatório');
 
   const request = await getChangeRequestOrThrow(requestId);
-  if (request.Status !== 'Pending') throw new ValidationError('Only a Pending request can be rejected');
+  if (request.Status !== 'Pending') throw new ValidationError('Só é possível rejeitar um pedido pendente');
 
   const institution = await getInstitutionById(request.Institution_ID);
 

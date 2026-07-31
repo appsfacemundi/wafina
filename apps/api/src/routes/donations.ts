@@ -24,7 +24,7 @@ import type { Institution } from '@wafina/shared';
 /** Every claim/deliver/browse action is keyed by Institution_ID, not the caller's User_ID. */
 async function requireOwnInstitution(userId: string): Promise<Institution> {
   const institution = await getInstitutionByUserId(userId);
-  if (!institution) throw new ValidationError('No Institution profile for this account');
+  if (!institution) throw new ValidationError('Esta conta não tem um perfil de Instituição');
   return institution;
 }
 
@@ -48,7 +48,7 @@ donationsRouter.post(
   requireRole('Donor'),
   upload.single('photo'),
   asyncHandler(async (req, res) => {
-    if (!req.file) throw new ValidationError('Photo is required');
+    if (!req.file) throw new ValidationError('A fotografia é obrigatória');
 
     const fields = {
       Item_Type: req.body.Item_Type,

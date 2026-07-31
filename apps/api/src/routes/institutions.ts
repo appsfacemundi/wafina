@@ -53,10 +53,10 @@ institutionsRouter.patch(
   requireRole('Institution'),
   upload.single('logo'),
   asyncHandler(async (req, res) => {
-    if (!req.file) throw new ValidationError('Logo image is required');
+    if (!req.file) throw new ValidationError('A imagem do logótipo é obrigatória');
 
     const institution = await getInstitutionByUserId(req.user!.userId);
-    if (!institution) throw new ValidationError('No Institution profile for this account');
+    if (!institution) throw new ValidationError('Esta conta não tem um perfil de Instituição');
 
     const logoUrl = await uploadPhoto(
       req.file.buffer,

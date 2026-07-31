@@ -1,7 +1,7 @@
 'use client';
 
 import type { GeoRegion, Institution } from '@wafina/shared';
-import { Button, Card, EmptyState, Input, useToast } from '@wafina/ui';
+import { Button, Card, EmptyState, Input, Photo, useToast } from '@wafina/ui';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
@@ -103,15 +103,31 @@ export default function AdminInstitutionsPage() {
 
         {institutions?.map((institution) => (
           <Card key={institution.Institution_ID} className="stack">
-            <div className="institution-card">
-              <p style={{ fontWeight: 600, fontSize: 16 }}>{institution.Name}</p>
-              <p className="needs">
-                {institution.Type} · {countryName(institution.Country_ID)}
-              </p>
-              <p className="mono" style={{ fontSize: 11.5, color: 'var(--color-text-faint)' }}>
-                {institution.Institution_ID}
-              </p>
-              {institution.Needs_List && <p className="needs">Necessidades: {institution.Needs_List}</p>}
+            <div className="institution-card" style={{ display: 'flex', gap: 12 }}>
+              <Photo
+                src={institution.Logo}
+                placeholderIcon="🏢"
+                style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+              />
+              <div className="stack" style={{ gap: 2, flex: 1 }}>
+                <p style={{ fontWeight: 600, fontSize: 16 }}>{institution.Name}</p>
+                <p className="needs">
+                  {institution.Type} · {countryName(institution.Country_ID)}
+                </p>
+                <p className="mono" style={{ fontSize: 11.5, color: 'var(--color-text-faint)' }}>
+                  {institution.Institution_ID}
+                </p>
+                <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                  Localização: {institution.Location.lat.toFixed(5)}, {institution.Location.lng.toFixed(5)}
+                  {institution.Service_Radius_Km ? ` · Raio: ${institution.Service_Radius_Km} km` : ''}
+                </p>
+                {institution.Coverage_Area && (
+                  <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                    Área de cobertura: {institution.Coverage_Area}
+                  </p>
+                )}
+                {institution.Needs_List && <p className="needs">Necessidades: {institution.Needs_List}</p>}
+              </div>
             </div>
 
             {rejectingId === institution.Institution_ID ? (

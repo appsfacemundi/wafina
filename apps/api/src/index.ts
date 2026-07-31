@@ -2,6 +2,8 @@ import cors from 'cors';
 import express from 'express';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error-handler';
+import { generalLimiter } from './middleware/rate-limit';
+import { requestLogger } from './middleware/request-logger';
 import { adminRouter } from './routes/admin';
 import { authRouter } from './routes/auth';
 import { changeRequestsRouter } from './routes/change-requests';
@@ -33,7 +35,10 @@ const app = express();
 
 app.use(cors({ origin: env.allowedOrigins }));
 app.use(express.json());
+app.use(requestLogger);
+// Health checks stay unthrottled — a monitoring tool polling this shouldn't compete with real traffic for quota.
 app.use(healthRouter);
+app.use(generalLimiter);
 app.use(authRouter);
 app.use(geoRegionsRouter);
 app.use(usersRouter);

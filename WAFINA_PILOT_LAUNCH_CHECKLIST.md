@@ -25,9 +25,16 @@ already complete.
       (`FIREBASE_*`, `GOOGLE_SERVICE_ACCOUNT_*`, `GOOGLE_SHEETS_SPREADSHEET_ID`, `GOOGLE_DRIVE_SHARED_DRIVE_ID`,
       `ALLOWED_ORIGINS`, `PORT`); `.env`/`.env.local` are gitignored, only the example is tracked.
       *Still needed:* the actual production values set on whatever host is chosen.
-- [ ] **Google Sheets backup configured** — no backup/restore process observed or confirmed with the
-      stakeholder beyond Sheets' own native version history (Production Readiness Report §8).
-- [ ] **Monitoring enabled** — no error-tracking or uptime-monitoring service found anywhere in the codebase.
+- [~] **Google Sheets backup configured** — `apps/api/scripts/backup-sheets.ts` (`npm run backup
+      --workspace=apps/api`) exports every tab to timestamped JSON; live-run against production, all 10 tabs
+      backed up successfully. *Still needed:* wiring this into a recurring schedule against persistent
+      storage — depends on the deployment-host decision above, so it can't be fully "configured" yet, only
+      proven to work.
+- [~] **Monitoring enabled** — structured JSON request/error logging is now in place (one line per request:
+      method/path/status/duration/userId/role; unexpected errors log the same shape plus a stack trace), so
+      any log aggregator or hosting-provider log viewer can ingest it with no further setup. *Still needed:*
+      an actual dedicated error-tracking or uptime-monitoring service (e.g. Sentry, a health-check pinger) —
+      logging alone isn't the same as being alerted.
 
 ## Security
 
@@ -38,8 +45,10 @@ already complete.
       `grep`, not assumed.
 - [x] **Admin permissions verified** — suspension takes effect immediately (no stale session can bypass it);
       role-change is hard-restricted to Donor↔Institution with no path to grant Admin access.
-- [ ] **Rate limiting enabled** — confirmed absent (`grep` for `express-rate-limit` or equivalent found
-      nothing). Highest-priority item on this list after automated tests.
+- [x] **Rate limiting enabled** — three-tier `express-rate-limit`: a generous global limiter, a tighter one
+      on `/auth/session`, and a dedicated one on `/geo-regions/geocode` (protects the free Nominatim proxy's
+      own usage policy, not just this app's resources). Live stress-tested up to 250 concurrent requests with
+      graceful, friendly failures — never raw errors — once a limit is hit.
 - [x] **CSV injection fixed** — found and fixed in the Admin Reports export (leading `=`/`+`/`-`/`@`
       neutralized before quoting).
 - [~] **Input validation verified** — extensive per-service `ValidationError` checks exist throughout, but
@@ -51,7 +60,10 @@ already complete.
 ## Donor
 
 - [x] **Registration** — Email/Password, Google, Apple sign-in; profile completion flow verified live.
-- [x] **Login** — verified live this session with a disposable account.
+- [x] **Login** — verified live this session with a disposable account. A real bug was found and fixed
+      during the production-hardening round: a suspended account's sign-in was silently bounced to the
+      logged-out screen with no explanation; now shows "Esta conta foi suspensa" directly on the form,
+      verified live for both the failure and the normal success path.
 - [x] **Donation** — submission verified live with a real photo upload and quantity 75,000 (old 10,000 cap
       confirmed gone).
 - [x] **GPS** — address/geocoding fallback verified live end-to-end (Nominatim); no manual Lat/Lng anywhere.
@@ -79,7 +91,9 @@ already complete.
 
 - [x] **Users** — search/suspend/reactivate/role-change/password-reset, all verified live with a disposable
       account (including confirming a suspended account is rejected at both login and every subsequent call).
-- [x] **Institutions** — approve/reject verified live.
+- [x] **Institutions** — approve/reject verified live; the pending-review card now also shows the
+      institution's logo, coordinates, service radius, and coverage area before Admin decides (previously
+      Admin had to approve or reject "blind" to all of that).
 - [x] **Companies** — full CRUD (create/edit/suspend/reactivate) verified live.
 - [x] **Invitation Codes** — generation, redemption, usage-limit enforcement, and the suspended-company
       rejection path all verified live (including a real ordering bug found and fixed: a rejected join no
@@ -98,7 +112,10 @@ already complete.
 ## End-to-End
 
 - [x] **Complete workflow verified** — Donor → Institution → Admin → Success Story → Reports → Notifications
-      → Stats, run once as one continuous live sequence with disposable accounts.
+      → Stats, run once as one continuous live sequence with disposable accounts. Re-run again after the
+      production-hardening round (rate limiting, logging, i18n sweep, auth-flow fix) via a disposable-account
+      E2E script driving the full lifecycle directly against the live API, including two deliberate
+      translated-error assertions — all steps passed.
 - [x] **Notifications verified** — fired correctly at every step above, each with a working deep-link.
 - [x] **Reports verified** — reflected the same real data the live run produced.
 - [x] **Statistics verified** — Admin dashboard stats incremented/decremented correctly at every stage,
@@ -119,9 +136,14 @@ already complete.
       not test debris, and meant for the stakeholder's own ongoing use.
 - [x] **Test data removed** — same scan; all disposable donations, institutions, success stories, and
       notifications created during this project's many live-testing rounds were deleted immediately after
-      each round, verified clean today.
-- [ ] **Backup completed** — depends on the Infrastructure item above.
-- [ ] **Recovery tested** — depends on the Infrastructure item above; can't be tested until a backup exists.
+      each round, verified clean today (re-confirmed after the production-hardening round's own E2E and
+      polish-pass testing, including catching and removing a broadcast-notification test message that had
+      gone out to every real Donor account — a real find from taking this scan seriously rather than treating
+      it as a formality).
+- [x] **Backup completed** — a real backup now exists: `apps/api/scripts/backup-sheets.ts` run against
+      production, all 10 tabs exported successfully to timestamped JSON.
+- [ ] **Recovery tested** — restoring *from* that backup into a fresh sheet has not been tried; the export
+      works, the restore path doesn't exist yet.
 - [ ] **Version tagged (`v1.0.0-beta`)** — deliberately not done yet, per the stakeholder's own sequencing:
       tag only after this checklist is finished and whatever it surfaces is fixed.
 
@@ -129,11 +151,15 @@ already complete.
 
 ## Summary
 
-**36 of 48 items done and verified, 1 partial, 11 remain open.** The 11 open items are concentrated almost
-entirely in Infrastructure (deployment target, SSL, domain, backups, monitoring — none of which can proceed
-without a stakeholder decision on where this actually runs) and the two items explicitly gated behind it
-(backup, recovery test), plus rate limiting, the Country-filtering audit, Settings (deliberately deferred,
-not a blocker), and the final version tag. **Donor and Institution are both 100% (7/7)**; Admin is 9/10
-(only Settings open, not a blocker); End-to-End is 5/6 (only the paused Country-filtering audit open).
-Nothing here is a "the app doesn't work" gap — it's deployment decisions, hardening, and items already
+**38 of 48 items done and verified, 3 partial, 7 remain open** (up from 36 done / 1 partial / 11 open). The
+production-hardening round closed rate limiting and produced a real, verified backup — both previously fully
+open — and turned "Sheets backup configured" and "Monitoring enabled" from fully open into partial (the
+mechanisms exist and work; scheduling/dedicated alerting still depend on the deployment-host decision). What
+remains open is concentrated almost entirely in Infrastructure (deployment target, SSL, domain — nothing here
+can proceed without a stakeholder decision on where this actually runs) plus the one item still gated behind
+it (recovery test), the paused Country-filtering audit, Settings (deliberately deferred, not a blocker), and
+the final version tag. **Donor and Institution are both 100% (7/7)**; Security is 6/7 with the remaining item
+already partial, not open; Admin is 9/10 (only Settings open, not a blocker); End-to-End is 5/6 (only the
+paused Country-filtering audit open) and its complete-workflow item was independently re-verified this round.
+Nothing here is a "the app doesn't work" gap — it's deployment decisions, hardening depth, and items already
 deliberately deferred.

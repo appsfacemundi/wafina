@@ -219,7 +219,7 @@ adminRouter.post(
   asyncHandler(async (req, res) => {
     const role = req.body?.role as RegistrableRole;
     if (!REGISTRABLE_ROLES.includes(role)) {
-      throw new ValidationError('Role must be Donor or Institution');
+      throw new ValidationError('A função deve ser Donor ou Institution');
     }
     res.json(await setUserRole(req.params.id, role));
   }),
@@ -382,7 +382,7 @@ adminRouter.post(
   requireRole('Admin'),
   asyncHandler(async (req, res) => {
     const email = req.body?.email as string | undefined;
-    if (!email) throw new ValidationError('email is required');
+    if (!email) throw new ValidationError('O e-mail é obrigatório');
     const user = await findUserByEmail(email);
     if (!user) throw new ValidationError('Nenhuma conta Wafina encontrada com esse email.');
     await sendAdminNotification(user.User_ID, req.body?.message);
@@ -415,7 +415,7 @@ adminRouter.get(
   asyncHandler(async (req, res) => {
     const type = req.params.type as ReportType;
     if (!REPORT_TYPES.includes(type)) {
-      throw new ValidationError(`type must be one of: ${REPORT_TYPES.join(', ')}`);
+      throw new ValidationError(`type deve ser um dos seguintes: ${REPORT_TYPES.join(', ')}`);
     }
     res.json(await getReportData(type));
   }),

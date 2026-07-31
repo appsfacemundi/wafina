@@ -13,7 +13,7 @@ import { ValidationError } from '../services/validation-error';
 
 async function requireOwnInstitutionId(userId: string): Promise<string> {
   const institution = await getInstitutionByUserId(userId);
-  if (!institution) throw new ValidationError('No Institution profile for this account');
+  if (!institution) throw new ValidationError('Esta conta não tem um perfil de Instituição');
   return institution.Institution_ID;
 }
 
@@ -35,7 +35,7 @@ successStoriesRouter.post(
   requireVerified,
   upload.single('image'),
   asyncHandler(async (req, res) => {
-    if (!req.file) throw new ValidationError('Image is required');
+    if (!req.file) throw new ValidationError('A imagem é obrigatória');
 
     const institutionId = await requireOwnInstitutionId(req.user!.userId);
     const imageUrl = await uploadPhoto(

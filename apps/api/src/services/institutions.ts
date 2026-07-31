@@ -73,29 +73,29 @@ export async function createInstitution(
   input: CreateInstitutionInput,
 ): Promise<Institution> {
   if (!input.Name || input.Name.trim().length < MIN_NAME_LENGTH) {
-    throw new ValidationError(`Name must be at least ${MIN_NAME_LENGTH} characters`);
+    throw new ValidationError(`O nome deve ter pelo menos ${MIN_NAME_LENGTH} caracteres`);
   }
-  if (!input.Type) throw new ValidationError('Type is required');
+  if (!input.Type) throw new ValidationError('O tipo é obrigatório');
   if (
     !Number.isFinite(input.Location?.lat) ||
     !Number.isFinite(input.Location?.lng) ||
     (input.Location.lat === 0 && input.Location.lng === 0)
   ) {
-    throw new ValidationError('Location must be a valid, non-zero coordinate pair');
+    throw new ValidationError('A localização deve ser um par de coordenadas válido e diferente de zero');
   }
   if (!input.Country_ID || !(await isActiveCountry(input.Country_ID))) {
-    throw new ValidationError('A valid, currently-supported country is required');
+    throw new ValidationError('É necessário indicar um país válido e atualmente suportado');
   }
   if (
     input.Service_Radius_Km !== undefined &&
     (!Number.isFinite(input.Service_Radius_Km) || input.Service_Radius_Km <= 0)
   ) {
-    throw new ValidationError('Service_Radius_Km must be a positive number');
+    throw new ValidationError('O raio de serviço deve ser um número positivo');
   }
 
   const existing = await findRow(SHEET_TABS.institutions, (r) => r.User_ID === userId);
   if (existing) {
-    throw new ValidationError('This user already has an Institution profile');
+    throw new ValidationError('Este utilizador já tem um perfil de Instituição');
   }
 
   const row = {
@@ -165,7 +165,7 @@ export async function listAllInstitutions(): Promise<Institution[]> {
  */
 export async function verifyInstitution(institutionId: string): Promise<Institution> {
   const row = await findRow(SHEET_TABS.institutions, (r) => r.Institution_ID === institutionId);
-  if (!row) throw new ValidationError('Institution not found');
+  if (!row) throw new ValidationError('Instituição não encontrada');
 
   await updateRow(SHEET_TABS.institutions, 'Institution_ID', institutionId, {
     Verified: toSheetBool(true),
@@ -196,9 +196,9 @@ export async function verifyInstitution(institutionId: string): Promise<Institut
  */
 export async function updateInstitutionLogo(institutionId: string, logoUrl: string): Promise<Institution> {
   const institution = await getInstitutionById(institutionId);
-  if (!institution) throw new ValidationError('Institution not found');
+  if (!institution) throw new ValidationError('Instituição não encontrada');
   if (institution.Locked_Fields.includes('Logo')) {
-    throw new ValidationError('Logo is locked — request a change via "Pedir Alteração"');
+    throw new ValidationError('O logótipo está bloqueado — peça uma alteração através de "Pedir Alteração"');
   }
 
   await updateRow(SHEET_TABS.institutions, 'Institution_ID', institutionId, { Logo: logoUrl });
@@ -209,10 +209,10 @@ export async function updateInstitutionLogo(institutionId: string, logoUrl: stri
 
 /** Admin Web App foundation — rejects with a reason; institution stays unverified and can be re-reviewed. */
 export async function rejectInstitution(institutionId: string, reason: string): Promise<Institution> {
-  if (!reason || !reason.trim()) throw new ValidationError('A rejection reason is required');
+  if (!reason || !reason.trim()) throw new ValidationError('O motivo de rejeição é obrigatório');
 
   const row = await findRow(SHEET_TABS.institutions, (r) => r.Institution_ID === institutionId);
-  if (!row) throw new ValidationError('Institution not found');
+  if (!row) throw new ValidationError('Instituição não encontrada');
 
   await updateRow(SHEET_TABS.institutions, 'Institution_ID', institutionId, {
     Verified: toSheetBool(false),

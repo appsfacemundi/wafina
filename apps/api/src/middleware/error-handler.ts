@@ -4,7 +4,7 @@ import { TransientServiceError } from '../services/transient-service-error';
 import { ValidationError } from '../services/validation-error';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction): void {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof ValidationError) {
     res.status(400).json({ error: err.message });
     return;
@@ -20,6 +20,21 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     res.status(503).json({ error: err.message });
     return;
   }
-  console.error(err);
-  res.status(500).json({ error: 'Internal server error' });
+  // Structured to match request-logger.ts's format, so an aggregator sees one
+  // consistent JSON shape whether a request finished normally or crashed —
+  // plus the stack trace, which the finish-based request logger never has.
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      ts: new Date().toISOString(),
+      method: req.method,
+      path: req.path,
+      status: 500,
+      userId: req.user?.userId ?? null,
+      role: req.user?.role ?? null,
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    }),
+  );
+  res.status(500).json({ error: 'Ocorreu um erro interno. Tente novamente.' });
 }

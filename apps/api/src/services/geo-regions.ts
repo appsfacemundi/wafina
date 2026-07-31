@@ -71,16 +71,16 @@ export async function isActiveCountry(regionId: string): Promise<boolean> {
  */
 export async function setCountryActive(regionId: string, active: boolean): Promise<GeoRegion> {
   const region = await getRegionById(regionId);
-  if (!region || region.Level !== 'Country') throw new ValidationError('Country not found');
+  if (!region || region.Level !== 'Country') throw new ValidationError('País não encontrado');
   await updateRow(SHEET_TABS.geoRegions, 'Region_ID', regionId, { Active: toSheetBool(active) });
   return { ...region, Active: active };
 }
 
 /** Admin-only — adds a brand-new Country-level row (Coming Soon by default until explicitly activated). */
 export async function createCountry(name: string, isoCode: string): Promise<GeoRegion> {
-  if (!name.trim()) throw new ValidationError('Country name is required');
+  if (!name.trim()) throw new ValidationError('O nome do país é obrigatório');
   if (!isoCode.trim() || isoCode.trim().length !== 2) {
-    throw new ValidationError('ISO code must be a 2-letter country code');
+    throw new ValidationError('O código ISO deve ter 2 letras');
   }
 
   const regionId = randomUUID();

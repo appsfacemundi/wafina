@@ -1,7 +1,7 @@
 'use client';
 
 import type { GeoRegion } from '@wafina/shared';
-import { Badge, Button, Card, Input, useToast } from '@wafina/ui';
+import { Badge, Button, Card, EmptyState, Input, useToast } from '@wafina/ui';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
@@ -97,7 +97,10 @@ export default function AdminCountriesPage() {
         </Card>
 
         {countries === null && !error && <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>}
-        {countries && (
+        {countries?.length === 0 && (
+          <EmptyState title="Sem países" description="Adicione o primeiro país acima." />
+        )}
+        {countries && countries.length > 0 && (
           <div className="stack">
             {countries.map((c) => (
               <Card key={c.Region_ID} className="stack" style={{ gap: 6 }}>

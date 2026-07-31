@@ -119,10 +119,10 @@ export interface ProfileInput {
  * Only updateActiveCountry (an explicit switch action) ever changes it after that.
  */
 export async function completeProfile(userId: string, input: ProfileInput): Promise<ProfileInput> {
-  if (!input.Name || !input.Name.trim()) throw new ValidationError('Name is required');
-  if (!input.Phone || !input.Phone.trim()) throw new ValidationError('Phone is required');
+  if (!input.Name || !input.Name.trim()) throw new ValidationError('O nome é obrigatório');
+  if (!input.Phone || !input.Phone.trim()) throw new ValidationError('O telefone é obrigatório');
   if (!input.Home_Country_ID || !(await isActiveCountry(input.Home_Country_ID))) {
-    throw new ValidationError('A valid, currently-supported country is required');
+    throw new ValidationError('É necessário indicar um país válido e atualmente suportado');
   }
 
   const existing = await findUserById(userId);
@@ -145,7 +145,7 @@ export async function completeProfile(userId: string, input: ProfileInput): Prom
  */
 export async function updateActiveCountry(userId: string, countryId: string): Promise<void> {
   if (!(await isActiveCountry(countryId))) {
-    throw new ValidationError('Country is not currently supported');
+    throw new ValidationError('País não é atualmente suportado');
   }
   await updateRow(SHEET_TABS.users, 'User_ID', userId, { Active_Country_ID: countryId });
 }
@@ -201,7 +201,7 @@ export async function listAllUsers(): Promise<User[]> {
 
 async function getUserOrThrow(userId: string): Promise<UserRow> {
   const row = await findRow(SHEET_TABS.users, (r) => r.User_ID === userId);
-  if (!row) throw new ValidationError('User not found');
+  if (!row) throw new ValidationError('Utilizador não encontrado');
   return row as unknown as UserRow;
 }
 

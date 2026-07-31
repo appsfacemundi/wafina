@@ -18,3 +18,6 @@ credentials/
 
 # Personal/local tool permissions, not shared config
 .claude/settings.local.json
+
+# Sheets backup exports (apps/api/scripts/backup-sheets.ts) — real donor/institution data, never committed
+apps/api/backups/

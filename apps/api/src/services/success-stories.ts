@@ -50,30 +50,30 @@ export async function createSuccessStory(
   authorUserId: string,
   input: CreateSuccessStoryInput,
 ): Promise<SuccessStory> {
-  if (!input.Title || !input.Title.trim()) throw new ValidationError('Title is required');
+  if (!input.Title || !input.Title.trim()) throw new ValidationError('O título é obrigatório');
   if (input.Title.length > MAX_TITLE_LENGTH) {
-    throw new ValidationError(`Title may not exceed ${MAX_TITLE_LENGTH} characters`);
+    throw new ValidationError(`O título não pode exceder ${MAX_TITLE_LENGTH} caracteres`);
   }
   if (!input.Description || !input.Description.trim()) {
-    throw new ValidationError('Description is required');
+    throw new ValidationError('A descrição é obrigatória');
   }
   if (input.Description.length > MAX_DESCRIPTION_LENGTH) {
-    throw new ValidationError(`Description may not exceed ${MAX_DESCRIPTION_LENGTH} characters`);
+    throw new ValidationError(`A descrição não pode exceder ${MAX_DESCRIPTION_LENGTH} caracteres`);
   }
-  if (!input.Image) throw new ValidationError('Image is required');
+  if (!input.Image) throw new ValidationError('A imagem é obrigatória');
 
   const donation = await getDonation(input.Donation_ID);
-  if (!donation) throw new ValidationError('Donation not found');
+  if (!donation) throw new ValidationError('Doação não encontrada');
   if (donation.Status !== 'Delivered') {
-    throw new ValidationError('A Success Story can only be published for a Delivered donation');
+    throw new ValidationError('Só é possível publicar uma História de Sucesso para uma doação entregue');
   }
   if (donation.Claimed_By_Institution_ID !== institutionId) {
-    throw new ValidationError('This donation was not delivered by your institution');
+    throw new ValidationError('Esta doação não foi entregue pela sua instituição');
   }
 
   const existing = await getRows(SHEET_TABS.successStories);
   if (existing.some((row) => row.Donation_ID === input.Donation_ID)) {
-    throw new ValidationError('A Success Story already exists for this donation');
+    throw new ValidationError('Já existe uma História de Sucesso para esta doação');
   }
 
   const row = {
@@ -138,7 +138,7 @@ export async function listPendingSuccessStories(): Promise<AdminSuccessStoryView
 
 async function getSuccessStoryOrThrow(storyId: string): Promise<SuccessStory> {
   const row = await findRow(SHEET_TABS.successStories, (r) => r.Success_Story_ID === storyId);
-  if (!row) throw new ValidationError('Success Story not found');
+  if (!row) throw new ValidationError('História de Sucesso não encontrada');
   return rowToSuccessStory(row);
 }
 
@@ -150,7 +150,7 @@ async function getSuccessStoryOrThrow(storyId: string): Promise<SuccessStory> {
  */
 export async function approveSuccessStory(storyId: string): Promise<SuccessStory> {
   const existing = await getSuccessStoryOrThrow(storyId);
-  if (existing.Status !== 'Pending') throw new ValidationError('Only a Pending story can be approved');
+  if (existing.Status !== 'Pending') throw new ValidationError('Só é possível aprovar uma história pendente');
 
   await updateRow(SHEET_TABS.successStories, 'Success_Story_ID', storyId, {
     Status: 'Approved',
@@ -182,10 +182,10 @@ export async function approveSuccessStory(storyId: string): Promise<SuccessStory
 
 /** Admin rejects — institution is notified with the reason; the donor never saw it, so isn't notified. */
 export async function rejectSuccessStory(storyId: string, reason: string): Promise<SuccessStory> {
-  if (!reason || !reason.trim()) throw new ValidationError('Rejection reason is required');
+  if (!reason || !reason.trim()) throw new ValidationError('O motivo de rejeição é obrigatório');
 
   const existing = await getSuccessStoryOrThrow(storyId);
-  if (existing.Status !== 'Pending') throw new ValidationError('Only a Pending story can be rejected');
+  if (existing.Status !== 'Pending') throw new ValidationError('Só é possível rejeitar uma história pendente');
 
   await updateRow(SHEET_TABS.successStories, 'Success_Story_ID', storyId, {
     Status: 'Rejected',

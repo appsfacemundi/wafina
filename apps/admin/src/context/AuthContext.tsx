@@ -9,13 +9,15 @@ import {
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, ApiError } from '@/lib/api';
 import { firebaseAuth } from '@/lib/firebase';
 
 interface AuthContextValue {
   firebaseUser: FirebaseUser | null;
   session: AuthenticatedUser | null;
   loading: boolean;
+  /** Why the last sign-in attempt didn't reach a session (e.g. suspended account, backend unavailable) — see AuthProvider. */
+  sessionError: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signOutUser: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [session, setSession] = useState<AuthenticatedUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
     return onAuthStateChanged(firebaseAuth, async (user) => {
@@ -45,8 +48,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) {
         try {
           setSession(await resolveSession(user));
-        } catch {
+          setSessionError(null);
+        } catch (err) {
+          // Firebase login succeeded but the backend rejected the session
+          // (e.g. account suspended, no matching Admin row, or Sheets briefly
+          // unavailable) — without this, the user was silently bounced back
+          // to Sign In with no explanation at all. Signing out here avoids
+          // leaving them in a half-authenticated state that would just repeat
+          // the same failure.
           setSession(null);
+          setSessionError(err instanceof ApiError ? err.message : 'Não foi possível iniciar sessão. Tente novamente.');
+          await signOut(firebaseAuth);
         }
       } else {
         setSession(null);
@@ -59,8 +71,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     firebaseUser,
     session,
     loading,
+    sessionError,
     async signIn(email, password) {
-      await signInWithEmailAndPassword(firebaseAuth, email, password);
+      setSessionError(null);
+      const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+      try {
+        setSession(await resolveSession(credential.user));
+      } catch (err) {
+        // Rethrown (not just recorded via sessionError) so the Sign In form's
+        // own catch block reacts before it ever navigates away — relying only
+        // on the onAuthStateChanged listener below lost this race: it resolves
+        // asynchronously, after the form had already redirected on the
+        // Firebase-login success alone, landing the user with no explanation.
+        await signOut(firebaseAuth);
+        throw err;
+      }
     },
     async signOutUser() {
       await signOut(firebaseAuth);

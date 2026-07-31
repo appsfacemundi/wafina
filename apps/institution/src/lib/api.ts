@@ -31,7 +31,7 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(data.error ?? `Request failed (${res.status})`, res.status);
+    throw new ApiError(data.error ?? `Falha no pedido (${res.status})`, res.status);
   }
   return data as T;
 }

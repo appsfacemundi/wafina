@@ -36,7 +36,7 @@ export async function createInvitationCode(
   expiresAt: string | null,
 ): Promise<InvitationCode> {
   if (!Number.isInteger(maxUses) || maxUses < 1) {
-    throw new ValidationError('Max uses must be a positive integer');
+    throw new ValidationError('O número máximo de utilizações deve ser um número inteiro positivo');
   }
 
   const row = {
@@ -62,7 +62,7 @@ export async function listCodesForAccount(corporateAccountId: string): Promise<I
 
 export async function deactivateCode(code: string): Promise<void> {
   const row = await findRow(SHEET_TABS.invitationCodes, (r) => r.Code === code);
-  if (!row) throw new ValidationError('Code not found');
+  if (!row) throw new ValidationError('Código não encontrado');
   await updateRow(SHEET_TABS.invitationCodes, 'Code', code, { Active: toSheetBool(false) });
 }
 

@@ -5,9 +5,10 @@ import { useState, type FormEvent } from 'react';
 import { Button, Card, Input } from '@wafina/ui';
 import { useAuth } from '@/context/AuthContext';
 import { friendlyAuthError } from '@/lib/auth-errors';
+import { ApiError } from '@/lib/api';
 
 export default function SignInPage() {
-  const { signIn } = useAuth();
+  const { signIn, sessionError } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
@@ -16,6 +17,7 @@ export default function SignInPage() {
     searchParams.get('error') === 'not-admin' ? 'Esta conta não tem acesso de administrador.' : '',
   );
   const [submitting, setSubmitting] = useState(false);
+  const displayedError = error || sessionError;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -25,7 +27,11 @@ export default function SignInPage() {
       await signIn(email, password);
       router.replace('/home');
     } catch (err) {
-      setError(friendlyAuthError((err as { code?: string }).code ?? ''));
+      // ApiError means Firebase login succeeded but the backend rejected the
+      // session (e.g. suspended account) — its message is already the right
+      // one to show. Anything else is a Firebase auth error (wrong password,
+      // unknown email, etc.), which needs the code-to-message mapping.
+      setError(err instanceof ApiError ? err.message : friendlyAuthError((err as { code?: string }).code ?? ''));
     } finally {
       setSubmitting(false);
     }
@@ -53,7 +59,7 @@ export default function SignInPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          {error && <div className="banner banner-error">{error}</div>}
+          {displayedError && <div className="banner banner-error">{displayedError}</div>}
           <Button type="submit" fullWidth disabled={submitting}>
             {submitting ? 'A entrar…' : 'Entrar'}
           </Button>

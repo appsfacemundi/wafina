@@ -1469,6 +1469,83 @@ this round — this was a documentation and planning round only.
 
 ---
 
+### Production Hardening Round: rate limiting, logging, backups, auth-flow fix, full i18n sweep, Admin polish (2026-07-31): COMPLETE
+
+The stakeholder issued a scoped directive to stop feature work entirely and act as "QA lead, DevOps engineer,
+and production engineer": (1) Admin polish, (2) fix remaining bugs, (3) production hardening (retries,
+logging, error handling, backups, monitoring, security), (4) full end-to-end verification, (5) keep
+documentation current, (6) prepare for a v1.0 pilot tag — explicitly **no** new features, no V2 ideas, no
+unnecessary architecture changes.
+
+**Production hardening:**
+- **API rate limiting** (`express-rate-limit`) — three tiers in `apps/api/src/middleware/rate-limit.ts`:
+  `generalLimiter` (600/15min, global), `authLimiter` (60/15min, `/auth/session`), `geocodeLimiter`
+  (60/15min, the Nominatim proxy route) — closes the top security gap from the Production Readiness Report.
+- **Structured request/error logging** — `apps/api/src/middleware/request-logger.ts` emits one JSON line per
+  request (method/path/status/duration/userId/role, no bodies); `error-handler.ts`'s fallback branch now
+  emits the same structured shape (plus stack) instead of a bare `console.error`.
+- **Google Sheets backup mechanism** — `apps/api/scripts/backup-sheets.ts` (`npm run backup --workspace=apps/api`)
+  exports every tab to timestamped JSON under `apps/api/backups/` (git-ignored), one tab failing doesn't
+  abort the rest. Live-run against production: all 10 tabs backed up successfully. Documented in the script
+  itself that wiring this to a recurring schedule is a deployment-host decision, not something to decide here.
+
+**Real bug found and fixed — silent auth-failure bounce:** if Firebase login succeeded but the backend
+rejected the session (suspended account, no matching row, Sheets briefly down), the user was signed in at
+the Firebase layer yet silently landed back on the logged-out Welcome screen with zero explanation — the
+sign-in form's `router.replace('/')` fired before the async `onAuthStateChanged` listener's failure could
+ever reach it. Reproduced live with a disposable suspended Donor account before fixing. Fixed in all three
+web apps (`apps/web`, `apps/institution`, `apps/admin`) by making `AuthContext.signIn()` itself resolve the
+session and rethrow on failure, so the form's own catch block reacts before ever navigating; the
+`onAuthStateChanged` listener keeps a `sessionError` context value for the separate case of an
+already-signed-in session being revoked mid-use. Verified live: suspended account now shows "Esta conta foi
+suspensa" directly on the sign-in form; a normal active account still signs in and redirects correctly.
+
+**Full backend i18n sweep — much bigger than expected:** what was assumed to be "a handful of Admin-only
+English messages" turned out to be nearly every `ValidationError`/auth-middleware message across the entire
+API — donations, institutions, success stories, disputes, change requests, notifications, corporate
+accounts, invitation codes, users, geo-regions, geocoding — all in English while every app's UI is 100%
+Portuguese. Translated all of it (~45 strings across 15 backend files, plus the 3 frontend `ApiError`
+fallback messages) after confirming no frontend code branches on exact error text (only ever displays
+`err.message` directly), so this was a safe, purely textual change. Live-verified via the full E2E run below
+that translated errors surface correctly end-to-end (e.g. "A fotografia é obrigatória", "A doação não está
+no estado Recolhida").
+
+**Other in-scope fixes:** `npm audit fix` (non-breaking) applied — remaining vulnerabilities are all deep
+transitive dependencies of `firebase-admin`'s unused Cloud Storage path and the Expo/xcode toolchain, needing
+`--force` major bumps that would risk breaking auth/mobile builds; confirmed via grep that the app never
+uses `@google-cloud/storage` directly. Confirmed the previously-flagged "orphaned `Corporate_Account_ID`
+reference" no longer exists — already fully removed in the earlier Invitation Codes phase.
+
+**Admin polish pass:** reviewed every Admin page for structural consistency (header/loading/error/empty-state
+pattern) — found the platform already highly consistent since every Admin screen was built with the same
+conventions across earlier phases. Two real fixes: added the missing `EmptyState` to the Countries page
+(every other list page had one), and enriched the Institutions pending-review card with the institution's
+logo, coordinates, service radius, and coverage area — previously Admin had to approve or reject a
+registration without seeing any of that. Found one genuine parity gap that's *not* a quick polish item —
+Admin can reject a pending institution but has no way to suspend one after it's already verified — logged to
+`VERSION_2_ROADMAP.md` rather than built now, since it needs new backend capability.
+
+**Full end-to-end re-verification:** wrote and ran a disposable-account E2E script driving the complete
+Donor → Institution → Admin lifecycle directly against the live API: institution registration → Admin
+verification → donation creation → claim → schedule → collect → deliver → Success Story → Admin approval →
+dispute → Admin resolution → Admin notification broadcast → Admin reports. All steps passed, including two
+deliberate translated-error assertions. One real issue caught by this: the notification broadcast step sent
+a real "test" notification to **every actual Donor account** in production (not just the disposable test
+one) — broadcasts are correctly scoped by role/country at the recipient-selection level, so this was
+expected behavior operating on real data, not a bug, but it meant genuine cleanup was required. Deleted
+immediately; a follow-up full-tab debris scan confirmed zero test artifacts remain anywhere in the sheet.
+
+**Database implications:** none (no new Sheet tabs or columns this round).
+
+**Verified:** `npm run typecheck` and `npm run lint` clean across all 8 workspaces after every change in this
+round. Full E2E workflow live-tested against the running API (not just typechecked). Auth-failure fix
+live-tested both the failure and success paths in the browser. Backup script live-run against production.
+Full-tab Sheets scan confirms no test debris remains.
+
+**Commit:** _(pending — see below)_
+
+---
+
 ## Next Steps
 
 1. Stakeholder reviews `PHASE3_ARCHITECTURE_REVIEW.md` and approves/adjusts which Medium/Major items to

@@ -18,7 +18,7 @@ import { ValidationError } from './validation-error';
  */
 export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number }> {
   if (!address || !address.trim()) {
-    throw new ValidationError('Address is required');
+    throw new ValidationError('A morada é obrigatória');
   }
 
   const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address.trim())}`;

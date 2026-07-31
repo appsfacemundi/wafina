@@ -25,9 +25,11 @@ will come up that aren't here yet.
   shows up, but there's no self-service upload UI; only a direct Sheet edit sets it today.
 - **Reports enhancements** — charts/visualizations, date-range filtering, and scheduled/emailed reports.
   Today's Reports page is a first pass: table + CSV export only.
-- **Full backend i18n pass** — a handful of Admin-only `ValidationError` messages are still in English
-  (e.g. "Country not found"). The messages a real donor could actually trigger were translated when found;
-  the rest is a deliberate, contained future pass rather than a scattered ongoing effort.
+- **Suspend/reactivate a verified institution** — Admin can approve or reject an institution *before*
+  verification, but has no way to deactivate one afterward if it turns out to be a problem post-launch
+  (e.g. abuse reports, a closed organization). Would need a new backend function + route (same shape as
+  `suspendUser`/`suspendCorporateAccount`), which is new capability, not a bug fix — deliberately deferred
+  rather than added under the polish pass that surfaced it (2026-07-31).
 
 ## Platform / Geography
 

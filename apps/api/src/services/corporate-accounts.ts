@@ -29,8 +29,8 @@ export async function getCorporateAccountById(id: string): Promise<CorporateAcco
  * the Corporate_Account_ID itself, so this no longer needs to double as one.
  */
 export async function createCorporateAccount(companyName: string, country: string): Promise<CorporateAccount> {
-  if (!companyName.trim()) throw new ValidationError('Company name is required');
-  if (!country.trim()) throw new ValidationError('Country is required');
+  if (!companyName.trim()) throw new ValidationError('O nome da empresa é obrigatório');
+  if (!country.trim()) throw new ValidationError('O país é obrigatório');
 
   const row = {
     Corporate_Account_ID: randomUUID(),
@@ -46,7 +46,7 @@ export async function createCorporateAccount(companyName: string, country: strin
 
 async function getCorporateAccountOrThrow(id: string): Promise<CorporateAccount> {
   const account = await getCorporateAccountById(id);
-  if (!account) throw new ValidationError('Corporate account not found');
+  if (!account) throw new ValidationError('Conta empresarial não encontrada');
   return account;
 }
 
@@ -57,11 +57,11 @@ export async function updateCorporateAccount(
   await getCorporateAccountOrThrow(id);
   const fields: Record<string, string> = {};
   if (patch.Company_Name !== undefined) {
-    if (!patch.Company_Name.trim()) throw new ValidationError('Company name cannot be empty');
+    if (!patch.Company_Name.trim()) throw new ValidationError('O nome da empresa não pode ficar vazio');
     fields.Company_Name = patch.Company_Name.trim();
   }
   if (patch.Country !== undefined) {
-    if (!patch.Country.trim()) throw new ValidationError('Country cannot be empty');
+    if (!patch.Country.trim()) throw new ValidationError('O país não pode ficar vazio');
     fields.Country = patch.Country.trim();
   }
   if (patch.Logo !== undefined) fields.Logo = patch.Logo;

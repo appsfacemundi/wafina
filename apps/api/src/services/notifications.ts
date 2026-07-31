@@ -94,7 +94,7 @@ export async function markNotificationRead(userId: string, notificationId: strin
   const rows = await getRows(SHEET_TABS.notifications);
   const row = rows.find((r) => r.Notification_ID === notificationId);
   if (!row || row.Recipient_User_ID !== userId) {
-    throw new ValidationError('Notification not found');
+    throw new ValidationError('Notificação não encontrada');
   }
   await updateRow(SHEET_TABS.notifications, 'Notification_ID', notificationId, {
     Status: 'Read',
