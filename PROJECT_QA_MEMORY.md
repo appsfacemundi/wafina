@@ -77,6 +77,7 @@ offline/poor-network behavior on iOS specifically.
 | Priority | Description | Module | Status |
 |---|---|---|---|
 | Low / Unconfirmed | Donor Home screen "Sair" (sign out) button did not respond to 7+ tap attempts (varied coordinates, `tap` and `touch_path`) during iOS Simulator automation. The underlying `signOut(firebaseAuth)` call itself IS verified working (proven via the suspended-account forced-signout test, which hit the exact same code path and correctly landed back on Sign In with the error banner). This may be a simulator-automation tap-registration artifact rather than a real app bug — every other button on the same screen/app responded normally. **Needs a live human tap test on a real device or fresh simulator session to confirm or refute before treating as a real bug.** | Donor mobile (iOS) | Unconfirmed, not fixed |
+| Medium / Unconfirmed | Institution `SignUpScreen` "Criar conta" button produced **zero server signal** (no `POST /auth/session`, ever) across 5 consecutive attempts this session — including after a full component state reset (navigated to SignIn and back, confirming empty fields) with a short, cleanly-typed email/password. Unlike the email-field typing quirk (below), this specifically means the button press itself may not be registering, OR Firebase's `createUserWithEmailAndPassword` is silently failing/hanging client-side with no visible error (not confirmable without a screenshot, which was intentionally not spent here per stakeholder direction to stop and preserve the finding instead of continuing to guess). Institution's own "Sair" button, by contrast, DID work correctly on the first tap this same session (see Session Notes) — so this is not the same broad class of issue as the Donor "Sair" bug; it appears specific to `SignUpScreen`'s submit path. **Needs a live human/device retest of Institution sign-up specifically before treating as a real app bug.** | Institution mobile (iOS) | Unconfirmed, not fixed — blocked further progress on direct logo-upload-path testing this session |
 
 ---
 
@@ -125,7 +126,7 @@ offline/poor-network behavior on iOS specifically.
 | iOS — Institution: claim → schedule-collection → collect → deliver | This session | PASS (all 4 API calls returned 200, verified via server log) | not yet committed |
 | iOS — Institution: post-delivery "Criar História" alert → success story creation (title/description/photo) | This session | PASS (POST /success-stories → 201, verified stored Title/Description/Image/Status=Pending via Sheets read) | not yet committed |
 | iOS — Institution: logo upload — locked-field change-request path | This session | PASS (POST /change-requests -> 201, verified Field_Requested="Logo", Reason text, Status=Pending via Sheets read) | not yet committed |
-| iOS — Institution: logo upload — direct picker-upload path (PATCH /institutions/me/logo) | Not tested (unreachable with current verified test account — needs a fresh unverified institution) | — | — |
+| iOS — Institution: logo upload — direct picker-upload path (PATCH /institutions/me/logo) | Blocked this session (see Remaining Bugs — new-institution sign-up never completed; "Criar conta" produced no server signal across 5 attempts) | — | — |
 | iOS — Notifications (mobile) | Not started | — | — |
 | iOS — Offline/poor-network behavior | Not started | — | — |
 
@@ -142,13 +143,19 @@ offline/poor-network behavior on iOS specifically.
 
 ## Next Module To Audit
 
-**iOS — Institution app: logo upload (Settings), then Notifications, then offline/poor-network
-behavior.**
+**iOS — Institution app: retry direct logo-upload picker path (new institution sign-up), then
+Notifications, then offline/poor-network behavior.**
 
-Claim → schedule-collection → collect → deliver → Success Story creation (with photo) is now
-fully PASS this session (see QA Progress table). Remaining for Institution iOS: logo upload in
-`SettingsScreen.tsx`, Notifications screen, offline/poor-network handling. Donor iOS "Sair"
-button remains Unconfirmed (see Remaining Bugs) — still needs a live human/device re-test.
+Logo-upload change-request path (locked-field flow) is PASS. The direct picker-upload path
+(`PATCH /institutions/me/logo`) is still untested — this session's attempt to create a second,
+unverified test institution was blocked by the Institution `SignUpScreen` "Criar conta" button
+producing no server signal after 5 attempts (see Remaining Bugs — needs a live human/device
+retest before assuming it's a real app bug, since it may be simulator-automation-specific like
+the Donor "Sair" issue). **IMPORTANT — current app state:** the simulator is currently signed
+OUT (mid a failed sign-up attempt on a garbled `SignUpScreen`). To resume other Institution
+modules (Notifications, offline), first sign back in with the original verified test account:
+`wafi.inst.test@gmail.com` / `TestPass123`. Donor iOS "Sair" button also remains Unconfirmed (see
+Remaining Bugs) — still needs a live human/device re-test.
 
 ---
 
@@ -224,6 +231,23 @@ unlikely but not directly confirmed.
 **Known simulator quirk:** emoji (📍 location pin, 📅 calendar) render as boxed "?" placeholder
 glyphs in the iOS Simulator on this machine — a Simulator font-fallback limitation, not an app
 bug. Real devices render these emoji normally.
+
+**Severe text-input unreliability on Institution `SignUpScreen` email field (this session):** a
+plain, full-string `text` action on an EMPTY field dropped 18 of 25 characters on the first
+attempt. Chunked re-typing (4-char bursts) to append the missing suffix made it worse — later
+diagnosis showed characters landing out of order / mid-string rather than cleanly appended,
+suggesting the tap used to "resume" a partially-filled field does not reliably place the cursor
+at the end every time. `\b` (backspace) is NOT interpreted as a delete keystroke by this tool —
+it types the literal two characters `\` and `b`. There is no working clear/select-all mechanism
+via this tool for a populated text field. **The only confirmed reliable way to reset a text field
+is to navigate away from the screen and back** (unmounting/remounting resets local React state
+to `''`) — this worked cleanly for `SignUpScreen`. Even after that clean reset, submitting a
+short, correctly-typed email+password produced no server signal at all (see Remaining Bugs) —
+this second issue is unrelated to the typing quirk and remains unresolved.
+
+**Institution "Sair" (sign-out) button worked correctly on the first tap this session** — unlike
+the Donor app's unconfirmed "Sair" issue, this is not evidence of a systemic sign-out-button bug
+across the platform.
 
 ---
 
