@@ -101,6 +101,13 @@ offline/poor-network behavior on iOS specifically.
 - Admin Web App is permanently first-class (`DEVELOPMENT_RULES.md` §15) — every new Donor/
   Institution feature needs an Admin-side counterpart. (Not relevant to pure QA/bugfix work
   under the current feature freeze.)
+- **XCTest/XCUITest migration — evaluated, NOT implemented.** Stakeholder asked for a feasibility
+  assessment (this session) to replace screenshot-heavy manual QA with accessibility-identifier-
+  driven XCUITest. Key finding: requires switching from Expo Go to a custom dev client
+  (`expo prebuild` / `eas build --profile development`), since Expo Go's fixed binary can't host
+  a custom XCTest target. Recommended as a post-V1 QA-infra investment, not a V1-blocking change
+  (see full write-up in chat history this session for the phased rollout plan). No code/config
+  changed as a result of this evaluation.
 
 ---
 
@@ -115,8 +122,9 @@ offline/poor-network behavior on iOS specifically.
 | iOS — Donor: suspended-account / sessionError flow | This session | PASS | not yet committed |
 | iOS — Donor: Sair (sign out) button | This session | UNCONFIRMED (see Remaining Bugs) | — |
 | iOS — Institution: sign up + registration | This session | PASS | not yet committed |
-| iOS — Institution: claim/schedule/collect/deliver | Not started | — | — |
-| iOS — Institution: success story + logo upload | Not started | — | — |
+| iOS — Institution: claim → schedule-collection → collect → deliver | This session | PASS (all 4 API calls returned 200, verified via server log) | not yet committed |
+| iOS — Institution: post-delivery "Criar História" alert → success story creation (title/description/photo) | This session | PASS (POST /success-stories → 201, verified stored Title/Description/Image/Status=Pending via Sheets read) | not yet committed |
+| iOS — Institution: logo upload | Not started | — | — |
 | iOS — Notifications (mobile) | Not started | — | — |
 | iOS — Offline/poor-network behavior | Not started | — | — |
 
@@ -133,12 +141,63 @@ offline/poor-network behavior on iOS specifically.
 
 ## Next Module To Audit
 
-**iOS — Institution app: claim → schedule → collect → deliver → success story workflow.**
+**iOS — Institution app: logo upload (Settings), then Notifications, then offline/poor-network
+behavior.**
 
-Starting point already prepared: a disposable test institution account exists, is signed up,
-registered, and Admin-verified (see Session Notes for credentials/IDs). Resume by relaunching
-the app (it was mid-reload after verification when this memory file was created) and confirming
-it lands past the "Por verificar" screen into the Institution home/dashboard.
+Claim → schedule-collection → collect → deliver → Success Story creation (with photo) is now
+fully PASS this session (see QA Progress table). Remaining for Institution iOS: logo upload in
+`SettingsScreen.tsx`, Notifications screen, offline/poor-network handling. Donor iOS "Sair"
+button remains Unconfirmed (see Remaining Bugs) — still needs a live human/device re-test.
+
+---
+
+## iOS Simulator Calibration (reuse — do not recalibrate unless UI changes)
+
+**Device:** iPhone 17 Pro Max, device space 440×956pt, screenshot scale ≈2.09x.
+
+**Institution app bottom tab bar** (6 tabs, evenly spaced, y≈900pt device points; x = column center):
+
+| Tab | Label | Device coords (x, y) |
+|---|---|---|
+| 1 | Início (Home) | (37, 900) |
+| 2 | Disponíveis (Available Donations) | (110, 900) |
+| 3 | Aceites (Claimed By Me) | (183, 900) |
+| 4 | Ocorrências (Disputes) | (257, 900) |
+| 5 | Notificações | (330, 900) |
+| 6 | Definições (Settings) | (403, 900) |
+
+Note: the Expo dev-menu overlay ("Wafina Instituição / SDK version.../ Continue" card) can pop up
+unexpectedly (observed twice this session, cause unclear — possibly a stray shake/two-finger
+gesture from automation) and blocks the tab bar entirely. If a tap silently fails to navigate,
+check for this overlay first (Continue button ≈ device (220, 568); X close ≈ device (400, 451))
+before assuming a real app bug.
+
+**Institution "Aceites" (Claimed By Me) card — single-item layout, action button position:**
+For a card with 1 status line + short 4-stage timeline (Aceite/Recolha Agendada/Recolhida/
+Entregue) and no Expected_Collection/Delivery_Date line yet: primary status-action button
+("Confirmar recolha agendada" / "Marcar como recolhida" / "Confirmar entrega", same slot,
+same position since only one shows at a time per status) ≈ device (167, 540). "Comunicar
+Ocorrência" ghost button just below it ≈ device (151, 590). These will shift down if
+Expected_Collection_Date/Expected_Delivery_Date lines are present (extra ~20-24pt each) —
+recheck with a screenshot if a tap at these coordinates doesn't produce the expected API log
+line.
+
+**Institution "NewSuccessStory" form (`NewSuccessStoryScreen.tsx`) — device coords:**
+Título input (220, 224) · Descrição input (220, 322) · "Escolha uma fotografia" well (220, 411).
+**After a photo is attached, the layout shifts** (well replaced with a 200pt-tall preview image +
+a new "Escolher outra fotografia" secondary button): "Escolher outra fotografia" ≈ (220, 654) ·
+**Publicar (post-photo) ≈ (220, 710)** — do not reuse the pre-photo y=481 estimate, it now lands
+on "Escolher outra fotografia" instead and silently reopens the photo picker (no error, no log —
+only visible via screenshot or a missing `POST /success-stories`).
+
+**Native photo-library picker quirk:** the first tap on a grid thumbnail sometimes doesn't
+register/close the picker (same class of flakiness as the documented paste-menu issue) — the
+grid stayed open silently through one full tap+wait cycle. Retry the same thumbnail tap once;
+it succeeded on retry both times this session.
+
+**Known simulator quirk:** emoji (📍 location pin, 📅 calendar) render as boxed "?" placeholder
+glyphs in the iOS Simulator on this machine — a Simulator font-fallback limitation, not an app
+bug. Real devices render these emoji normally.
 
 ---
 
