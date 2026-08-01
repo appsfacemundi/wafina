@@ -124,7 +124,8 @@ offline/poor-network behavior on iOS specifically.
 | iOS — Institution: sign up + registration | This session | PASS | not yet committed |
 | iOS — Institution: claim → schedule-collection → collect → deliver | This session | PASS (all 4 API calls returned 200, verified via server log) | not yet committed |
 | iOS — Institution: post-delivery "Criar História" alert → success story creation (title/description/photo) | This session | PASS (POST /success-stories → 201, verified stored Title/Description/Image/Status=Pending via Sheets read) | not yet committed |
-| iOS — Institution: logo upload | Not started | — | — |
+| iOS — Institution: logo upload — locked-field change-request path | This session | PASS (POST /change-requests -> 201, verified Field_Requested="Logo", Reason text, Status=Pending via Sheets read) | not yet committed |
+| iOS — Institution: logo upload — direct picker-upload path (PATCH /institutions/me/logo) | Not tested (unreachable with current verified test account — needs a fresh unverified institution) | — | — |
 | iOS — Notifications (mobile) | Not started | — | — |
 | iOS — Offline/poor-network behavior | Not started | — | — |
 
@@ -194,6 +195,31 @@ only visible via screenshot or a missing `POST /success-stories`).
 register/close the picker (same class of flakiness as the documented paste-menu issue) — the
 grid stayed open silently through one full tap+wait cycle. Retry the same thumbnail tap once;
 it succeeded on retry both times this session.
+
+**Institution "SettingsScreen.tsx" — Logo section + change-request form, device coords:**
+Definições tab lands here directly. Logo section sits at the very top of the first Card. IMPORTANT:
+once an institution is Admin-verified, ALL profile fields (`Name, Type, Location, Needs_List,
+Logo` — `ALL_PROFILE_FIELDS` in `apps/api/src/services/institutions.ts`) auto-lock, per spec
+4.2.4 — the direct "Adicionar/Alterar logótipo" picker button is replaced by a locked-field
+message, and the only reachable path is "Solicitar alteração" (change request). This is correct,
+designed behavior, not a bug — do not re-flag it.
+
+Change-request form (second Card): native `@react-native-picker/picker` wheel for "Campo"
+(options in fixed order Selecione/Nome/Tipo/Localização/Itens Necessários/**Logótipo** — Logo is
+always last). To select Logótipo from the default "Selecione..." position: `touch_path` drag from
+device (220, 650) to (220, 490) — a 160pt upward drag (5 rows × 32pt native row height) — lands
+exactly on Logótipo (confirmed via Sheets read, no retry needed). Motivo textarea ≈ (220, 735).
+Dismiss keyboard by tapping the screen title ≈ (220, 78) before tapping Enviar pedido (this screen
+uses `KeyboardAvoidingView`, so the button shifts while the keyboard is open). Enviar pedido ≈
+(220, 814) — confirmed correct with keyboard dismissed first.
+
+**Not yet tested:** the direct `PATCH /institutions/me/logo` picker-upload code path
+(`onPickLogo` in `SettingsScreen.tsx`) only runs when Logo is NOT in `Locked_Fields` — i.e. only
+reachable with a freshly-registered, not-yet-Admin-verified institution. The current disposable
+test institution is already verified, so this path could not be exercised without creating a
+second, separate test account. Uses the same `uploadFile()` helper already proven working on iOS
+for donation photos and Success Story photos this session, so an iOS-specific bug here is
+unlikely but not directly confirmed.
 
 **Known simulator quirk:** emoji (📍 location pin, 📅 calendar) render as boxed "?" placeholder
 glyphs in the iOS Simulator on this machine — a Simulator font-fallback limitation, not an app
