@@ -86,6 +86,13 @@ Once both are resolved, generating the five build artifacts is the direct next s
   client config, meant to ship in the bundle) directly to `.github/workflows/ci.yml`. Verified by
   simulating CI's exact environment locally (temporarily removing all three apps' `.env.local`
   files, building with only shell-exported env vars) before pushing.
+- RC1 Phase 3: published a bilingual (Portuguese/English) Privacy Policy as a new `/privacy` static
+  route on the already-live Donor Web app — no new hosting needed. Content was drafted from the
+  actual codebase, not a template: verified exactly which fields `Users` collects (Name, Phone,
+  Home_Country_ID), confirmed no push-notification token system exists (no `expo-notifications`
+  integration found — notifications are in-app only), and named Google Sheets/Drive/Firebase as the
+  data processors involved. Required before either store's Data Safety / App Privacy questionnaires
+  can be completed.
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 

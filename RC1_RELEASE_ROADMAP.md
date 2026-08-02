@@ -105,10 +105,23 @@ build:ui && npm run build --workspace=apps/<app>`, Publish Directory `apps/<app>
 Command, no port handling needed — Static Sites just serve the built directory.
 
 ### Phase 3 — Store Preparation
-- ⬜ Configure Google Play Console
+- 🔶 Configure Google Play Console — account details confirmed (Support email `support@zuinder.com`,
+  developer entity `ZUINDER - PRESTAÇÃO SERVIÇOS COMÉRCIO GERAL, LDA`, Account ID
+  `6616179782244156480`, target region Global/Worldwide, primary language Portuguese, category:
+  physical non-perishable goods coordination, no in-app monetary payments). Store listing/Data
+  Safety/Content Rating not yet started.
 - ⬜ Configure Apple App Store Connect
 - ⬜ Complete all required compliance information
-- ⬜ Prepare Privacy Policy and Data Safety information
+- ✅ Prepare Privacy Policy and Data Safety information — bilingual (PT/EN) Privacy Policy written and
+  published as a static page at `https://wafina-donor-web.onrender.com/privacy` (added to `apps/web`,
+  zero new infrastructure — reuses the existing live Donor Web static site). Covers both mobile apps
+  and all three web apps under one canonical URL, accurately describing actual data practices verified
+  against the codebase (Firebase Auth account fields Name/Phone/Home_Country_ID, GPS location for
+  pickup/institution address, photo uploads, Google Sheets/Drive as processors, no push notification
+  tokens collected — confirmed no `expo-notifications` integration exists, notifications are in-app
+  only, no ad tracking, no data sale). Verified: production static build succeeds with the new route,
+  full `npm run lint` + `npm run typecheck` clean, rendered and screenshot-checked locally before
+  publishing.
 
 ### Phase 4 — Release Builds
 - ⬜ Generate Android APK
