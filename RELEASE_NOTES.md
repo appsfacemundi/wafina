@@ -54,6 +54,12 @@ Once both are resolved, generating the five build artifacts is the direct next s
 - RC1: fixed `apps/admin`'s production build, which had never been run before (`next build`
   failed on `useSearchParams()` needing a Suspense boundary on the sign-in page) — a real,
   previously-undetected bug caught by this being Admin's first production build attempt.
+- RC1: converted Donor Web, Institution Web, and Admin Panel to static export (`output: 'export'`)
+  after confirming all three are fully client-rendered SPAs with no Server Components, Route
+  Handlers, middleware, or dynamic routes — verified empirically via real production builds before
+  making it permanent. Lets all three deploy as free Render Static Sites (CDN-distributed, no
+  cold-start risk) instead of paid always-on Web Services, with zero functionality loss. Also fixed
+  `out/` being missing from `.gitignore` and from ESLint's ignore list.
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 

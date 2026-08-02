@@ -52,15 +52,28 @@ Legend: ✅ done · 🔶 in progress / partially done · ⬜ not started
   found and fixed a real, previously-undetected `apps/admin` production-build bug along the way
   (`useSearchParams()` needed a Suspense boundary — Admin had never had a production build run
   before this).
+- ✅ Convert all three apps to static export (`output: 'export'` in each `next.config.js`) —
+  inspected all three for Server Components with data fetching, Route Handlers, middleware,
+  `next/image`, dynamic routes, and `next/headers`/`cookies()` usage: none found in any of them.
+  Every page is a `'use client'` component; the only Server Components are static root layouts.
+  Empirically verified (not just theory) by building all three under `output: 'export'` and
+  confirming real static HTML was produced for every route, before making the config change
+  permanent. Also fixed two related gaps this surfaced: `out/` wasn't in `.gitignore`, and wasn't
+  excluded from ESLint (was linting minified static output, producing 6708 false-positive errors).
 - ⬜ Deploy Donor Web
 - ⬜ Deploy Institution Web
 - ⬜ Deploy Admin Panel
 - ⬜ Verify complete end-to-end functionality
 - ⬜ Update `ALLOWED_ORIGINS` on Render to the real deployed web URLs
 
-**Deployment strategy decision pending:** Vercel (recommended — purpose-built for Next.js,
-near-zero config) vs. Render (consistent with the API, but repeats the manual Node-service config
-done for `apps/api`). Awaiting stakeholder choice before the next milestone.
+**Deployment strategy decision: Render Static Sites** (revised from the original Web Service plan)
+— for operational consistency with `apps/api`'s platform, and because all three apps turned out to
+be fully static-exportable with zero functionality loss. This is free (no Starter-tier cost per
+app), has no cold-start risk, and gets CDN distribution — likely better latency for a CPLP-wide
+audience than a single Frankfurt container. Each app: Root Directory blank (monorepo needs
+repo-root installs), Build Command `npm install --include=dev && npm run build:shared && npm run
+build:ui && npm run build --workspace=apps/<app>`, Publish Directory `apps/<app>/out`. No Start
+Command, no port handling needed — Static Sites just serve the built directory.
 
 ### Phase 3 — Store Preparation
 - ⬜ Configure Google Play Console

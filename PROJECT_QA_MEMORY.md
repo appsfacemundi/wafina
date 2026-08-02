@@ -110,6 +110,13 @@ offline/poor-network behavior on iOS specifically.
   a custom XCTest target. Recommended as a post-V1 QA-infra investment, not a V1-blocking change
   (see full write-up in chat history this session for the phased rollout plan). No code/config
   changed as a result of this evaluation.
+- **All three Next.js web apps converted to static export (`output: 'export'`), RC1 Phase 2.**
+  Donor Web, Institution Web, and Admin Panel are fully client-rendered SPAs (every `page.tsx` is
+  `'use client'`; no Server Components with data fetching, Route Handlers, middleware, `next/image`,
+  or dynamic routes) — confirmed by direct inspection and by empirically building all three under
+  `output: 'export'` before making it permanent. Deploy as free Render Static Sites instead of paid
+  Web Services, no functionality lost. Also fixed `out/` missing from both `.gitignore` and
+  `eslint.config.js`'s ignore list (was causing ESLint to lint minified static output directly).
 
 ---
 
