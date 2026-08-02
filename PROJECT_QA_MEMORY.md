@@ -69,7 +69,8 @@ offline/poor-network behavior on iOS specifically.
 |---|---|---|---|---|
 | 2026-07-31 | Donation photo upload silently failed on Android (`Unsupported FormDataPart implementation`, then `undefined is not a function` after first fix attempt) | RN 0.86 New Architecture breaks classic `FormData`/`Blob` multipart upload | `apps/mobile-donor/src/lib/api.ts`, `apps/mobile-institution/src/lib/api.ts` (new `uploadFile()` using `expo-file-system/legacy` `uploadAsync`), `DonateScreen.tsx`, `SettingsScreen.tsx`, `NewSuccessStoryScreen.tsx` | `e4b8707` |
 | 2026-07-31 | Silent auth failure: a session-resolution error (e.g. suspended account) left the app stuck instead of showing Sign In | `AuthContext`'s `onAuthStateChanged` listener didn't catch/report `resolveSession()` failures | `AuthContext.tsx` + `SignInScreen.tsx` in both mobile apps (added `sessionError` state, `signIn()` rethrow-and-signOut) | `e4b8707` |
-| 2026-08-02 | `apps/admin` production build failed: `useSearchParams()` must be wrapped in a Suspense boundary | Never caught before because Admin had only ever been run via `next dev` (no prerendering), never `next build` — this was RC1's first production build attempt for Admin | `apps/admin/src/app/sign-in/page.tsx` (split into `SignInPage` wrapper + `SignInForm` inner component, wrapped in `<Suspense>`) | pending (RC1 Phase 2) |
+| 2026-08-02 | `apps/admin` production build failed: `useSearchParams()` must be wrapped in a Suspense boundary | Never caught before because Admin had only ever been run via `next dev` (no prerendering), never `next build` — this was RC1's first production build attempt for Admin | `apps/admin/src/app/sign-in/page.tsx` (split into `SignInPage` wrapper + `SignInForm` inner component, wrapped in `<Suspense>`) | `01b043b` |
+| 2026-08-02 | `wafina-institution-web` Render Static Site served Admin's build under Institution's URL (title "Wafina Admin", empty body, several 404'd JS chunks) | Render service was created with `apps/admin`'s Build Command and Publish Directory instead of `apps/institution`'s — an operator mix-up, not an app code bug | Render dashboard config only (Build Command, Publish Directory corrected) — no repo changes | N/A (deploy config, not code) |
 
 ---
 
@@ -125,6 +126,8 @@ offline/poor-network behavior on iOS specifically.
 | Module | Certified | PASS/FAIL | Commit |
 |---|---|---|---|
 | Web — Donor Web live on Render Static Site (`wafina-donor-web`) | 2026-08-02 (RC1) | PASS — Firebase Auth verified end-to-end with real test account; API call correctly pending on ALLOWED_ORIGINS update | `945423b` |
+| Web — Institution Web live on Render Static Site (`wafina-institution-web`) | 2026-08-02 (RC1) | PASS (after fixing a deploy misconfig — see Bugs Fixed) — Firebase Auth verified end-to-end with real test account | af3b92d / deploy config fix |
+| Web — Admin Panel live on Render Static Site (`wafina-admin-panel`) | 2026-08-02 (RC1) | PASS — Firebase Auth reachability confirmed (dummy-credential check, no real admin creds used) | af3b92d |
 | Android — Donor app full lifecycle | 2026-07-31 | PASS (after fix) | `e4b8707` |
 | Android — Institution app full lifecycle | 2026-07-31 | PASS | `e4b8707` |
 | iOS — Donor: sign up, session bootstrap | This session | PASS | not yet committed |

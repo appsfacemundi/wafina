@@ -64,6 +64,13 @@ Once both are resolved, generating the five build artifacts is the direct next s
   Verified with a real disposable test account that Firebase Auth succeeds end-to-end against
   production; the subsequent call to our own API fails only because `ALLOWED_ORIGINS` hasn't been
   updated yet (planned, not yet done — tracked in `RC1_RELEASE_ROADMAP.md`).
+- RC1: Institution Web and Admin Panel deployed live (`wafina-institution-web`,
+  `wafina-admin-panel`, both Render Static Sites). Found and fixed a real deployment
+  misconfiguration where Institution Web's service was initially set up with Admin's Build Command
+  and Publish Directory, causing it to serve the wrong app under the wrong URL — caught by checking
+  the page title/content rather than assuming a successful-looking deploy log meant the site was
+  correct. Both now verified working (Institution via a real disposable test account through
+  Firebase Auth; Admin via a dummy-credential check confirming Firebase Auth is reached).
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 

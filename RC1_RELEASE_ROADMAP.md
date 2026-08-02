@@ -67,8 +67,19 @@ Legend: ✅ done · 🔶 in progress / partially done · ⬜ not started
   subsequent call to our own API's `/auth/session` fails as expected — `ALLOWED_ORIGINS` on
   Render hasn't been updated yet (still `localhost` only); that's the planned next-but-one
   milestone, not a bug in this deploy.
-- ⬜ Deploy Institution Web
-- ⬜ Deploy Admin Panel
+- ✅ Deploy Institution Web — `wafina-institution-web` Render Static Site, live at
+  `https://wafina-institution-web.onrender.com`. **Found and fixed a real deployment
+  misconfiguration**: this service was initially created with `apps/admin`'s Build Command and
+  Publish Directory instead of `apps/institution`'s (an easy mix-up given how similar the two
+  config rows looked), so it was serving Admin's build under Institution's URL — confirmed by the
+  page title reading "Wafina Admin" with a broken/empty body and several 404'd JS chunks. Fixed by
+  correcting both fields in Render's Settings and redeploying; verified the title now correctly
+  reads "Wafina Instituição" with no console/network errors, and a real disposable test account
+  (`wafi.inst.test@gmail.com`) confirms Firebase Auth succeeds end-to-end against production.
+- ✅ Deploy Admin Panel — `wafina-admin-panel` Render Static Site, live at
+  `https://wafina-admin-panel.onrender.com`. Verified: no console/network errors, and a dummy
+  credential correctly returns "E-mail ou palavra-passe incorretos" (proving Firebase Auth is
+  reached; no real admin credentials were used for this check).
 - ⬜ Verify complete end-to-end functionality
 - ⬜ Update `ALLOWED_ORIGINS` on Render to the real deployed web URLs
 
