@@ -214,6 +214,15 @@ Command, no port handling needed — Static Sites just serve the built directory
 - ⬜ Support email
 - ⬜ Privacy Policy
 
+**Note (2026-08-02):** the stakeholder issued a detailed 18-category "Brand Package" master prompt
+(Brand Guidelines, icons, Google Play/Apple assets, screenshots, feature graphic, social media kit,
+press kit, website graphics, marketing materials, source files) covering this phase in agency-level
+detail. Explicitly deferred until this phase starts — see memory `rc1-brand-package-deferred` for the
+full brief, the tooling reality-check (no image-generation tool available; illustration/photography/
+print-ready/Figma-AI deliverables need a design tool or human designer instead), and the stakeholder's
+decision to formalize the existing CSS text+dot mark (`apps/web/src/app/globals.css` `.app-mark`) into
+a real SVG logo rather than inventing a new one.
+
 ### Phase 7 — Store Submission
 - ⬜ Upload AAB to Google Play Console
 - ⬜ Upload IPA to App Store Connect
@@ -254,6 +263,19 @@ Command, no port handling needed — Static Sites just serve the built directory
 
 ## Current Position
 
-**Phase 1 is functionally complete**, pending your confirmation to mark it closed and move to Phase 2
-(updating the web apps' API base URL and deploying them). Per the operating rules above, no Phase 2
-work will begin until that confirmation is given.
+**Phases 1 and 2 are complete.** Phase 3 (Store Preparation) is in progress. Remaining open items in
+Phase 3, all independent of one another:
+
+1. **Google Play Console** (🔶) — account/store-listing copy drafted; Store Listing, Data Safety, and
+   Content Rating still need to be submitted in-console.
+2. **Apple App Store Connect** (⬜) — not started.
+3. **Compliance information** (⬜) — not started (distinct from Privacy Policy/Data Safety, which are
+   done).
+4. **In-app account deletion, scope decision** — Play's Data Safety form is satisfied today by the
+   support-mediated `/delete-account` page, but Play generally also expects true in-app self-service
+   deletion for apps with account creation. This is real backend work (safe deletion of a `Users` row
+   plus related donations/history), not yet scoped or approved — flagged for a stakeholder decision on
+   whether/when to build it, not something to start silently.
+
+Per the operating rules above, no further work begins until the stakeholder confirms which of these
+to tackle next (or approves proceeding through all of them in sequence).
