@@ -115,16 +115,20 @@ Once both are resolved, generating the five build artifacts is the direct next s
   codebase first found no in-app self-service deletion exists at all today — this page is a
   support-mediated stopgap (email request, processed within 30 days), not a replacement for real
   in-app deletion, which remains an open, undecided item.
-- Investigated a stakeholder-reported "critical blocking bug" (a donor's donation not appearing in
-  the Institution app's Available Donations). Reproduced the full pipeline live against production
-  with real API calls — create → visible → claim → schedule → collect → deliver all verified
-  working correctly. The scoping is intentional (Available Donations is filtered to the
-  institution's own country, Phase 3A Module 1), and the incomplete-profile edge case is already
-  safely blocked server-side. Most likely explanation is a country mismatch between the specific
-  accounts tested, not a defect — but fixed a real gap found along the way: the empty state gave no
-  indication *why* the list was empty, making a legitimate mismatch indistinguishable from a broken
-  pipeline. `apps/institution/src/app/donations/available/page.tsx` now names the institution's own
-  country in that message.
+- Investigated and definitively root-caused a stakeholder-reported "critical blocking bug" (a
+  donor's donation not appearing in the Institution app's Available Donations) — not by assumption,
+  by directly querying the live production `Donations`/`Institutions`/`Geo_Regions` data. Confirmed:
+  the donation pipeline itself works correctly (verified live, create → claim → schedule → collect →
+  deliver); the query has no hidden approval flag, GPS filter, date filter, or caching (all
+  confirmed absent by reading the actual filter function and by direct evidence); and the real
+  instance found in production was the stakeholder's own account having switched its Active Country
+  to Portugal, a country with **zero verified institutions** registered — every real institution in
+  the system is under Angola. The two resulting donations are correctly invisible because no
+  institution exists yet in that country, not due to a defect. Fixed a related real gap: the
+  Available Donations empty state now names the institution's own country instead of a generic
+  message, so this kind of country-coverage gap is no longer indistinguishable from a broken
+  pipeline. Recommended (not yet built, would need Feature Freeze sign-off): warn a donor at
+  donation-creation time if their Active Country has no verified institutions yet.
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 
