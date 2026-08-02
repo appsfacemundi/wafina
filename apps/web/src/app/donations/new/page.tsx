@@ -1,6 +1,6 @@
 'use client';
 
-import { CONDITIONS, ITEM_TYPES } from '@wafina/shared';
+import { CONDITIONS, ITEM_TYPES, type CorporateAccount } from '@wafina/shared';
 import { Button, Card, Input, Select, useToast } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -32,6 +32,21 @@ export default function NewDonationPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
+
+  const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
+  const [isCorporateDonation, setIsCorporateDonation] = useState(false);
+
+  useEffect(() => {
+    if (!firebaseUser || !session?.corporateAccountId) return;
+    (async () => {
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        setCorporateAccount(await apiFetch<CorporateAccount | null>('/donor/corporate-account', { idToken }));
+      } catch {
+        // Non-critical — the form just falls back to personal-only if this fails.
+      }
+    })();
+  }, [firebaseUser, session?.corporateAccountId]);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -110,6 +125,9 @@ export default function NewDonationPage() {
       form.append('Location_lat', lat);
       form.append('Location_lng', lng);
       form.append('photo', photo);
+      if (corporateAccount) {
+        form.append('isCorporateDonation', String(isCorporateDonation));
+      }
 
       await apiFetch('/donations', { method: 'POST', idToken, body: form });
       showToast('Doação submetida com sucesso!');
@@ -153,6 +171,17 @@ export default function NewDonationPage() {
                 </option>
               ))}
             </Select>
+
+            {corporateAccount && (
+              <Select
+                label="Doar como"
+                value={isCorporateDonation ? 'corporate' : 'personal'}
+                onChange={(e) => setIsCorporateDonation(e.target.value === 'corporate')}
+              >
+                <option value="personal">Doação Pessoal</option>
+                <option value="corporate">Doação da Empresa ({corporateAccount.Company_Name})</option>
+              </Select>
+            )}
 
             <Input
               label="Cidade (opcional)"

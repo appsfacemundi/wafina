@@ -97,8 +97,11 @@ export async function listAllCorporateAccounts(): Promise<AdminCorporateAccountV
     accountRows.map(async (row) => {
       const account = rowToCorporateAccount(row);
       const employeeIds = await listUserIdsByCorporateAccount(account.Corporate_Account_ID);
-      const employeeIdSet = new Set(employeeIds);
-      const donationCount = donationRows.filter((d) => employeeIdSet.has(d.Donor_ID)).length;
+      // RC1: only donations explicitly marked Corporate count here — see
+      // Donation.Corporate_Account_ID and services/donations.ts.
+      const donationCount = donationRows.filter(
+        (d) => d.Corporate_Account_ID === account.Corporate_Account_ID,
+      ).length;
       return { ...account, Employee_Count: employeeIds.length, Donation_Count: donationCount };
     }),
   );

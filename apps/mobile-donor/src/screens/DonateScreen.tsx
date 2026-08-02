@@ -1,4 +1,4 @@
-import { CONDITIONS, ITEM_TYPES } from '@wafina/shared';
+import { CONDITIONS, ITEM_TYPES, type CorporateAccount } from '@wafina/shared';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
@@ -17,7 +17,7 @@ import { colors, fonts, radius, spacing } from '@/theme/tokens';
 type LocationStatus = 'capturing' | 'captured' | 'failed' | 'geocoding' | 'geocoded';
 
 export function DonateScreen() {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, session } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
 
@@ -26,6 +26,9 @@ export function DonateScreen() {
   const [condition, setCondition] = useState<string>(CONDITIONS[0]);
   const [city, setCity] = useState('');
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
+
+  const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
+  const [isCorporateDonation, setIsCorporateDonation] = useState(false);
 
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('capturing');
   const [lat, setLat] = useState('');
@@ -36,6 +39,18 @@ export function DonateScreen() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!firebaseUser || !session?.corporateAccountId) return;
+    (async () => {
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        setCorporateAccount(await apiFetch<CorporateAccount | null>('/donor/corporate-account', { idToken }));
+      } catch {
+        // Non-critical — the form just falls back to personal-only if this fails.
+      }
+    })();
+  }, [firebaseUser, session?.corporateAccountId]);
 
   useEffect(() => {
     (async () => {
@@ -125,6 +140,7 @@ export function DonateScreen() {
           City: city,
           Location_lat: lat,
           Location_lng: lng,
+          ...(corporateAccount ? { isCorporateDonation: String(isCorporateDonation) } : {}),
         },
       });
       setSuccess(true);
@@ -151,6 +167,17 @@ export function DonateScreen() {
             onChangeText={setQuantity}
           />
           <Select label="Estado" value={condition} onValueChange={setCondition} options={CONDITIONS} />
+          {corporateAccount && (
+            <Select
+              label="Doar como"
+              value={isCorporateDonation ? 'corporate' : 'personal'}
+              onValueChange={(v) => setIsCorporateDonation(v === 'corporate')}
+              options={[
+                { label: 'Doação Pessoal', value: 'personal' },
+                { label: `Doação da Empresa (${corporateAccount.Company_Name})`, value: 'corporate' },
+              ]}
+            />
+          )}
           <Input label="Cidade (opcional)" placeholder="Ex: Luanda" value={city} onChangeText={setCity} />
 
           <View style={{ gap: spacing[1] }}>

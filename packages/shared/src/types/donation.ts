@@ -61,6 +61,14 @@ export interface Donation {
    * project that has no rows to populate it with today.
    */
   City: string | null;
+  /**
+   * RC1 individual-vs-corporate attribution — set only when the donor chose
+   * "Corporate Donation" at submission time, always their own linked
+   * Corporate_Account_ID (never arbitrary). Null means this specific donation
+   * is personal, regardless of whether the donor is linked to a company —
+   * the donor-company link itself never changes based on this field.
+   */
+  Corporate_Account_ID: string | null;
 }
 
 /**

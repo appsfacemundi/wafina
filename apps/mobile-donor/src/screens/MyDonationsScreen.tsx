@@ -2,6 +2,7 @@ import {
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   formatDateLabel,
+  type CorporateAccount,
   type Donation,
   type SuccessStory,
 } from '@wafina/shared';
@@ -25,6 +26,7 @@ export function MyDonationsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [donations, setDonations] = useState<Donation[] | null>(null);
   const [storiesByDonation, setStoriesByDonation] = useState<Map<string, SuccessStory>>(new Map());
+  const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -44,8 +46,20 @@ export function MyDonationsScreen({ navigation }: Props) {
     })();
   }, [firebaseUser]);
 
+  useEffect(() => {
+    if (!firebaseUser || !session?.corporateAccountId) return;
+    (async () => {
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        setCorporateAccount(await apiFetch<CorporateAccount | null>('/donor/corporate-account', { idToken }));
+      } catch {
+        // Non-critical — the attribution label just falls back to the generic form below.
+      }
+    })();
+  }, [firebaseUser, session?.corporateAccountId]);
+
   const stats = useMemo(() => {
-    if (!donations || !session?.corporateAccountId) return null;
+    if (!donations) return null;
     return {
       total: donations.length,
       quantity: donations.reduce((sum, d) => sum + d.Quantity, 0),
@@ -70,7 +84,7 @@ export function MyDonationsScreen({ navigation }: Props) {
             {stats && (
               <View style={styles.statsGrid}>
                 {[
-                  ['Doações da empresa', stats.total],
+                  ['Total de doações', stats.total],
                   ['Itens doados (total)', stats.quantity],
                   ['Pendentes', stats.pending],
                   ['Aceites', stats.claimed],
@@ -112,6 +126,11 @@ export function MyDonationsScreen({ navigation }: Props) {
                 </View>
                 <Badge tone={DONATION_STATUS_TONE[item.Status]}>{DONATION_STATUS_LABEL[item.Status]}</Badge>
               </View>
+              <Text style={styles.donationId}>
+                {item.Corporate_Account_ID
+                  ? `🏢 Doação da Empresa${corporateAccount ? ` – ${corporateAccount.Company_Name}` : ''}`
+                  : '👤 Doação Pessoal'}
+              </Text>
               {(item.Expected_Collection_Date || item.Expected_Delivery_Date) && (
                 <Text style={styles.donationId}>
                   {item.Expected_Collection_Date && `Recolha estimada: ${formatDateLabel(item.Expected_Collection_Date)}`}

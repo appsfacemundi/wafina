@@ -167,6 +167,20 @@ Command, no port handling needed — Static Sites just serve the built directory
   end-to-end with a disposable throwaway Admin account (created, tested, fully deleted afterward — no
   leftover test data). Full workflow, capabilities, and limitations documented in
   `CORPORATE_INVITATION_CODES.md`.
+- ✅ **Individual vs. Corporate donation attribution — implemented and verified.** Fixed a real
+  business-logic gap the stakeholder flagged: previously any donation by a company-linked donor was
+  automatically counted as corporate. Recommended (and got sign-off on) a simpler schema than
+  proposed — a nullable `Corporate_Account_ID` directly on `Donation`, instead of a separate type
+  field — which removes a join rather than adding one. Donor now chooses per donation (default
+  Personal); the donor-company link never changes. `/donations/mine` simplified to always show the
+  donor's own donations only (clarified with the stakeholder — dropped the old "company-wide view"
+  behavior), each one now labeled 👤 Doação Pessoal or 🏢 Doação da Empresa. Admin's company
+  `Donation_Count` fixed to count only explicitly-corporate donations. One-off schema migration added
+  the column to the live `Donations` sheet (existing rows read as blank/personal, correctly). Verified
+  end-to-end against a local API instance pointed at real data — disposable donor + disposable
+  company, one Individual and one Corporate donation, confirmed correct `Corporate_Account_ID` on
+  each, confirmed `/donations/mine` returns both, confirmed company `Donation_Count` was 1 not 2 —
+  then fully cleaned up. See `CORPORATE_INVITATION_CODES.md` for the updated workflow.
 
 ### Phase 4 — Release Builds
 - ⬜ Generate Android APK

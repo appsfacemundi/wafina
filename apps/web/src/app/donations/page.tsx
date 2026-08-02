@@ -4,6 +4,7 @@ import {
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   formatDateLabel,
+  type CorporateAccount,
   type Donation,
   type SuccessStory,
 } from '@wafina/shared';
@@ -20,6 +21,7 @@ export default function DonationsPage() {
   const router = useRouter();
   const [donations, setDonations] = useState<Donation[] | null>(null);
   const [storiesByDonation, setStoriesByDonation] = useState<Map<string, SuccessStory>>(new Map());
+  const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
   const [error, setError] = useState('');
 
   const stats = useMemo(() => {
@@ -50,17 +52,29 @@ export default function DonationsPage() {
     })();
   }, [firebaseUser]);
 
+  useEffect(() => {
+    if (!firebaseUser || !session?.corporateAccountId) return;
+    (async () => {
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        setCorporateAccount(await apiFetch<CorporateAccount | null>('/donor/corporate-account', { idToken }));
+      } catch {
+        // Non-critical — the attribution label just falls back to the generic form below.
+      }
+    })();
+  }, [firebaseUser, session?.corporateAccountId]);
+
   if (!session) return null;
 
   return (
     <AppShell>
       <div className="stack">
         <h1 style={{ fontSize: 24 }}>Minhas Doações</h1>
-        {session.corporateAccountId && stats && (
+        {stats && (
           <div className="stats-grid">
             <Card className="stack">
               <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.total}</p>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Doações da empresa</p>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Total de doações</p>
             </Card>
             <Card className="stack">
               <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.quantity}</p>
@@ -110,6 +124,11 @@ export default function DonationsPage() {
                       {DONATION_STATUS_LABEL[d.Status]}
                     </Badge>
                   </div>
+                  <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+                    {d.Corporate_Account_ID
+                      ? `🏢 Doação da Empresa${corporateAccount ? ` – ${corporateAccount.Company_Name}` : ''}`
+                      : '👤 Doação Pessoal'}
+                  </p>
                   {(d.Expected_Collection_Date || d.Expected_Delivery_Date) && (
                     <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
                       {d.Expected_Collection_Date && `Recolha estimada: ${formatDateLabel(d.Expected_Collection_Date)}`}

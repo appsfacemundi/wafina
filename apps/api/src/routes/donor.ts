@@ -58,3 +58,18 @@ donorRouter.post(
     res.json(account);
   }),
 );
+
+/**
+ * RC1 individual-vs-corporate donations — the donation form needs the linked
+ * company's name to label the "Corporate Donation (X)" choice. Returns null
+ * when the donor isn't linked to any company (nothing to choose from).
+ */
+donorRouter.get(
+  '/donor/corporate-account',
+  requireAuth,
+  requireRole('Donor'),
+  asyncHandler(async (req, res) => {
+    const { corporateAccountId } = req.user!;
+    res.json(corporateAccountId ? await getCorporateAccountById(corporateAccountId) : null);
+  }),
+);

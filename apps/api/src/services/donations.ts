@@ -5,7 +5,6 @@ import { fromSheetLatLong, nowIso, toSheetLatLong } from '../config/sheet-values
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { getRegionById } from './geo-regions';
 import { createNotification } from './notifications';
-import { listUserIdsByCorporateAccount } from './users';
 import { ValidationError } from './validation-error';
 
 /**
@@ -36,6 +35,7 @@ function rowToDonation(row: Record<string, string>): Donation {
     City: row.City || null,
     Expected_Collection_Date: row.Expected_Collection_Date || null,
     Expected_Delivery_Date: row.Expected_Delivery_Date || null,
+    Corporate_Account_ID: row.Corporate_Account_ID || null,
   };
 }
 
@@ -121,6 +121,14 @@ export async function createDonation(
   donorId: string,
   activeCountryId: string | null,
   input: CreateDonationInput,
+  /**
+   * RC1 individual-vs-corporate attribution — always the caller's own
+   * session `corporateAccountId` when they chose "Corporate Donation", or
+   * null for a personal one. Never client-supplied as an arbitrary ID (see
+   * the route), so a donor can only ever attribute a donation to the single
+   * company they're actually linked to, exactly like donorId/activeCountryId.
+   */
+  corporateAccountId: string | null = null,
 ): Promise<Donation> {
   assertValidDonationFields(input);
   if (!input.Photo) throw new ValidationError('A fotografia é obrigatória');
@@ -149,6 +157,7 @@ export async function createDonation(
     City: input.City?.trim() ?? '',
     Expected_Collection_Date: '',
     Expected_Delivery_Date: '',
+    Corporate_Account_ID: corporateAccountId ?? '',
   };
 
   await appendRow(SHEET_TABS.donations, row);
@@ -165,11 +174,15 @@ export async function listDonationsByDonor(donorId: string): Promise<Donation[]>
   return rows.filter((row) => row.Donor_ID === donorId).map(rowToDonation);
 }
 
-/** "Company-wide" donation history for Corporate donors (spec 4.1, 11.4.3). */
+/**
+ * Corporate reporting (Admin's company view) — RC1: a donation only counts
+ * for a company if the donor explicitly chose "Corporate Donation" for it,
+ * not merely because the donor happens to be linked to that company (see
+ * Donation.Corporate_Account_ID). A direct filter, no donor-ID join needed.
+ */
 export async function listDonationsByCorporateAccount(corporateAccountId: string): Promise<Donation[]> {
-  const donorIds = new Set(await listUserIdsByCorporateAccount(corporateAccountId));
   const rows = await getRows(SHEET_TABS.donations);
-  return rows.filter((row) => donorIds.has(row.Donor_ID)).map(rowToDonation);
+  return rows.filter((row) => row.Corporate_Account_ID === corporateAccountId).map(rowToDonation);
 }
 
 /**

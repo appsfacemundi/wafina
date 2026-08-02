@@ -10,7 +10,6 @@ import {
   createDonation,
   editDonation,
   listAvailableDonations,
-  listDonationsByCorporateAccount,
   listDonationsByDonor,
   listDonationsClaimedByInstitution,
   markCollected,
@@ -66,25 +65,30 @@ donationsRouter.post(
       req.file.mimetype,
     );
 
-    const donation = await createDonation(req.user!.userId, req.user!.activeCountryId, {
-      ...fields,
-      Photo: photoUrl,
-    });
+    // RC1: donor chooses per-donation, never trusted as an arbitrary ID from
+    // the client — only ever their own session's linked company, or null.
+    const corporateAccountId =
+      req.body.isCorporateDonation === 'true' && req.user!.corporateAccountId
+        ? req.user!.corporateAccountId
+        : null;
+
+    const donation = await createDonation(
+      req.user!.userId,
+      req.user!.activeCountryId,
+      { ...fields, Photo: photoUrl },
+      corporateAccountId,
+    );
     res.status(201).json(donation);
   }),
 );
 
-/** "My Donations" (spec 9.1) — company-wide for Corporate donors, own-only for Individual. */
+/** "My Donations" (spec 9.1) — always the caller's own donations, personal or corporate. */
 donationsRouter.get(
   '/donations/mine',
   requireAuth,
   requireRole('Donor'),
   asyncHandler(async (req, res) => {
-    const user = req.user!;
-    const donations = user.corporateAccountId
-      ? await listDonationsByCorporateAccount(user.corporateAccountId)
-      : await listDonationsByDonor(user.userId);
-    res.json(donations);
+    res.json(await listDonationsByDonor(req.user!.userId));
   }),
 );
 

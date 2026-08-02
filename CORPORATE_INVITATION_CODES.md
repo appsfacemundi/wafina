@@ -9,8 +9,9 @@ and confirmed everything else against the live system).
 
 Lets a company (e.g. Endiama, Unitel) run a corporate donation program: an Admin creates the
 company in Wafina, generates an invitation code for it, and employees enter that code in the Donor
-app to link their account. Every donation they make afterward is automatically attributed to their
-company — no manual tagging, no separate workflow.
+app to link their account. **Being linked to a company does not make every donation corporate** —
+the donor chooses, per donation, whether it's personal or on behalf of the company (see RC1 update
+below). The donor-company link itself never changes based on that choice.
 
 ## Complete workflow
 
@@ -30,10 +31,13 @@ suspended — only then increments `Uses_Count` and links the donor
 (`Users.Corporate_Account_ID`). Any failure returns a specific, plain-language error; the donor
 sees a success banner on completion.
 
-**4. Every future donation is automatically company-attributed** — with no extra field on the
-`Donation` row itself. `listDonationsByCorporateAccount` derives the link live, at read time, via
-`Donor_ID → Users.Corporate_Account_ID`. This means there's nothing to keep in sync and no risk of
-a donation silently drifting out of its company's view.
+**4. Each donation is individually attributed, donor's choice** (RC1 update, 2026-08-02) — a linked
+donor sees a "Doar como" choice on the donation form: **Doação Pessoal** (default) or **Doação da
+Empresa (Company Name)**. Stored directly on the `Donation` row as `Corporate_Account_ID` (blank =
+personal, filled = that donation counts for the company) — never derived from the donor's link, and
+never client-suppliable as an arbitrary ID: the backend only ever writes the caller's own session
+`corporateAccountId` when they explicitly opt in, or blank otherwise. The donor-company link
+(`Users.Corporate_Account_ID`) never changes based on this per-donation choice.
 
 **5. Admin visibility** — each company's card on the Empresas page shows its name, country,
 active/suspended status, employee count, and total donation count, plus the full list of its
@@ -46,7 +50,13 @@ invitation codes with usage (`Uses_Count/Max_Uses`), expiration, and active/inac
 - Deactivate a code
 - Copy a code to clipboard
 - Donor-side redeem with full validation and clear error messaging
-- Automatic, always-current donation-to-company attribution
+- **Per-donation Individual vs. Corporate choice** — the donor decides each time, never a blanket
+  rule tied to being linked
+- "Minhas Doações" ("My Donations") always shows the donor's own donations — personal and
+  corporate alike — each clearly labeled (👤 Doação Pessoal / 🏢 Doação da Empresa – Company Name);
+  never other employees' donations
+- Admin's company `Donation_Count` counts only donations explicitly marked Corporate — personal
+  donations from linked employees are correctly excluded
 - Admin visibility into employee count and donation count per company
 
 ## Known limitations (deliberate, not oversights)

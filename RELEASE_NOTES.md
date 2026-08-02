@@ -138,6 +138,28 @@ Once both are resolved, generating the five build artifacts is the direct next s
   account: created a test company, generated a code, clicked "Copiar," confirmed the toast and that
   the write succeeded, then fully cleaned up (deleted the Firebase test user and cleared all test
   rows).
+- RC1: Individual vs. Corporate donation attribution. Previously, once a donor linked to a company,
+  *every* donation they made was automatically counted as corporate — the stakeholder correctly
+  flagged this as wrong business logic (an employee's personal donation from home shouldn't credit
+  their employer). Recommended and got sign-off on a simpler schema than proposed: a nullable
+  `Corporate_Account_ID` directly on the `Donation` row (blank = personal, filled = that specific
+  company gets credit) instead of a separate type field plus the old donor-ID join — this actually
+  *removes* a join step from `listDonationsByCorporateAccount` rather than adding one. The donor
+  now sees a simple "Doar como" choice (Doação Pessoal / Doação da Empresa) on the donation form,
+  shown only when they're linked to a company; the donor-company link itself never changes based on
+  this per-donation choice. "Minhas Doações" was already going to be affected by this — clarified with
+  the stakeholder that it must always show the donor's *own* donations (never teammates'), so it was
+  simplified to drop the old "company-wide view" branch entirely, with each donation now labeled
+  👤 Doação Pessoal or 🏢 Doação da Empresa – Company Name. Admin's company `Donation_Count` updated
+  to match (counts only explicitly-corporate donations). New minimal `GET /donor/corporate-account`
+  endpoint added so the UI can show the actual company name. One-time schema migration added a
+  `Corporate_Account_ID` column to the live `Donations` sheet (existing rows unaffected — read as
+  blank/personal, exactly correct for donations made before this feature existed). Verified end-to-end
+  against a local API instance pointed at the real data: a disposable donor joined a disposable test
+  company, submitted one Individual and one Corporate donation, confirmed `Corporate_Account_ID` was
+  null vs. the company ID respectively, confirmed `/donations/mine` returned both, and confirmed the
+  company's `Donation_Count` was 1 (not 2) — then fully cleaned up all test data (Firebase user,
+  company, code, both donations).
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 
