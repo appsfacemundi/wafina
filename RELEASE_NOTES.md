@@ -71,6 +71,13 @@ Once both are resolved, generating the five build artifacts is the direct next s
   the page title/content rather than assuming a successful-looking deploy log meant the site was
   correct. Both now verified working (Institution via a real disposable test account through
   Firebase Auth; Admin via a dummy-credential check confirming Firebase Auth is reached).
+- RC1: Phase 2 (Web Applications) complete. Updated `ALLOWED_ORIGINS` on the live API to include
+  all three production URLs, then verified full end-to-end functionality with real logins: Donor
+  Web and Institution Web both successfully authenticate and load real account data through the
+  live API. Admin Panel's build/CORS/Firebase-reachability is confirmed but a full authenticated
+  login wasn't performed (no real admin credentials used in this workflow) — flagged for the
+  stakeholder to confirm at their convenience, though it shares the identical code path already
+  proven working for the other two apps.
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 

@@ -125,9 +125,9 @@ offline/poor-network behavior on iOS specifically.
 
 | Module | Certified | PASS/FAIL | Commit |
 |---|---|---|---|
-| Web — Donor Web live on Render Static Site (`wafina-donor-web`) | 2026-08-02 (RC1) | PASS — Firebase Auth verified end-to-end with real test account; API call correctly pending on ALLOWED_ORIGINS update | `945423b` |
-| Web — Institution Web live on Render Static Site (`wafina-institution-web`) | 2026-08-02 (RC1) | PASS (after fixing a deploy misconfig — see Bugs Fixed) — Firebase Auth verified end-to-end with real test account | af3b92d / deploy config fix |
-| Web — Admin Panel live on Render Static Site (`wafina-admin-panel`) | 2026-08-02 (RC1) | PASS — Firebase Auth reachability confirmed (dummy-credential check, no real admin creds used) | af3b92d |
+| Web — Donor Web full end-to-end (real login → authenticated Home with real profile data) | 2026-08-02 (RC1) | PASS — full chain verified after ALLOWED_ORIGINS update: Firebase Auth + API + Sheets data all confirmed live | `945423b` + ALLOWED_ORIGINS update |
+| Web — Institution Web full end-to-end (real login → authenticated dashboard with real stats) | 2026-08-02 (RC1) | PASS (after fixing a deploy misconfig — see Bugs Fixed) — full chain verified, dashboard stats match known test account history | af3b92d / deploy config fix |
+| Web — Admin Panel live on Render Static Site (`wafina-admin-panel`) | 2026-08-02 (RC1) | PASS for build/CORS/Firebase-reachability (dummy-credential check); full authenticated login NOT performed — no real admin credentials used this session | af3b92d |
 | Android — Donor app full lifecycle | 2026-07-31 | PASS (after fix) | `e4b8707` |
 | Android — Institution app full lifecycle | 2026-07-31 | PASS | `e4b8707` |
 | iOS — Donor: sign up, session bootstrap | This session | PASS | not yet committed |

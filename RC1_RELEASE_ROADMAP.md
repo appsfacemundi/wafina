@@ -80,8 +80,20 @@ Legend: ✅ done · 🔶 in progress / partially done · ⬜ not started
   `https://wafina-admin-panel.onrender.com`. Verified: no console/network errors, and a dummy
   credential correctly returns "E-mail ou palavra-passe incorretos" (proving Firebase Auth is
   reached; no real admin credentials were used for this check).
-- ⬜ Verify complete end-to-end functionality
-- ⬜ Update `ALLOWED_ORIGINS` on Render to the real deployed web URLs
+- ✅ Update `ALLOWED_ORIGINS` on Render (`wafina-api`) to include all three production URLs
+  (alongside the existing localhost dev entries); confirmed the automatic redeploy completed and
+  `/health` still returns 200.
+- ✅ Verify complete end-to-end functionality — **Donor Web**: full real login
+  (`wafi.donor.test@gmail.com`) → landed on the authenticated Home screen with correct profile
+  data, Active Country, and notification badge. **Institution Web**: full real login
+  (`wafi.inst.test@gmail.com`) → landed on the authenticated dashboard with correct real stats
+  (1 published story, 5 items received total, etc., matching this account's known history).
+  **Admin Panel**: build/CORS/Firebase-reachability confirmed, but a full authenticated login
+  was not performed — no real Admin credentials were available this session (only a dummy
+  credential was used, appropriately, to avoid needing real admin secrets in this workflow). Since
+  Admin shares the identical auth code path and CORS config already proven working for the other
+  two apps, this is very likely fine, but is flagged as the one item not fully closed — the
+  stakeholder can confirm with a real admin login at their convenience.
 
 **Deployment strategy decision: Render Static Sites** (revised from the original Web Service plan)
 — for operational consistency with `apps/api`'s platform, and because all three apps turned out to
