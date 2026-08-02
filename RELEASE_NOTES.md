@@ -160,6 +160,18 @@ Once both are resolved, generating the five build artifacts is the direct next s
   null vs. the company ID respectively, confirmed `/donations/mine` returned both, and confirmed the
   company's `Donation_Count` was 1 (not 2) — then fully cleaned up all test data (Firebase user,
   company, code, both donations).
+- RC1: post-deployment targeted regression + smoke test for the Individual vs. Corporate donation
+  feature. Confirmed both the API (Render Web Service) and Donor Web (Render Static Site) had already
+  auto-deployed the change before testing began. 23/23 checks passed against live production: full
+  registration→login→password-reset→profile-completion flow, invitation-code redemption, both
+  donation types created with correct `Corporate_Account_ID` attribution, "Minhas Doações" returning
+  both with correct data for the 👤/🏢 labels, notifications, Institution seeing/claiming/running the
+  complete claim→schedule→collect→deliver lifecycle on **both** donation types, Admin's company
+  `Donation_Count` correctly counting only the Corporate one, and Impact Stories creation + Admin
+  approval + donor visibility. Zero regressions found — the one thing that looked like a failure on
+  first pass (a brand-new Success Story not immediately visible to the donor) turned out to be
+  correct, pre-existing moderation behavior (stories start `Pending` until Admin approves), not
+  caused by this feature. All disposable test data fully cleaned up afterward.
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 

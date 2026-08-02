@@ -181,6 +181,13 @@ Command, no port handling needed — Static Sites just serve the built directory
   company, one Individual and one Corporate donation, confirmed correct `Corporate_Account_ID` on
   each, confirmed `/donations/mine` returns both, confirmed company `Donation_Count` was 1 not 2 —
   then fully cleaned up. See `CORPORATE_INVITATION_CODES.md` for the updated workflow.
+- ✅ **Post-deployment regression + smoke test — PASS, 23/23, zero regressions.** Confirmed the Render
+  auto-deploy had already picked up both the API and Donor Web changes before testing began. Full
+  targeted regression (registration, login, password reset, invitation-code redemption, both donation
+  types' attribution, "Minhas Doações" own-only + labels, Institution claim→schedule→collect→deliver
+  on both types, Admin `Donation_Count`, Impact Stories create/approve/visibility) plus the requested
+  smoke test all passed against live production. No bugs found — RC1 is stable and ready to continue
+  to the next milestone.
 
 ### Phase 4 — Release Builds
 - ⬜ Generate Android APK
