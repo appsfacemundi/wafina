@@ -115,6 +115,16 @@ Once both are resolved, generating the five build artifacts is the direct next s
   codebase first found no in-app self-service deletion exists at all today — this page is a
   support-mediated stopgap (email request, processed within 30 days), not a replacement for real
   in-app deletion, which remains an open, undecided item.
+- Investigated a stakeholder-reported "critical blocking bug" (a donor's donation not appearing in
+  the Institution app's Available Donations). Reproduced the full pipeline live against production
+  with real API calls — create → visible → claim → schedule → collect → deliver all verified
+  working correctly. The scoping is intentional (Available Donations is filtered to the
+  institution's own country, Phase 3A Module 1), and the incomplete-profile edge case is already
+  safely blocked server-side. Most likely explanation is a country mismatch between the specific
+  accounts tested, not a defect — but fixed a real gap found along the way: the empty state gave no
+  indication *why* the list was empty, making a legitimate mismatch indistinguishable from a broken
+  pipeline. `apps/institution/src/app/donations/available/page.tsx` now names the institution's own
+  country in that message.
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 

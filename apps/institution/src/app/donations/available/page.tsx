@@ -91,7 +91,11 @@ export default function AvailableDonationsPage() {
         {donations?.length === 0 && (
           <EmptyState
             title="Sem doações disponíveis"
-            description="Quando houver doações pendentes, aparecem aqui."
+            description={
+              countryName
+                ? `Não há doações pendentes em ${countryName} neste momento. Esta lista mostra apenas doações do mesmo país da sua instituição — quando um doador desse país submeter uma doação, aparece aqui.`
+                : 'Quando houver doações pendentes no seu país, aparecem aqui.'
+            }
           />
         )}
         {donations && donations.length > 0 && filtered?.length === 0 && (
