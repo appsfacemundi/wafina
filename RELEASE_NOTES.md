@@ -110,6 +110,11 @@ Once both are resolved, generating the five build artifacts is the direct next s
   store presence yet, renamed both to `com.zuinder.wafina.doador` and
   `com.zuinder.wafina.instituicao` in `app.json` at zero migration cost — this was confirmed before
   changing, since these IDs become permanent the moment either store app is created.
+- RC1 Phase 3: added a bilingual `/delete-account` page on Donor Web to satisfy Google Play's Data
+  Safety requirement for a web link users can use to request account/data deletion. Checking the
+  codebase first found no in-app self-service deletion exists at all today — this page is a
+  support-mediated stopgap (email request, processed within 30 days), not a replacement for real
+  in-app deletion, which remains an open, undecided item.
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 

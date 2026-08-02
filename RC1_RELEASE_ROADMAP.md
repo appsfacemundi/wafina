@@ -118,6 +118,15 @@ Command, no port handling needed — Static Sites just serve the built directory
   folders exist yet (managed Expo workflow, no `expo prebuild` run), no EAS project registered, no
   Play Console/App Store Connect app created yet — these were the only two files referencing the old
   IDs anywhere in the repo.
+- ✅ Account deletion request page — Google Play's Data Safety form requires a web link users can use
+  to request account/data deletion. Checked the codebase first: **no in-app self-service account
+  deletion exists anywhere** (Donor/Institution, web or mobile). Built a bilingual `/delete-account`
+  page on Donor Web as the immediate, low-risk fix for the required web link (support-mediated:
+  email `support@zuinder.com`, processed within 30 days, states what's deleted vs. what's retained
+  anonymized for impact stats). **Open item, not yet decided:** Play generally also expects true
+  in-app deletion when an app supports account creation, not just a support-mediated web request —
+  that would be real backend work (safely deleting a `Users` row plus related donations/history) and
+  needs a stakeholder decision on scope/timing, not something to build silently.
 - ⬜ Configure Apple App Store Connect
 - ⬜ Complete all required compliance information
 - ✅ Prepare Privacy Policy and Data Safety information — bilingual (PT/EN) Privacy Policy written and
