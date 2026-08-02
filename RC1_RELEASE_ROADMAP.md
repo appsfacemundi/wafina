@@ -60,7 +60,13 @@ Legend: ✅ done · 🔶 in progress / partially done · ⬜ not started
   confirming real static HTML was produced for every route, before making the config change
   permanent. Also fixed two related gaps this surfaced: `out/` wasn't in `.gitignore`, and wasn't
   excluded from ESLint (was linting minified static output, producing 6708 false-positive errors).
-- ⬜ Deploy Donor Web
+- ✅ Deploy Donor Web — `wafina-donor-web` Render Static Site, live at
+  `https://wafina-donor-web.onrender.com`. Verified: site loads, sign-in form renders, and a
+  real disposable test account (`wafi.donor.test@gmail.com`) confirms Firebase Auth succeeds
+  end-to-end against the production Firebase project (no "incorrect credentials" error). The
+  subsequent call to our own API's `/auth/session` fails as expected — `ALLOWED_ORIGINS` on
+  Render hasn't been updated yet (still `localhost` only); that's the planned next-but-one
+  milestone, not a bug in this deploy.
 - ⬜ Deploy Institution Web
 - ⬜ Deploy Admin Panel
 - ⬜ Verify complete end-to-end functionality

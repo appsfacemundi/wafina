@@ -60,6 +60,10 @@ Once both are resolved, generating the five build artifacts is the direct next s
   making it permanent. Lets all three deploy as free Render Static Sites (CDN-distributed, no
   cold-start risk) instead of paid always-on Web Services, with zero functionality loss. Also fixed
   `out/` being missing from `.gitignore` and from ESLint's ignore list.
+- RC1: Donor Web deployed live at `https://wafina-donor-web.onrender.com` (Render Static Site).
+  Verified with a real disposable test account that Firebase Auth succeeds end-to-end against
+  production; the subsequent call to our own API fails only because `ALLOWED_ORIGINS` hasn't been
+  updated yet (planned, not yet done — tracked in `RC1_RELEASE_ROADMAP.md`).
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 

@@ -124,6 +124,7 @@ offline/poor-network behavior on iOS specifically.
 
 | Module | Certified | PASS/FAIL | Commit |
 |---|---|---|---|
+| Web — Donor Web live on Render Static Site (`wafina-donor-web`) | 2026-08-02 (RC1) | PASS — Firebase Auth verified end-to-end with real test account; API call correctly pending on ALLOWED_ORIGINS update | `945423b` |
 | Android — Donor app full lifecycle | 2026-07-31 | PASS (after fix) | `e4b8707` |
 | Android — Institution app full lifecycle | 2026-07-31 | PASS | `e4b8707` |
 | iOS — Donor: sign up, session bootstrap | This session | PASS | not yet committed |
