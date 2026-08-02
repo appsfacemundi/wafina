@@ -160,6 +160,13 @@ Command, no port handling needed — Static Sites just serve the built directory
   confirmed live in the real donation-creation dropdown via an authenticated browser session with a
   disposable test account (`wafi.donor.test@gmail.com`) — all 7 item types present and in the expected
   order.
+- ✅ **Corporate Invitation Codes — verified complete and production-ready.** A stakeholder request to
+  build this feature turned out to be ~95% already live from the earlier Admin Web App Parity work;
+  verified every piece against the real running code and live production data rather than rebuilding.
+  The one genuine gap (no copy-to-clipboard button on a generated code) is now fixed and live-tested
+  end-to-end with a disposable throwaway Admin account (created, tested, fully deleted afterward — no
+  leftover test data). Full workflow, capabilities, and limitations documented in
+  `CORPORATE_INVITATION_CODES.md`.
 
 ### Phase 4 — Release Builds
 - ⬜ Generate Android APK
