@@ -22,3 +22,15 @@ jobs:
       - run: npm run typecheck
 
       - run: npm run build
+        env:
+          # NEXT_PUBLIC_* Firebase config is client-side config, not a secret —
+          # Firebase's web SDK is designed to ship these in the bundle (security
+          # is enforced by Firebase Auth + backend rules, not by hiding this key).
+          # Required for apps/web, apps/institution, apps/admin to build at all:
+          # without it, Firebase's client init throws auth/invalid-api-key even
+          # during static-page prerendering of routes that never call Firebase.
+          NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyAxNgxYb2GrwW2F9kKfzQok_OLA9pooWhM
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: wafina-98a3a.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: wafina-98a3a
+          NEXT_PUBLIC_FIREBASE_APP_ID: "1:355399125922:web:1f922f394d585d6d0a00fb"
+          NEXT_PUBLIC_API_BASE_URL: https://wafina-api-rd0q.onrender.com

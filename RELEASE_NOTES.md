@@ -78,6 +78,14 @@ Once both are resolved, generating the five build artifacts is the direct next s
   login wasn't performed (no real admin credentials used in this workflow) — flagged for the
   stakeholder to confirm at their convenience, though it shares the identical code path already
   proven working for the other two apps.
+- RC1: fixed GitHub Actions CI, which had been failing on every single push since the repo's very
+  first commit (pre-existing, not caused by RC1 work — caught via a GitHub notification email, not
+  by actively watching CI). Root cause: `npm run build` in CI never had the Next.js apps'
+  `NEXT_PUBLIC_FIREBASE_*` / `NEXT_PUBLIC_API_BASE_URL` values configured, so Firebase's client SDK
+  threw `auth/invalid-api-key` during static-page prerendering. Fixed by adding these (non-sensitive
+  client config, meant to ship in the bundle) directly to `.github/workflows/ci.yml`. Verified by
+  simulating CI's exact environment locally (temporarily removing all three apps' `.env.local`
+  files, building with only shell-exported env vars) before pushing.
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 
