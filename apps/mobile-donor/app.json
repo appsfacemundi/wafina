@@ -8,14 +8,14 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "org.wafina.donor",
+      "bundleIdentifier": "com.zuinder.wafina.doador",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "A Wafina usa a sua localização para registar onde a doação pode ser recolhida.",
         "NSPhotoLibraryUsageDescription": "A Wafina precisa de acesso às suas fotografias para anexar uma imagem da doação."
       }
     },
     "android": {
-      "package": "org.wafina.donor",
+      "package": "com.zuinder.wafina.doador",
       "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     }
   }

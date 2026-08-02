@@ -107,9 +107,17 @@ Command, no port handling needed — Static Sites just serve the built directory
 ### Phase 3 — Store Preparation
 - 🔶 Configure Google Play Console — account details confirmed (Support email `support@zuinder.com`,
   developer entity `ZUINDER - PRESTAÇÃO SERVIÇOS COMÉRCIO GERAL, LDA`, Account ID
-  `6616179782244156480`, target region Global/Worldwide, primary language Portuguese, category:
-  physical non-perishable goods coordination, no in-app monetary payments). Store listing/Data
-  Safety/Content Rating not yet started.
+  `6616179782244156480`, target region Global/Worldwide, primary language Portuguese (Portugal,
+  `pt-PT`)). Store listing copy for Wafina Doador drafted (Title/Short/Full description). Store
+  listing/Data Safety/Content Rating not yet submitted in-console.
+- ✅ Application IDs finalized: `org.wafina.*` (the only values that existed in the codebase, found
+  when the stakeholder asked to confirm them against a `com.zuinder.*` assumption) were changed to
+  `com.zuinder.wafina.doador` (Wafina Doador) and `com.zuinder.wafina.instituicao` (Wafina
+  Instituição) in both apps' `app.json` (`ios.bundleIdentifier` and `android.package`), matching the
+  registered developer entity. Zero-risk change confirmed before applying: no native `android`/`ios`
+  folders exist yet (managed Expo workflow, no `expo prebuild` run), no EAS project registered, no
+  Play Console/App Store Connect app created yet — these were the only two files referencing the old
+  IDs anywhere in the repo.
 - ⬜ Configure Apple App Store Connect
 - ⬜ Complete all required compliance information
 - ✅ Prepare Privacy Policy and Data Safety information — bilingual (PT/EN) Privacy Policy written and

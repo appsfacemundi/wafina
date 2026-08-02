@@ -8,13 +8,13 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "org.wafina.institution",
+      "bundleIdentifier": "com.zuinder.wafina.instituicao",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "A Wafina usa a sua localização para registar a localização da sua instituição."
       }
     },
     "android": {
-      "package": "org.wafina.institution",
+      "package": "com.zuinder.wafina.instituicao",
       "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     }
   }

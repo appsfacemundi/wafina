@@ -104,6 +104,12 @@ Once both are resolved, generating the five build artifacts is the direct next s
   institution responsible for inspecting at collection). Updated `MASTER_SPECIFICATION.md` and the
   Privacy Policy's scope language to match. Live-verified the new categories appear correctly in the
   real donation-creation form via an authenticated session.
+- RC1 Phase 3: finalized mobile application IDs. The stakeholder asked to confirm the package names
+  against an assumed `com.zuinder.*` scheme; the codebase actually had `org.wafina.donor` /
+  `org.wafina.institution`. Since neither app had any native project folders, EAS registration, or
+  store presence yet, renamed both to `com.zuinder.wafina.doador` and
+  `com.zuinder.wafina.instituicao` in `app.json` at zero migration cost — this was confirmed before
+  changing, since these IDs become permanent the moment either store app is created.
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 
