@@ -69,6 +69,7 @@ offline/poor-network behavior on iOS specifically.
 |---|---|---|---|---|
 | 2026-07-31 | Donation photo upload silently failed on Android (`Unsupported FormDataPart implementation`, then `undefined is not a function` after first fix attempt) | RN 0.86 New Architecture breaks classic `FormData`/`Blob` multipart upload | `apps/mobile-donor/src/lib/api.ts`, `apps/mobile-institution/src/lib/api.ts` (new `uploadFile()` using `expo-file-system/legacy` `uploadAsync`), `DonateScreen.tsx`, `SettingsScreen.tsx`, `NewSuccessStoryScreen.tsx` | `e4b8707` |
 | 2026-07-31 | Silent auth failure: a session-resolution error (e.g. suspended account) left the app stuck instead of showing Sign In | `AuthContext`'s `onAuthStateChanged` listener didn't catch/report `resolveSession()` failures | `AuthContext.tsx` + `SignInScreen.tsx` in both mobile apps (added `sessionError` state, `signIn()` rethrow-and-signOut) | `e4b8707` |
+| 2026-08-02 | `apps/admin` production build failed: `useSearchParams()` must be wrapped in a Suspense boundary | Never caught before because Admin had only ever been run via `next dev` (no prerendering), never `next build` — this was RC1's first production build attempt for Admin | `apps/admin/src/app/sign-in/page.tsx` (split into `SignInPage` wrapper + `SignInForm` inner component, wrapped in `<Suspense>`) | pending (RC1 Phase 2) |
 
 ---
 

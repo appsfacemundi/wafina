@@ -1,13 +1,21 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { Suspense, useState, type FormEvent } from 'react';
 import { Button, Card, Input } from '@wafina/ui';
 import { useAuth } from '@/context/AuthContext';
 import { friendlyAuthError } from '@/lib/auth-errors';
 import { ApiError } from '@/lib/api';
 
 export default function SignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignInForm />
+    </Suspense>
+  );
+}
+
+function SignInForm() {
   const { signIn, sessionError } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();

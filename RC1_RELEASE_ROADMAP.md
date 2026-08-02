@@ -46,12 +46,21 @@ Legend: ✅ done · 🔶 in progress / partially done · ⬜ not started
   both fixed and pushed (`5ccb953`).
 
 ### Phase 2 — Web Applications
-- ⬜ Update all web apps to use the live Render API (`NEXT_PUBLIC_API_BASE_URL`)
+- ✅ Update all web apps to use the live Render API (`NEXT_PUBLIC_API_BASE_URL` in
+  `apps/web`, `apps/institution`, `apps/admin` `.env.local`, plus new `.env.example` files
+  documenting required vars — none existed before). Verified all three still build cleanly;
+  found and fixed a real, previously-undetected `apps/admin` production-build bug along the way
+  (`useSearchParams()` needed a Suspense boundary — Admin had never had a production build run
+  before this).
 - ⬜ Deploy Donor Web
 - ⬜ Deploy Institution Web
 - ⬜ Deploy Admin Panel
 - ⬜ Verify complete end-to-end functionality
 - ⬜ Update `ALLOWED_ORIGINS` on Render to the real deployed web URLs
+
+**Deployment strategy decision pending:** Vercel (recommended — purpose-built for Next.js,
+near-zero config) vs. Render (consistent with the API, but repeats the manual Node-service config
+done for `apps/api`). Awaiting stakeholder choice before the next milestone.
 
 ### Phase 3 — Store Preparation
 - ⬜ Configure Google Play Console

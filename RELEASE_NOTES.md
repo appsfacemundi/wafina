@@ -47,6 +47,13 @@ Once both are resolved, generating the five build artifacts is the direct next s
 - Android: Donor and Institution full lifecycles live-verified.
 - RC1 cleanup: removed 8 leftover one-off `tmp-*.ts` debug/verification scripts from
   `apps/api/scripts/` (unreferenced anywhere, safe to delete).
+- RC1: `apps/api` deployed to production on Render (`https://wafina-api-rd0q.onrender.com`,
+  Frankfurt). Fixed two real build blockers found during the deploy: a TypeScript version drift
+  across workspaces causing a `moduleResolution` deprecation error, and `NODE_ENV=production`
+  causing npm to skip devDependencies needed at build time.
+- RC1: fixed `apps/admin`'s production build, which had never been run before (`next build`
+  failed on `useSearchParams()` needing a Suspense boundary on the sign-in page) — a real,
+  previously-undetected bug caught by this being Admin's first production build attempt.
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 
