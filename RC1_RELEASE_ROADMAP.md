@@ -122,6 +122,27 @@ Command, no port handling needed — Static Sites just serve the built directory
   only, no ad tracking, no data sale). Verified: production static build succeeds with the new route,
   full `npm run lint` + `npm run typecheck` clean, rendered and screenshot-checked locally before
   publishing.
+- ✅ **Scope broadening (stakeholder-directed, 2026-08-02, Feature Freeze exception explicitly
+  approved):** the platform now explicitly covers both perishable (fresh food, prepared meals) and
+  non-perishable goods, not non-perishable-only. Real product change, not just copy — found during
+  Terms drafting that `packages/shared/src/enums/item-type.ts` had no food category at all (only
+  Roupas/Sapatos/Cobertores e roupa de cama/Material escolar), which would have made the store listing
+  claim a capability the app didn't have. Added `Alimentos frescos`, `Refeições preparadas`, and
+  `Mercearia/Alimentos não perecíveis` to the shared `ITEM_TYPES` list — this is a plain string array
+  already consumed identically by the Donor Web and Donor mobile item-type selectors and displayed
+  as-is (no fixed dropdown) everywhere Admin/Institution show `Item_Type`, so one shared-package edit
+  propagated everywhere with no per-app UI code changes needed. `MASTER_SPECIFICATION.md` §1.1 and the
+  Privacy Policy's scope sentence updated to match. Added a new bilingual **Terms & Conditions** page
+  at `https://wafina-donor-web.onrender.com/terms`, including a food-safety/item-responsibility
+  disclaimer (donor responsible for perishable items being safe/unexpired at transfer; institution
+  responsible for inspecting at collection; Wafina is an intermediary, not a party to the physical
+  exchange). Deliberately did **not** mention future monetary/cash donations anywhere in the Terms,
+  Privacy Policy, or store-facing copy, per the stakeholder's explicit instruction, to avoid store
+  review confusion. Verified: `npm run lint` + `npm run typecheck` clean across all 8 workspaces,
+  production static build succeeds (now 15 routes including `/terms`), and the new categories were
+  confirmed live in the real donation-creation dropdown via an authenticated browser session with a
+  disposable test account (`wafi.donor.test@gmail.com`) — all 7 item types present and in the expected
+  order.
 
 ### Phase 4 — Release Builds
 - ⬜ Generate Android APK

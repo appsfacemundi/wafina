@@ -7,7 +7,11 @@
 # SECTION 1: EXECUTIVE SUMMARY
 
 ## 1.1 Project Name
-**Wafina** — a nonprofit donation-matching platform connecting individual and institutional donors of non-perishable physical goods with verified charitable institutions.
+**Wafina** — a nonprofit donation-matching platform connecting individual and institutional donors of
+physical goods — perishable (fresh food, prepared meals) and non-perishable (clothing, school supplies,
+hygiene items, packaged groceries, household essentials) alike — with verified charitable institutions.
+*(Scope broadened from non-perishable-only during RC1 Phase 3, 2026-08-02, stakeholder-approved Feature
+Freeze exception — see `RC1_RELEASE_ROADMAP.md`.)*
 
 ## 1.2 Problem Statement
 Charitable donation coordination currently happens through informal, manual channels — physical drop-off points, word-of-mouth coordination between donors and institutions (orphanages, NGOs, churches). This creates no visibility into institution needs, no delivery tracking, no verification of legitimacy, and no accountability trail when disputes arise.

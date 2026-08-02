@@ -93,6 +93,17 @@ Once both are resolved, generating the five build artifacts is the direct next s
   integration found — notifications are in-app only), and named Google Sheets/Drive/Firebase as the
   data processors involved. Required before either store's Data Safety / App Privacy questionnaires
   can be completed.
+- RC1 Phase 3: broadened platform scope, at the stakeholder's explicit direction, to cover perishable
+  goods (fresh food, prepared meals) alongside non-perishable goods, not non-perishable-only. This
+  surfaced a real gap while drafting the Terms & Conditions: the app had no food category at all in
+  `packages/shared/src/enums/item-type.ts`. Added three new entries (`Alimentos frescos`, `Refeições
+  preparadas`, `Mercearia/Alimentos não perecíveis`) — a single shared-package change that propagated
+  to every consuming screen automatically, since `Item_Type` is a plain string everywhere it's
+  displayed. Published a new bilingual Terms & Conditions page at `/terms` with a food-safety
+  disclaimer (donor responsible for a perishable item being safe and unexpired at transfer;
+  institution responsible for inspecting at collection). Updated `MASTER_SPECIFICATION.md` and the
+  Privacy Policy's scope language to match. Live-verified the new categories appear correctly in the
+  real donation-creation form via an authenticated session.
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 

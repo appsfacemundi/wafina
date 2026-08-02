@@ -35,7 +35,9 @@ export default function PrivacyPage() {
               datas, estado), histórico de contribuições e eventuais ocorrências/disputas reportadas.</li>
           </ul>
           <p>Não recolhemos dados de pagamento — a Wafina não processa transações monetárias dentro da
-            aplicação; apenas coordena a doação de bens físicos não perecíveis.</p>
+            aplicação; apenas coordena a doação de bens físicos, tanto perecíveis (alimentos frescos,
+            refeições preparadas) como não perecíveis (roupa, material escolar, mercearia, artigos de
+            higiene e outros bens essenciais).</p>
         </section>
 
         <section className="stack">
@@ -117,7 +119,9 @@ export default function PrivacyPage() {
               contribution history, and any disputes/incidents reported.</li>
           </ul>
           <p>We do not collect payment data — Wafina does not process monetary transactions in-app; it only
-            coordinates the donation of physical, non-perishable goods.</p>
+            coordinates the donation of physical goods, both perishable (fresh food, prepared meals) and
+            non-perishable (clothing, school supplies, groceries, hygiene items, and other everyday
+            essentials).</p>
         </section>
 
         <section className="stack">
