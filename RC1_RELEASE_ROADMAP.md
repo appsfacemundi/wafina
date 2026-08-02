@@ -128,7 +128,19 @@ Command, no port handling needed — Static Sites just serve the built directory
   that would be real backend work (safely deleting a `Users` row plus related donations/history) and
   needs a stakeholder decision on scope/timing, not something to build silently.
 - ⬜ Configure Apple App Store Connect
-- ⬜ Complete all required compliance information
+- ✅ **Complete all required compliance information — drafted, 2026-08-02.** Verified against the actual
+  code (not assumed) that: no ad/payment/analytics/tracking SDK exists anywhere, no third-party social
+  login exists (Firebase email/password only, so Apple's Sign in with Apple requirement does not
+  trigger), no background location or age/birthdate collection exists, and the only `node:crypto` usage
+  is ID generation (qualifies for Apple's standard export-compliance exemption). Produced
+  `COMPLIANCE_INFORMATION.md` with ready-to-paste answers for Google Play's App content declarations
+  (Ads/News/COVID/Government/Financial Features/Target audience/Content rating) and Apple App Store
+  Connect's compliance section (Export compliance, Age rating, App Privacy, Content rights). Flagged one
+  genuine open item needing a stakeholder decision, not silently built: no in-app "report content" or
+  post-publish removal mechanism for Success Stories (Apple Guideline 1.2 / Play's UGC policy) — Admin
+  pre-publish moderation and account suspension exist today, which is a defensible launch posture, but
+  stronger UGC controls are optional, not built without approval. Submission into both consoles is the
+  stakeholder's action (no console credentials held in this environment).
 - ✅ Prepare Privacy Policy and Data Safety information — bilingual (PT/EN) Privacy Policy written and
   published as a static page at `https://wafina-donor-web.onrender.com/privacy` (added to `apps/web`,
   zero new infrastructure — reuses the existing live Donor Web static site). Covers both mobile apps
@@ -269,8 +281,8 @@ Phase 3, all independent of one another:
 1. **Google Play Console** (🔶) — account/store-listing copy drafted; Store Listing, Data Safety, and
    Content Rating still need to be submitted in-console.
 2. **Apple App Store Connect** (⬜) — not started.
-3. **Compliance information** (⬜) — not started (distinct from Privacy Policy/Data Safety, which are
-   done).
+3. **Compliance information** (✅) — drafted 2026-08-02, see `COMPLIANCE_INFORMATION.md`. One sub-item
+   inside it (UGC report/removal for Success Stories) is an optional stakeholder decision, not a blocker.
 4. **In-app account deletion, scope decision** — Play's Data Safety form is satisfied today by the
    support-mediated `/delete-account` page, but Play generally also expects true in-app self-service
    deletion for apps with account creation. This is real backend work (safe deletion of a `Users` row
