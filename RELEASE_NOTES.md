@@ -173,6 +173,31 @@ Once both are resolved, generating the five build artifacts is the direct next s
   correct, pre-existing moderation behavior (stories start `Pending` until Admin approves), not
   caused by this feature. All disposable test data fully cleaned up afterward.
 
+- RC1: in-app account deletion, scope decided and implemented. Google Play's account-deletion policy
+  expects the deletion option to be discoverable *from within the app*, not just reachable via a URL —
+  checked and found the existing `/delete-account` page wasn't linked from any app's Settings screen at
+  all; fixed by linking it from Donor Web/mobile and Institution Web/mobile. Separately, true
+  self-service deletion (an actual "Delete My Account" action, not a support request) didn't exist
+  anywhere — built for **Donor accounts only**, a stakeholder-approved scope decision: Institution
+  accounts stay support-mediated, since an institution's name/logo/verification is displayed
+  platform-wide and institutions are a smaller, relationship-managed user base where the added
+  cascading complexity wasn't judged worth it for V1. New `DELETE /donor/account` deletes the Firebase
+  Auth user and anonymizes the `Users` row (Name/Phone/Email cleared, `Corporate_Account_ID` cleared,
+  `Show_Name_To_Institutions` forced off, new `Status: 'Deleted'`) — Donations and Success Stories need
+  no code changes at all, since they already reference the donor only by ID and already render a
+  missing/anonymized donor as anonymous. `requireAuth`'s suspension check was broadened from
+  `=== 'Suspended'` to `!== 'Active'` so a deleted account is locked out immediately, not just once its
+  Firebase token happens to expire. A real bug was caught and fixed before this ever shipped: the first
+  pass left `Email` on the anonymized row, which would have permanently blocked that address from ever
+  registering again (`findUserByEmail`, used on every login, matches on it) — fixed by clearing `Email`
+  too and re-verifying the exact re-registration path this time, not just the delete call in isolation.
+  Verified end-to-end against live production data through the real Donor Web UI: a disposable donor's
+  full deletion flow was run through the confirmation UI (wrong email correctly blocked the button;
+  correct email enabled it), confirmed the Firebase user was truly gone, and confirmed every field on
+  the Sheets row was correctly cleared. Institution Web's new deletion link was confirmed rendering with
+  the correct URL via a live session. Mobile (Donor + Institution) changes are typecheck/lint-clean but
+  weren't run in a simulator this cycle.
+
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 
 - No automated test suite anywhere in the codebase — all verification to date has been manual, live QA.

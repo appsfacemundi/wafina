@@ -123,10 +123,31 @@ Command, no port handling needed — Static Sites just serve the built directory
   deletion exists anywhere** (Donor/Institution, web or mobile). Built a bilingual `/delete-account`
   page on Donor Web as the immediate, low-risk fix for the required web link (support-mediated:
   email `support@zuinder.com`, processed within 30 days, states what's deleted vs. what's retained
-  anonymized for impact stats). **Open item, not yet decided:** Play generally also expects true
-  in-app deletion when an app supports account creation, not just a support-mediated web request —
-  that would be real backend work (safely deleting a `Users` row plus related donations/history) and
-  needs a stakeholder decision on scope/timing, not something to build silently.
+  anonymized for impact stats).
+- ✅ **In-app account deletion — scope decided and implemented, 2026-08-02.** Two real gaps found and
+  fixed: (1) the `/delete-account` page existed but wasn't linked from *any* app's Settings screen —
+  now linked from Donor Web/mobile and Institution Web/mobile. (2) True self-service deletion (an
+  actual "Delete My Account" action, not just a support request) didn't exist at all — built for
+  **Donor accounts only** (stakeholder-approved scope; Institution stays support-mediated, since an
+  institution's name/logo/verification is displayed platform-wide and is a smaller, relationship-
+  managed user base). New `DELETE /donor/account` deletes the Firebase Auth user and anonymizes the
+  `Users` row (Name/Phone/Email cleared, `Corporate_Account_ID` cleared, `Show_Name_To_Institutions`
+  forced off, new `Status: 'Deleted'`) — Donations/Success_Stories need no changes at all since they
+  already reference the donor only by ID and already render a missing/anonymized donor as anonymous.
+  `requireAuth` now rejects any `Status !== 'Active'` (was `=== 'Suspended'` only) so a deleted
+  account is locked out immediately even before its Firebase token would naturally expire. A real
+  bug was caught and fixed **before** this shipped: the first pass left `Email` on the row, which
+  would have permanently blocked that address from ever registering again (`findUserByEmail` matches
+  on it) — fixed by clearing `Email` too, verified by confirming `findUserByEmail` returns null for
+  the old address post-deletion. Verified end-to-end against live production data: a disposable
+  donor account was created, its full deletion flow run through the real Donor Web UI (wrong-email
+  confirmation correctly blocked, correct email enabled it), confirmed `DELETE /donor/account` → 204,
+  confirmed the Firebase user no longer exists, confirmed the Sheets row shows every field cleared
+  and `Status: Deleted`, then confirmed the Email-clearing fix specifically via a second, isolated
+  test. All disposable test rows cleared afterward. Institution Web's new link confirmed rendering
+  with the correct URL via a live authenticated session. Mobile (Donor + Institution) changes are
+  typecheck/lint-clean but not run in a simulator this cycle — same known gap already tracked for
+  the previous feature in `RC1_REGRESSION_TEST_CHECKLIST.md`.
 - ⬜ Configure Apple App Store Connect
 - ✅ **Complete all required compliance information — drafted, 2026-08-02.** Verified against the actual
   code (not assumed) that: no ad/payment/analytics/tracking SDK exists anywhere, no third-party social
@@ -283,11 +304,8 @@ Phase 3, all independent of one another:
 2. **Apple App Store Connect** (⬜) — not started.
 3. **Compliance information** (✅) — drafted 2026-08-02, see `COMPLIANCE_INFORMATION.md`. One sub-item
    inside it (UGC report/removal for Success Stories) is an optional stakeholder decision, not a blocker.
-4. **In-app account deletion, scope decision** — Play's Data Safety form is satisfied today by the
-   support-mediated `/delete-account` page, but Play generally also expects true in-app self-service
-   deletion for apps with account creation. This is real backend work (safe deletion of a `Users` row
-   plus related donations/history), not yet scoped or approved — flagged for a stakeholder decision on
-   whether/when to build it, not something to start silently.
+4. **In-app account deletion** (✅) — implemented 2026-08-02 for Donor accounts (self-service);
+   Institution accounts remain support-mediated by design. See Phase 3 entry above for full detail.
 
-Per the operating rules above, no further work begins until the stakeholder confirms which of these
-to tackle next (or approves proceeding through all of them in sequence).
+Per the operating rules above, no further work begins until the stakeholder confirms which of the
+remaining two (Google Play Console, Apple App Store Connect) to tackle next.

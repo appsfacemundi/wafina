@@ -219,6 +219,30 @@ export async function reactivateUser(userId: string): Promise<User> {
 }
 
 /**
+ * RC1 self-service donor account deletion. The row itself stays (Donations/Success_Stories
+ * reference it only by Donor_ID, never by name/contact), but every identifying field — including
+ * Email — is cleared and Show_Name_To_Institutions is forced off — the same consent flag
+ * donation/story display already respects everywhere, so past donations correctly render as
+ * anonymous with no other code changes needed. Status: 'Deleted' locks the account out
+ * immediately via requireAuth. Email must be cleared, not just Name/Phone: findUserByEmail (used
+ * by /auth/session on every login/registration) matches on this field alone, so leaving the old
+ * address in place would make a genuine future re-registration with that same email collide with
+ * this dead row and get permanently rejected by the Status check instead of creating a fresh one.
+ * Institution accounts are deliberately out of scope — see COMPLIANCE_INFORMATION.md.
+ */
+export async function deleteDonorAccount(userId: string): Promise<void> {
+  await getUserOrThrow(userId);
+  await updateRow(SHEET_TABS.users, 'User_ID', userId, {
+    Name: '',
+    Phone: '',
+    Email: '',
+    Corporate_Account_ID: '',
+    Show_Name_To_Institutions: toSheetBool(false),
+    Status: 'Deleted' satisfies UserStatus,
+  });
+}
+
+/**
  * Deliberately restricted to Donor <-> Institution: this is Admin correcting a
  * mis-registered account, not a privilege-escalation lever. Granting Admin
  * access is never done through this endpoint.

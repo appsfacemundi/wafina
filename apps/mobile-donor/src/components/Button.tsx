@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { colors, radius, spacing } from '@/theme/tokens';
 
-type Variant = 'primary' | 'secondary' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 interface ButtonProps {
   children: ReactNode;
@@ -71,10 +71,12 @@ const variantStyles = StyleSheet.create({
   primary: { backgroundColor: colors.accent },
   secondary: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   ghost: { backgroundColor: 'transparent' },
+  danger: { backgroundColor: colors.danger },
 });
 
 const textVariantStyles = StyleSheet.create({
   primary: { color: colors.accentText },
   secondary: { color: colors.text },
   ghost: { color: colors.accent },
+  danger: { color: colors.accentText },
 });

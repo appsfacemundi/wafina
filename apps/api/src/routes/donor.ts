@@ -1,9 +1,10 @@
 import { Router } from 'express';
+import { getFirebaseAuth } from '../config/firebase';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { getCorporateAccountById } from '../services/corporate-accounts';
 import { redeemInvitationCode } from '../services/invitation-codes';
-import { completeProfile, findUserById, linkCorporateAccount } from '../services/users';
+import { completeProfile, deleteDonorAccount, findUserById, linkCorporateAccount } from '../services/users';
 import { ValidationError } from '../services/validation-error';
 
 export const donorRouter = Router();
@@ -71,5 +72,22 @@ donorRouter.get(
   asyncHandler(async (req, res) => {
     const { corporateAccountId } = req.user!;
     res.json(corporateAccountId ? await getCorporateAccountById(corporateAccountId) : null);
+  }),
+);
+
+/**
+ * RC1 self-service account deletion (Google Play/Apple account-deletion policy) — Donor accounts
+ * only, see COMPLIANCE_INFORMATION.md for why Institution accounts stay support-mediated. Sheets
+ * row is anonymized first (immediate lockout via requireAuth even if the Firebase step below were
+ * to fail) then the Firebase Auth user itself is deleted, revoking the credential entirely.
+ */
+donorRouter.delete(
+  '/donor/account',
+  requireAuth,
+  requireRole('Donor'),
+  asyncHandler(async (req, res) => {
+    await deleteDonorAccount(req.user!.userId);
+    await getFirebaseAuth().deleteUser(req.user!.uid);
+    res.status(204).send();
   }),
 );

@@ -164,6 +164,23 @@ export default function SettingsPage() {
           </form>
         </Card>
 
+        <Card className="stack">
+          <p style={{ fontWeight: 600 }}>Eliminar conta</p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
+            Para solicitar a eliminação da sua conta e dos dados associados, consulte a nossa página
+            de eliminação de conta.
+          </p>
+          <a
+            href="https://wafina-donor-web.onrender.com/delete-account"
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-secondary"
+            style={{ textDecoration: 'none', textAlign: 'center' }}
+          >
+            Solicitar eliminação de conta
+          </a>
+        </Card>
+
         <Button variant="secondary" onClick={() => signOutUser()}>
           Sair
         </Button>

@@ -66,9 +66,12 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
     return;
   }
 
-  // Admin parity Phase A — the row is already fetched fresh on every request,
-  // so a suspension takes effect immediately with no Firebase token revocation.
-  if (userRow.Status === 'Suspended') {
+  // Admin parity Phase A — the row is already fetched fresh on every request, so a suspension
+  // (or, since RC1, a self-service deletion) takes effect immediately with no Firebase token
+  // revocation. Checking !== 'Active' rather than === 'Suspended' means a deleted account is
+  // locked out right away too, even if its still-unexpired Firebase ID token would otherwise
+  // keep passing verifyIdToken for up to an hour.
+  if (userRow.Status !== 'Active') {
     res.status(403).json({ error: 'Esta conta foi suspensa' });
     return;
   }

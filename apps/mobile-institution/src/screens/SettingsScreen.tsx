@@ -1,7 +1,7 @@
 import { INSTITUTION_FIELD_LABELS } from '@wafina/shared';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { ErrorBanner } from '@/components/Banner';
@@ -159,6 +159,20 @@ export function SettingsScreen() {
           {success && <Text style={styles.successText}>Pedido enviado ao Admin.</Text>}
           <Button onPress={onSubmit} loading={submitting} fullWidth>
             Enviar pedido
+          </Button>
+        </Card>
+
+        <Card style={{ gap: spacing[3] }}>
+          <Text style={styles.cardTitle}>Eliminar conta</Text>
+          <Text style={styles.hint}>
+            Para solicitar a eliminação da sua conta e dos dados associados, consulte a nossa página
+            de eliminação de conta.
+          </Text>
+          <Button
+            variant="secondary"
+            onPress={() => Linking.openURL('https://wafina-donor-web.onrender.com/delete-account')}
+          >
+            Solicitar eliminação de conta
           </Button>
         </Card>
 

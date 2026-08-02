@@ -1,6 +1,7 @@
 'use client';
 
 import type { GeoRegion, SwitchPreference } from '@wafina/shared';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Card, Input, Select, useToast } from '@wafina/ui';
 import { AppShell } from '@/components/AppShell';
@@ -27,8 +28,14 @@ interface ProfileData {
 
 export default function SettingsPage() {
   const session = useRequireSession();
-  const { firebaseUser, refreshSession } = useAuth();
+  const { firebaseUser, refreshSession, signOutUser } = useAuth();
   const { showToast } = useToast();
+  const router = useRouter();
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const [countries, setCountries] = useState<GeoRegion[] | null>(null);
   const [allCountries, setAllCountries] = useState<GeoRegion[] | null>(null);
@@ -145,6 +152,22 @@ export default function SettingsPage() {
       // Non-critical — the toggle simply reverts to its saved value on next load if this fails.
     } finally {
       setSavingNamePref(false);
+    }
+  }
+
+  async function onDeleteAccount() {
+    if (!session || deleteConfirmEmail.trim().toLowerCase() !== session.email.toLowerCase()) return;
+    setDeleteError('');
+    setDeleting(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/donor/account', { method: 'DELETE', idToken });
+      showToast('A sua conta foi eliminada.');
+      await signOutUser();
+      router.replace('/sign-in');
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : 'Não foi possível eliminar a conta.');
+      setDeleting(false);
     }
   }
 
@@ -274,6 +297,50 @@ export default function SettingsPage() {
             <option value="no">Não mostrar</option>
             <option value="yes">Mostrar o meu nome</option>
           </Select>
+        </Card>
+
+        <Card className="stack">
+          <p style={{ fontWeight: 600, color: 'var(--danger-500)' }}>Eliminar conta</p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
+            Elimina permanentemente o seu perfil, contactos e acesso à sua conta Wafina. O seu
+            histórico de doações já entregues pode ser mantido de forma anonimizada para
+            estatísticas de impacto agregadas — sem qualquer dado que o identifique. Esta ação não
+            pode ser revertida.
+          </p>
+          {!showDeleteConfirm ? (
+            <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+              Eliminar a minha conta
+            </Button>
+          ) : (
+            <div className="stack">
+              <Input
+                label={`Escreva "${session.email}" para confirmar`}
+                value={deleteConfirmEmail}
+                onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+              />
+              {deleteError && <div className="banner banner-error">{deleteError}</div>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button
+                  variant="danger"
+                  disabled={deleting || deleteConfirmEmail.trim().toLowerCase() !== session.email.toLowerCase()}
+                  onClick={onDeleteAccount}
+                >
+                  {deleting ? 'A eliminar…' : 'Confirmar eliminação'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={deleting}
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmEmail('');
+                    setDeleteError('');
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
 
         {IS_DEV_BUILD && (

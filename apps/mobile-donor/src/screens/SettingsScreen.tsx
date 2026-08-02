@@ -1,6 +1,6 @@
 import type { GeoRegion, SwitchPreference } from '@wafina/shared';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
@@ -50,6 +50,9 @@ export function SettingsScreen() {
   const [savingPreference, setSavingPreference] = useState(false);
 
   const [savingNamePref, setSavingNamePref] = useState(false);
+
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -145,6 +148,30 @@ export function SettingsScreen() {
     } finally {
       setSavingNamePref(false);
     }
+  }
+
+  async function onDeleteAccount() {
+    setDeleteError('');
+    setDeleting(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/donor/account', { method: 'DELETE', idToken });
+      await signOutUser();
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : 'Não foi possível eliminar a conta.');
+      setDeleting(false);
+    }
+  }
+
+  function onPressDeleteAccount() {
+    Alert.alert(
+      'Eliminar conta',
+      'Isto elimina permanentemente o seu perfil e acesso à conta Wafina. O seu histórico de doações já entregues pode ser mantido de forma anonimizada para estatísticas de impacto agregadas. Esta ação não pode ser revertida.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: onDeleteAccount },
+      ],
+    );
   }
 
   return (
@@ -275,6 +302,19 @@ export function SettingsScreen() {
             ))}
           </Card>
         )}
+
+        <Card style={{ gap: spacing[3] }}>
+          <Text style={[styles.cardTitle, { color: colors.danger }]}>Eliminar conta</Text>
+          <Text style={styles.hint}>
+            Elimina permanentemente o seu perfil e acesso à sua conta Wafina. O seu histórico de
+            doações já entregues pode ser mantido de forma anonimizada para estatísticas de impacto
+            agregadas.
+          </Text>
+          {deleteError && <ErrorBanner message={deleteError} />}
+          <Button variant="danger" onPress={onPressDeleteAccount} loading={deleting}>
+            Eliminar a minha conta
+          </Button>
+        </Card>
 
         <Button variant="ghost" onPress={() => signOutUser()}>
           Sair

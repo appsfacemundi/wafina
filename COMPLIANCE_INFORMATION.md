@@ -92,11 +92,12 @@ public-facing UGC surface. Options, roughly in order of effort:
 
 ---
 
-## 4. Cross-reference: other open Phase 3 items
+## 4. Cross-reference: other Phase 3 items
 
-- **In-app account deletion** — already tracked in `RC1_RELEASE_ROADMAP.md` Phase 3 as its own open
-  scope decision (support-mediated deletion page exists; true in-app self-service deletion does not).
-  Not duplicated here, just cross-referenced since it's compliance-adjacent (Play's Data Safety form).
+- **In-app account deletion** — resolved 2026-08-02, see `RC1_RELEASE_ROADMAP.md` Phase 3. Donor
+  accounts now have true self-service deletion (`DELETE /donor/account`); Institution accounts stay
+  support-mediated via the `/delete-account` page, now linked from every app's Settings screen. Not
+  duplicated here, just cross-referenced since it's compliance-adjacent (Play's Data Safety form).
 
 ---
 
