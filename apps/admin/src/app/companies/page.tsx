@@ -159,6 +159,11 @@ export default function AdminCompaniesPage() {
     }
   }
 
+  async function onCopyCode(code: string) {
+    await navigator.clipboard.writeText(code);
+    showToast('Código copiado.');
+  }
+
   async function onDeactivateCode(id: string, code: string) {
     setError('');
     try {
@@ -295,11 +300,16 @@ export default function AdminCompaniesPage() {
                             {!code.Active ? ' · desativado' : ''}
                           </p>
                         </div>
-                        {code.Active && (
-                          <Button variant="ghost" onClick={() => onDeactivateCode(c.Corporate_Account_ID, code.Code)}>
-                            Desativar
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <Button variant="ghost" onClick={() => onCopyCode(code.Code)}>
+                            Copiar
                           </Button>
-                        )}
+                          {code.Active && (
+                            <Button variant="ghost" onClick={() => onDeactivateCode(c.Corporate_Account_ID, code.Code)}>
+                              Desativar
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -129,6 +129,15 @@ Once both are resolved, generating the five build artifacts is the direct next s
   message, so this kind of country-coverage gap is no longer indistinguishable from a broken
   pipeline. Recommended (not yet built, would need Feature Freeze sign-off): warn a donor at
   donation-creation time if their Active Country has no verified institutions yet.
+- Corporate Invitation Codes: a stakeholder request to "build" this feature turned out to already be
+  ~95% live in production (create company, generate/deactivate codes, donor-side redeem via "Associar
+  conta", automatic donation-to-company association derived from `Donor_ID → Users.Corporate_Account_ID`
+  at read time). Verified each piece against the actual code rather than rebuilding from scratch. The
+  one genuine gap — no copy-to-clipboard button on a generated code — is now fixed in
+  `apps/admin/src/app/companies/page.tsx`. Live-tested end-to-end with a disposable throwaway Admin
+  account: created a test company, generated a code, clicked "Copiar," confirmed the toast and that
+  the write succeeded, then fully cleaned up (deleted the Firebase test user and cleared all test
+  rows).
 
 ## Known Limitations (deliberate scope decisions, tracked in `VERSION_2_ROADMAP.md`)
 
