@@ -14,6 +14,27 @@ Group and report by root cause, not by screen — a single fix to a shared compo
 every instance at once, so that's the unit of work that matters, not how many screens happen to display the
 symptom.
 
+## Rule 0 — Never implement one issue alone
+
+Every issue is classified as exactly one of:
+- **Shared Component** — one reusable UI piece, fixed once.
+- **Shared Service** — one backend function, fixed once.
+- **Shared Workflow** — one pattern applied consistently across screens (not one shared file, but one
+  repeated fix).
+- **Single Screen** — no shared dependency; isolated.
+
+**No fix starts until this classification is done.** This is what the Epic 1/2/3 split below already is —
+applied, not just stated:
+
+| Finding | Classification |
+|---|---|
+| A1 (Button) | Shared Component |
+| A2 (11 custom Pressables) | Shared Workflow (same pattern, 11 separate files — not one file fixes all) |
+| A3 (filter chips) | Shared Component (same file/pattern as A1/A2, single screen instance) |
+| B1 (donation sort) | Shared Service (`listDonationsByDonor`) |
+| B2 (pull-to-refresh) | Shared Workflow (one pattern, applied per-screen) |
+| C1, C2 | Single Screen |
+
 ---
 
 ## Epic 1 — Shared UI Components (accessibility + touch targets)
