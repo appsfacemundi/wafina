@@ -28,15 +28,6 @@
         "backgroundColor": "#710f44"
       }
     },
-    "plugins": [
-      [
-        "expo-image-picker",
-        {
-          "cameraPermission": false,
-          "microphonePermission": false
-        }
-      ]
-    ],
     "extra": {
       "eas": {
         "projectId": "e29746ed-0056-47c7-bc01-f74e9b002def"

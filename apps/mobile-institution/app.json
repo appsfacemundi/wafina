@@ -27,15 +27,6 @@
         "backgroundColor": "#710f44"
       }
     },
-    "plugins": [
-      [
-        "expo-image-picker",
-        {
-          "cameraPermission": false,
-          "microphonePermission": false
-        }
-      ]
-    ],
     "owner": "zuinder",
     "extra": {
       "eas": {
