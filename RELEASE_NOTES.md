@@ -10,15 +10,24 @@ gets tagged only once this checklist's remaining open items are closed.
 
 2026-08-02
 
-**Android production AAB: generated and verified (2026-08-03).** `apps/mobile-donor` now has a working
-`eas.json` and EAS project (`wafina-donor`), with a real signed keystore (remote, Expo-managed). A real
-EAS Cloud Build of the `production` profile succeeded end-to-end — Build ID
-`502cdd66-5647-4c8f-8574-cab893ba0c44`
-(https://expo.dev/accounts/zuinder/projects/wafina-donor/builds/502cdd66-5647-4c8f-8574-cab893ba0c44),
-producing a downloadable `app-release.aab` (52.1 MB). See `PROJECT_QA_MEMORY.md` QA Progress table for
-full verification detail. `apps/mobile-institution` still has no `eas.json` and has not been built yet.
-An iOS TestFlight build and production-pointed Web/Admin builds remain blocked on one open stakeholder
-decision, already flagged in `WAFINA_PILOT_LAUNCH_CHECKLIST.md`:
+**Android production AAB: generated, and a critical runtime config bug found and fixed (2026-08-03).**
+`apps/mobile-donor` now has a working `eas.json` and EAS project (`wafina-donor`), with a real signed
+keystore (remote, Expo-managed). The first successful cloud build (`502cdd66`) compiled and packaged
+correctly but shipped completely non-functional on a real device: `EXPO_PUBLIC_*` env vars were never
+supplied to the build, so Firebase Auth config baked in as `undefined` and the API base URL baked in as
+`localhost:4000` — cloud-build success and green CI do not exercise this at all, so it was invisible
+until specifically investigated. Fixed by adding a `production.env` block to `eas.json`
+(commit `cde858c`) and re-verified with a new build — Build ID `b6c977c7-4bf4-4c01-8934-b96da0e5ebc4`
+(https://expo.dev/accounts/zuinder/projects/wafina-donor/builds/b6c977c7-4bf4-4c01-8934-b96da0e5ebc4),
+producing `app-release.aab` (52.1 MB). Confirmed by downloading the actual shipped bundle and verifying
+the real Firebase key/project ID and real API URL are baked in, and `localhost:4000` is gone. See
+`PROJECT_QA_MEMORY.md` QA Progress table for full verification detail. **Still not verified: actual
+on-device authentication, backend connectivity, or runtime flows** — no Android SDK/emulator/device or
+Google Play Console access was available to exercise this; a real device or Internal Testing pass is
+required before this build can be called launch-ready. `apps/mobile-institution` still has no `eas.json`
+and has not been built yet (and its `.env` has the same `localhost` pattern — apply the same fix before
+its first build). An iOS TestFlight build and production-pointed Web/Admin builds remain blocked on one
+open stakeholder decision, already flagged in `WAFINA_PILOT_LAUNCH_CHECKLIST.md`:
 
 1. **API hosting** — `apps/api` currently runs only as a local dev process; no host, domain, or SSL is
    configured. All three web apps' `.env.local` still point `NEXT_PUBLIC_API_BASE_URL` at
