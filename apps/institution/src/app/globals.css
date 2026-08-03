@@ -403,7 +403,7 @@ p {
   width: 9px;
   height: 9px;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--bougainvillea-500), var(--palm-500));
+  background: var(--bougainvillea-700);
 }
 .app-nav {
   display: flex;
