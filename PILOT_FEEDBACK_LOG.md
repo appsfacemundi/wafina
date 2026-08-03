@@ -1,5 +1,25 @@
 # Pilot Feedback Log
 
+## RC1 Exit Criteria
+
+RC1 is only declared **"Launch Ready"** when every one of these is checked:
+
+- [ ] No Blockers
+- [ ] All High issues closed and verified
+- [ ] Medium issues accepted or fixed
+- [ ] Low issues documented for RC1.1 if deferred
+- [ ] Google Play compliance complete
+- [ ] Apple compliance complete
+- [ ] APK/AAB verified
+- [ ] Real-device testing completed
+- [ ] Pilot Feedback Log fully reviewed
+- [ ] Launch Readiness Audit passed
+
+**At that point:** stop development entirely, tag the release in Git, archive this log, and move into
+publishing and post-launch support — not continued tweaking.
+
+---
+
 ## The 5-phase plan this belongs to
 
 1. **Pilot Polish** (here) — real device testing, batched fixes.
@@ -16,17 +36,23 @@ Test like a first-time donor, first-time institution, or a volunteer who's never
 like a developer checking "does it work." Ask: Is it obvious? Is it fast? Would my mother understand this
 without instructions?
 
-**Don't only test the happy path.** Intentionally try to break it:
-- Cancel an upload mid-way
-- Turn Wi-Fi off / turn mobile data off
-- Rotate the phone
-- Press Back repeatedly
-- Upload a very large photo, or several at once
-- Leave the app mid-upload
-- Receive a phone call during a process
-- Kill the app and reopen it
+**Don't only test the happy path.** Intentionally try to break it: cancel an upload mid-way, turn Wi-Fi/
+mobile data off, rotate the phone, press Back repeatedly, upload a very large photo or several at once,
+leave the app mid-upload, receive a call during a process, kill the app and reopen it.
 
-These scenarios surface issues normal use won't.
+## Regression Check — every time you install a new APK
+
+Spend 5 minutes on these **before** looking at new fixes. If any of these break, stop and fix the
+regression first — don't keep testing new items on top of a broken core flow.
+
+**Donor:** Sign in · Create donation · Upload photos · View donation · Notifications · Profile
+
+**Donor — not currently implemented, don't test as a "regression":** Edit donation, Delete donation.
+Confirmed via code audit this session — no UI exposes editing (backend supports it while Pending, but no
+screen calls it) and no delete endpoint exists anywhere in the backend. Not a bug, just not built.
+
+**Institution:** Sign in · View available donations · Claim donation · Schedule pickup · Confirm collection
+· Confirm delivery · Impact story
 
 ## Evidence rule — mandatory
 
@@ -37,47 +63,49 @@ These scenarios surface issues normal use won't.
 - 📋 Required by Google Play or Apple
 - 🐛 Functional bug
 
-This keeps the list evidence-based, not opinion-based.
-
 ## Severity
 
-🚫 **Blocker** — user cannot complete the donation flow (can't log in, can't upload a donation,
-institution can't claim, crash, data loss). **Fixed immediately, not batched.**
+🚫 **Blocker** — user cannot complete the donation flow (can't log in, can't upload, institution can't
+claim, crash, data loss). **Fixed immediately, not batched.**
 
-🔴 **High** — feature works but creates real frustration (tabs too small, wrong sort order, missing
-filter, confusing navigation). Fix before launch.
+🔴 **High** — feature works but creates real frustration. Fix before launch.
 
-🟡 **Medium** — improves quality, doesn't stop users (spacing, typography, animations). Fix if time
-allows.
+🟡 **Medium** — improves quality, doesn't stop users. Fix if time allows.
 
-🟢 **Low** — nice to have (wording, tiny visual polish, micro-animations). Can wait until RC1.1.
+🟢 **Low** — nice to have. Can wait until RC1.1.
 
 ## Batching + validation workflow
 
-1. Batch of **10–15 issues** (🚫 Blockers get fixed the moment they're found, don't wait for a batch).
+1. Batch of **10–15 issues** (Blockers fixed immediately, not batched).
 2. Claude fixes the batch.
 3. One APK build.
-4. **You test a full session before creating the next batch** — confirm the fixes actually improved
-   things, not just that they compiled. Only then start Batch 2.
+4. **You run the Regression Check, then test a full session** before creating the next batch — confirm
+   fixes actually helped, and nothing else broke. Only then start Batch 2.
 
 ## Rule for Claude
 
-**Do not propose improvements unless they carry one of the four evidence tags above, or are necessary
-for store compliance.** No opinion-based polish, no scope creep. If a fix would require touching
-something not on the list, ask before expanding scope.
+**Do not propose improvements unless they carry one of the four evidence tags, or are necessary for store
+compliance.** No opinion-based polish, no scope creep. If a fix needs touching something not on the list,
+ask before expanding scope.
 
 ---
 
 ## Batch 1 — Open
 
-| Priority | Screen | Issue | Evidence | Suggested Fix | Status |
-|---|---|---|---|---|---|
-| 🔴 High | Shared `Button` component (Donor + Institution) | No `accessibilityRole`/`accessibilityLabel` anywhere; touch target ~43px, just under Apple's 44pt minimum | 📋 Store compliance | Add accessibility props at the component level (highest leverage — used almost everywhere); bump `minHeight` to 48 | Open |
+| Priority | Evidence | Screen | Issue | Suggested Fix | Owner | Status | Verified |
+|---|---|---|---|---|---|---|---|
+| 🔴 High | 📋 Store compliance | Shared `Button` component (Donor + Institution) | No `accessibilityRole`/`accessibilityLabel` anywhere; touch target ~43px, just under Apple's 44pt minimum | Add accessibility props at the component level; bump `minHeight` to 48 | Claude | Open | ☐ Not tested |
 
-*(add rows as you find them — Priority/Screen/Issue/Evidence are required; Suggested Fix is optional)*
+*(Priority/Evidence/Screen/Issue are required; Suggested Fix/Owner optional until triaged)*
+
+**Owner:** Claude (code fix) · You (a decision/content/account-side thing) · Both (needs your input, then
+a code fix).
+
+**Verified:** ☐ Not tested → 🟡 Fixed, waiting for device verification → ✅ Verified on real device. An
+issue is only closed once it's ✅, not just because the code changed.
 
 ---
 
 ## Resolved
 
-*(moved here once fixed and verified on-device, with the commit hash)*
+*(moved here once ✅ Verified on real device, with the commit hash)*
