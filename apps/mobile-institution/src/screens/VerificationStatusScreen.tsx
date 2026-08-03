@@ -26,6 +26,10 @@ export function VerificationStatusScreen() {
             <>
               <Badge tone="danger">Rejeitado</Badge>
               <Text style={styles.hint}>{institution.Rejection_Reason}</Text>
+              <Text style={styles.hint}>
+                Se acredita que esta decisão foi um erro ou gostaria de fornecer informação
+                adicional, contacte-nos em geral@zuinder.com.
+              </Text>
             </>
           ) : (
             <>

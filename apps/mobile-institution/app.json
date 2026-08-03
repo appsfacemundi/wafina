@@ -5,7 +5,9 @@
     "version": "0.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.zuinder.wafina.instituicao",
@@ -15,7 +17,16 @@
     },
     "android": {
       "package": "com.zuinder.wafina.instituicao",
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "owner": "zuinder",
+    "extra": {
+      "eas": {
+        "projectId": "0a4405fe-c166-4226-9b7d-f11abd9ed01c"
+      }
     }
   }
 }
