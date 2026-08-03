@@ -24,10 +24,21 @@ the real Firebase key/project ID and real API URL are baked in, and `localhost:4
 `PROJECT_QA_MEMORY.md` QA Progress table for full verification detail. **Still not verified: actual
 on-device authentication, backend connectivity, or runtime flows** — no Android SDK/emulator/device or
 Google Play Console access was available to exercise this; a real device or Internal Testing pass is
-required before this build can be called launch-ready. `apps/mobile-institution` still has no `eas.json`
-and has not been built yet (and its `.env` has the same `localhost` pattern — apply the same fix before
-its first build). An iOS TestFlight build and production-pointed Web/Admin builds remain blocked on one
-open stakeholder decision, already flagged in `WAFINA_PILOT_LAUNCH_CHECKLIST.md`:
+required before this build can be called launch-ready.
+
+**Android Institution App production AAB: generated (2026-08-03).** Product decision: institution
+registration stays open with Admin review/approval; invitation codes are explicitly out of scope for V1.
+`apps/mobile-institution` now has `eas.json` (with the `production.env` block built in from the start —
+same Firebase project, same backend API, mirroring Donor's fix), the `eas-build-post-install` hook, and
+a new EAS project (`wafina-institution`). First build succeeded — Build ID
+`cab3ad85-c6b4-491b-ad25-21385325bfa7`
+(https://expo.dev/accounts/zuinder/projects/wafina-institution/builds/cab3ad85-c6b4-491b-ad25-21385325bfa7),
+`app-release.aab` (52.1 MB). Verified via the same byte-level bundle inspection used for Donor — real
+Firebase/API values present, `localhost:4000` absent, no `@wafina/shared` regression. Also added a
+support-contact line (`geral@zuinder.com`) to the rejected-institution screen — not a self-service
+resubmission flow, per explicit product decision. **Same on-device verification gap as Donor applies
+here.** An iOS TestFlight build and production-pointed Web/Admin builds remain blocked on one open
+stakeholder decision, already flagged in `WAFINA_PILOT_LAUNCH_CHECKLIST.md`:
 
 1. **API hosting** — `apps/api` currently runs only as a local dev process; no host, domain, or SSL is
    configured. All three web apps' `.env.local` still point `NEXT_PUBLIC_API_BASE_URL` at
