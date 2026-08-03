@@ -11,6 +11,7 @@ module.exports = tseslint.config(
       '**/node_modules/**',
       'eslint.config.js',
       '**/next-env.d.ts',
+      '**/metro.config.js',
     ],
   },
   ...tseslint.configs.recommended,
