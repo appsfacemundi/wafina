@@ -1,21 +1,14 @@
 {
   "cli": {
-    "version": ">= 10.0.0",
-    "appVersionSource": "remote"
+    "version": ">= 10.0.0"
   },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "distribution": "internal"
-    },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "resourceClass": "large",
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=8192"
+      }
     }
-  },
-  "submit": {
-    "production": {}
   }
 }
