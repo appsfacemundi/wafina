@@ -237,7 +237,10 @@ Command, no port handling needed — Static Sites just serve the built directory
 - ⬜ Rebuild if necessary
 
 ### Phase 6 — Store Assets
-- ⬜ Icons
+- ✅ Icons — official Wafina branding frozen 2026-08-03 (`branding/WAFINA_BRAND_GUIDE.md`): master color
+  `bougainvillea700`, D/I/A badge system, wired into `app.json` (Donor/Institution) and all three web
+  favicons. Verified against real platform masking (circle/squircle/rounded-square), minimum sizes down to
+  16px, and iOS's no-alpha-channel requirement — see the branding freeze checklist for full detail.
 - ⬜ Splash screens
 - ⬜ Screenshots
 - ⬜ Feature graphics
