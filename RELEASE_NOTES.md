@@ -10,19 +10,22 @@ gets tagged only once this checklist's remaining open items are closed.
 
 2026-08-02
 
-**Build artifacts: not yet generated this round.** This RC1 pass covered blocker review, cleanup, and
-configuration verification only. Producing real Android APK/AAB, an iOS TestFlight build, and
-production-pointed Web/Admin builds is blocked on two stakeholder decisions, both already flagged open
-in `WAFINA_PILOT_LAUNCH_CHECKLIST.md`:
+**Android production AAB: generated and verified (2026-08-03).** `apps/mobile-donor` now has a working
+`eas.json` and EAS project (`wafina-donor`), with a real signed keystore (remote, Expo-managed). A real
+EAS Cloud Build of the `production` profile succeeded end-to-end — Build ID
+`502cdd66-5647-4c8f-8574-cab893ba0c44`
+(https://expo.dev/accounts/zuinder/projects/wafina-donor/builds/502cdd66-5647-4c8f-8574-cab893ba0c44),
+producing a downloadable `app-release.aab` (52.1 MB). See `PROJECT_QA_MEMORY.md` QA Progress table for
+full verification detail. `apps/mobile-institution` still has no `eas.json` and has not been built yet.
+An iOS TestFlight build and production-pointed Web/Admin builds remain blocked on one open stakeholder
+decision, already flagged in `WAFINA_PILOT_LAUNCH_CHECKLIST.md`:
 
 1. **API hosting** — `apps/api` currently runs only as a local dev process; no host, domain, or SSL is
    configured. All three web apps' `.env.local` still point `NEXT_PUBLIC_API_BASE_URL` at
    `http://localhost:4000`. A build made today would not be reachable by a real remote pilot user.
-2. **Mobile signing/build credentials** — neither `apps/mobile-donor` nor `apps/mobile-institution` has
-   an `eas.json`. A signed Android APK/AAB and an iOS TestFlight build need an EAS project, a Google Play
-   signing keystore, and an Apple Developer Program membership, none of which are confirmed set up yet.
 
-Once both are resolved, generating the five build artifacts is the direct next step.
+An Apple Developer Program membership is also still needed before an iOS TestFlight build can be
+produced.
 
 ## Fixed Issues (cumulative, this stabilization cycle)
 
