@@ -52,6 +52,20 @@ will come up that aren't here yet.
 - **Corporate secure invitations** beyond the current invite-code system — e.g. email-based invitations sent
   directly from Admin rather than a code the company distributes itself.
 
+## Donor & Institution Mobile
+
+- **Take Photo + Choose from Gallery (both apps)** — today `DonateScreen` (Donor), `SettingsScreen`'s logo
+  upload, and `NewSuccessStoryScreen` (Institution) only call `ImagePicker.launchImageLibraryAsync` (gallery
+  picker); no screen ever calls `launchCameraAsync`. Product decision (2026-08-03): Wafina will support
+  direct camera capture, so this is intentional future scope, not dead code — build a proper "Take Photo /
+  Choose from Gallery" choice into each of these upload points. Because camera capture is explicitly
+  planned, the `CAMERA` (and `RECORD_AUDIO`, needed for video-capable camera flows) Android permissions stay
+  declared as-is rather than being blocked via `expo-image-picker`'s config plugin — a same-day investigation
+  into removing them as "unused" was reverted once this was clarified. Scope for this item: add a
+  take-photo/choose-from-gallery picker UI (likely an action sheet) at each of the three upload points above,
+  in both apps, using the same `uploadFile()` helper already proven working — not a new upload pipeline, just
+  a new capture entry point feeding the existing one.
+
 ## Cross-cutting / Infrastructure
 
 - **Automated test suite** — not currently a "new feature," but noted here because building one is itself a
