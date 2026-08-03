@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "58a78b44-ee06-4396-b4dd-79b87708520e"
+      }
+    },
+    "owner": "zuinder",
+    "android": {
+      "package": "com.zuinder.wafina"
+    }
+  }
+}
