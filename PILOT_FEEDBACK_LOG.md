@@ -8,47 +8,73 @@
 4. **Publishing** — final AABs, store assets, Play Console submission.
 5. **Soft Launch** — 5–10 real people use it unguided; watch where they hesitate.
 
-**Do not skip ahead.** Each phase starts only once the previous one is genuinely done, not just "good enough."
+**Do not skip ahead.** Each phase starts only once the previous one is genuinely done.
 
-## Testing mindset for this phase
+## Testing mindset
 
-Don't test like a developer checking "does it work." Test like a first-time donor, a first-time
-institution, or a volunteer who's never seen Wafina before. Ask:
-- Is it obvious?
-- Is it fast?
-- Would my mother understand this without instructions?
+Test like a first-time donor, first-time institution, or a volunteer who's never seen Wafina before, not
+like a developer checking "does it work." Ask: Is it obvious? Is it fast? Would my mother understand this
+without instructions?
 
-## Severity guide
+**Don't only test the happy path.** Intentionally try to break it:
+- Cancel an upload mid-way
+- Turn Wi-Fi off / turn mobile data off
+- Rotate the phone
+- Press Back repeatedly
+- Upload a very large photo, or several at once
+- Leave the app mid-upload
+- Receive a phone call during a process
+- Kill the app and reopen it
 
-🔴 **High** — buttons hard to tap, too many taps to complete a task, confusing navigation, slow/confusing
-loading, wrong information order (e.g. oldest-first instead of newest-first), missing filters, anything
-that makes you stop and think.
+These scenarios surface issues normal use won't.
 
-🟡 **Medium** — colors, fonts, alignment, card sizes, icons, padding, empty states.
+## Evidence rule — mandatory
 
-🟢 **Low** — wording improvements, animation polish, cosmetic adjustments.
+**Every issue must carry one of these tags. If it doesn't fit one, don't add it:**
 
-## Batching
+- 📱 Observed on your real phone
+- 👤 Reported by a real tester
+- 📋 Required by Google Play or Apple
+- 🐛 Functional bug
 
-Work in batches of **10–15 issues**, not one giant list: fix → build one APK → test again → next batch.
-Smaller batches converge faster and avoid fixes that interact with each other in a big pile.
+This keeps the list evidence-based, not opinion-based.
+
+## Severity
+
+🚫 **Blocker** — user cannot complete the donation flow (can't log in, can't upload a donation,
+institution can't claim, crash, data loss). **Fixed immediately, not batched.**
+
+🔴 **High** — feature works but creates real frustration (tabs too small, wrong sort order, missing
+filter, confusing navigation). Fix before launch.
+
+🟡 **Medium** — improves quality, doesn't stop users (spacing, typography, animations). Fix if time
+allows.
+
+🟢 **Low** — nice to have (wording, tiny visual polish, micro-animations). Can wait until RC1.1.
+
+## Batching + validation workflow
+
+1. Batch of **10–15 issues** (🚫 Blockers get fixed the moment they're found, don't wait for a batch).
+2. Claude fixes the batch.
+3. One APK build.
+4. **You test a full session before creating the next batch** — confirm the fixes actually improved
+   things, not just that they compiled. Only then start Batch 2.
 
 ## Rule for Claude
 
-**Do not propose improvements unless they're based on an issue actually observed during real-device
-testing, or are necessary for store compliance.** No opinion-based polish, no "while I'm in here" scope
-creep. If a listed fix would need touching something not on this list, ask before expanding scope rather
-than doing it silently.
+**Do not propose improvements unless they carry one of the four evidence tags above, or are necessary
+for store compliance.** No opinion-based polish, no scope creep. If a fix would require touching
+something not on the list, ask before expanding scope.
 
 ---
 
 ## Batch 1 — Open
 
-| Priority | Screen | Issue | Suggested Fix | Status |
-|---|---|---|---|---|
-| 🔴 High | Shared `Button` component (Donor + Institution) | No `accessibilityRole`/`accessibilityLabel` anywhere; touch target ~43px, just under Apple's 44pt minimum | Add accessibility props at the component level (highest leverage — used almost everywhere); bump `minHeight` to 48 | Open |
+| Priority | Screen | Issue | Evidence | Suggested Fix | Status |
+|---|---|---|---|---|---|
+| 🔴 High | Shared `Button` component (Donor + Institution) | No `accessibilityRole`/`accessibilityLabel` anywhere; touch target ~43px, just under Apple's 44pt minimum | 📋 Store compliance | Add accessibility props at the component level (highest leverage — used almost everywhere); bump `minHeight` to 48 | Open |
 
-*(add rows as you find them — Priority/Screen/Issue are the minimum; Suggested Fix is optional)*
+*(add rows as you find them — Priority/Screen/Issue/Evidence are required; Suggested Fix is optional)*
 
 ---
 
