@@ -5,7 +5,14 @@
   },
   "build": {
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://wafina-api-rd0q.onrender.com",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAxNgxYb2GrwW2F9kKfzQok_OLA9pooWhM",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "wafina-98a3a.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "wafina-98a3a",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:355399125922:web:1f922f394d585d6d0a00fb"
+      }
     }
   }
 }
