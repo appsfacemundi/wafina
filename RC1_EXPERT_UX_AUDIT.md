@@ -16,13 +16,12 @@ symptom.
 
 ---
 
-## Root Cause A — Shared interactive-element components (accessibility + touch targets)
+## Epic 1 — Shared UI Components (accessibility + touch targets)
 
-One engineer, one pass: fix `Button.tsx` (both apps) and add accessibility props to the 11 custom
-`Pressable`/`TouchableOpacity` instances. These are grouped because they're the same underlying gap
-(missing accessibility props on tappable elements) appearing in different files, not because one code
-change fixes all of them — `Button.tsx` is a true single-fix-many-places case; the 11 custom instances are
-the same *pattern* repeated, each needing its own line added.
+**Owner:** Claude (single implementer on this project — no separate UI/Mobile/Feature engineers exist here,
+so this is about keeping the *work* scoped to one coherent pass, not staffing).
+**Impact:** fixes multiple screens simultaneously — `Button.tsx` is a true single-fix-many-places change;
+the 11 custom instances are the same pattern repeated, each needing its own line, done in the same pass.
 
 ### A1. Shared `Button` component has no accessibility support and a borderline touch target
 **Reach:** every screen in both apps (it's the primary control everywhere).
@@ -61,10 +60,12 @@ genuinely hard to hit reliably, more so than the Button issue above.
 
 ---
 
-## Root Cause B — List data behavior (backend service + shared list-screen pattern)
+## Epic 2 — Shared List Experience (backend service + shared list-screen pattern)
 
-One engineer, one pass: a one-line sort fix in the backend, plus one reusable `RefreshControl` pattern
-applied to every list screen's existing fetch function. No new data-fetching logic needed for either.
+**Owner:** Claude.
+**Impact:** improves every list in both apps — a one-line sort fix in the backend, plus one reusable
+`RefreshControl` pattern applied to every list screen's existing fetch function. No new data-fetching logic
+needed for either.
 
 ### B1. Donor's "Minhas Doações" is not sorted — donations appear oldest-first
 **Reach:** `apps/mobile-donor/src/screens/MyDonationsScreen.tsx`, backed by
@@ -97,7 +98,12 @@ existing `load()`/fetch function already present on every one of these screens.
 
 ---
 
-## Screen-specific issues (no shared root cause — each is its own fix)
+## Epic 3 — Screen-Specific Improvements (no shared root cause — each is its own fix)
+
+**Owner:** Claude.
+**Impact:** localized fixes, no shared dependency between them or with Epics 1/2 — kept as their own group
+specifically *because* forcing them into a shared category would be organizational theater, not a real
+efficiency gain (see note below).
 
 These two don't share a root cause with each other or with A/B — grouping them together would be
 cosmetic organization, not a real shared fix, so they're kept separate rather than forced into a category.
@@ -142,13 +148,38 @@ Portuguese, not raw field names, throughout. No branding inconsistencies found i
 
 ## Summary
 
-| Root Cause | Findings | Severity |
-|---|---|---|
-| A — Shared interactive-element components | A1, A2, A3 | High × 3 |
-| B — List data behavior | B1, B2 | High × 2 |
-| C — Screen-specific | C1, C2 | Medium × 2 |
+| Epic | Findings | Severity | Status |
+|---|---|---|---|
+| Epic 1 — Shared UI Components | A1, A2, A3 | High × 3 | Not started |
+| Epic 2 — Shared List Experience | B1, B2 | High × 2 | Not started |
+| Epic 3 — Screen-Specific Improvements | C1, C2 | Medium × 2 | Not started |
+
+**Each epic closes only after:** implementation → regression check (`PILOT_FEEDBACK_LOG.md`'s Regression
+Check list) → one APK build → verification on your phone → then, and only then, the next epic starts.
 
 No architectural or feature-level issues found — everything above is a targeted, small fix (a style
 property, a sort call, a set of accessibility props) that doesn't touch business logic or navigation
 structure. Per the instructions this audit was run under: nothing here was implemented, this is findings
 only.
+
+---
+
+## How this maps to the broader 5-epic release structure
+
+The recommended release-level framing was: Epic 1 Shared UI & Accessibility, Epic 2 Lists & Refresh,
+Epic 3 Authentication & Branding, Epic 4 Final Store Compliance, Epic 5 Real-Device Polish. Mapped against
+what actually exists in this repo today, rather than creating a parallel structure:
+
+- **Epic 1 & 2** = the two epics above, in this document.
+- **Epic 3 (Auth & Branding)** — this audit found **zero** findings here (auth screens were reviewed;
+  branding was already frozen and separately verified in `WAFINA_BRAND_GUIDE.md` /
+  `BRANDING_FREEZE_CHECKLIST.md`). Nothing to open until real-device testing or a tester surfaces something
+  evidence-backed.
+- **Epic 4 (Store Compliance)** — already has its own dedicated, more thorough tracking than a UX audit
+  would produce: `COMPLIANCE_INFORMATION.md` and the RC1 Launch Readiness Audit done earlier this session.
+  Not duplicated here.
+- **Epic 5 (Real-Device Polish)** — this *is* `PILOT_FEEDBACK_LOG.md`, already the exact mechanism for
+  evidence-tagged, batched, device-verified fixes.
+
+Kept them separate rather than merging everything into one new "5 epics" document, since each already has
+the right home and merging would create two sources of truth for the same information.
