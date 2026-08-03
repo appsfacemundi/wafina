@@ -45,14 +45,21 @@ leave the app mid-upload, receive a call during a process, kill the app and reop
 Spend 5 minutes on these **before** looking at new fixes. If any of these break, stop and fix the
 regression first — don't keep testing new items on top of a broken core flow.
 
-**Donor:** Sign in · Create donation · Upload photos · View donation · Notifications · Profile
-
-**Donor — not currently implemented, don't test as a "regression":** Edit donation, Delete donation.
-Confirmed via code audit this session — no UI exposes editing (backend supports it while Pending, but no
-screen calls it) and no delete endpoint exists anywhere in the backend. Not a bug, just not built.
+**Donor:** Sign in · Register · Complete profile · Create donation · Upload photos · View donation details
+· View "My Donations" · Notifications · Settings · Logout · Delete account
 
 **Institution:** Sign in · View available donations · Claim donation · Schedule pickup · Confirm collection
-· Confirm delivery · Impact story
+· Confirm delivery · Create Impact Story · Notifications · Settings · Logout
+
+## Future Enhancements (Post-RC1)
+
+Not regressions — these don't exist yet, so don't test for them as if something broke. A home for ideas
+that come up during testing so they don't get lost, without creating noise in the RC1 checklist:
+
+- Edit Donation — backend already supports it (`PATCH /donations/:id` while Pending); no UI exposes it
+- Delete Donation — no UI *and* no backend endpoint
+- Archive Donation
+- Duplicate Donation
 
 ## Evidence rule — mandatory
 
@@ -92,11 +99,15 @@ ask before expanding scope.
 
 ## Batch 1 — Open
 
-| Priority | Evidence | Screen | Issue | Suggested Fix | Owner | Status | Verified |
-|---|---|---|---|---|---|---|---|
-| 🔴 High | 📋 Store compliance | Shared `Button` component (Donor + Institution) | No `accessibilityRole`/`accessibilityLabel` anywhere; touch target ~43px, just under Apple's 44pt minimum | Add accessibility props at the component level; bump `minHeight` to 48 | Claude | Open | ☐ Not tested |
+**Version/Commit/Device:** which build exposed the issue — matters months later for knowing exactly what
+introduced or revealed something. Most relevant for 📱 device-observed issues; mark N/A for 📋/🐛 findings
+that came from code review rather than a specific build on a specific device.
 
-*(Priority/Evidence/Screen/Issue are required; Suggested Fix/Owner optional until triaged)*
+| Version | Commit | Device | Priority | Evidence | Screen | Issue | Suggested Fix | Owner | Status | Verified |
+|---|---|---|---|---|---|---|---|---|---|---|
+| N/A | N/A (code review) | N/A | 🔴 High | 📋 Store compliance | Shared `Button` component (Donor + Institution) | No `accessibilityRole`/`accessibilityLabel` anywhere; touch target ~43px, just under Apple's 44pt minimum | Add accessibility props at the component level; bump `minHeight` to 48 | Claude | Open | ☐ Not tested |
+
+*(Priority/Evidence/Screen/Issue are required; the rest fill in as you triage)*
 
 **Owner:** Claude (code fix) · You (a decision/content/account-side thing) · Both (needs your input, then
 a code fix).
