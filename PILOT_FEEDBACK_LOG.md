@@ -11,7 +11,19 @@ reconsideration — see the commit message for why (Countries Active-flag check,
 to-everyone guard, which turned out to be a deliberate Sheets-quota safety measure, not arbitrary
 UX).
 
-**Phase 2 (Donor app) and Phase 3 (Institution app) — in progress**, each ending in one APK build.
+**Phase 2 (Donor app + shared package), commit `166ad01`, pushed.** Covers: navigate to My Donations
+after a successful submit, item photo on My Donations cards, refetch-on-focus, Home greets by name,
+logout confirmation, self-service "forgot password," date/time format fixed to explicit DD/MM/YYYY +
+24h, status badge colors no longer collapse 3 statuses into one.
+
+**Phase 3 (Institution app), commit `e7571aa`, pushed.** Covers: camera option for Success Story
+photos, Claimed list sorted + refetch-on-focus + active/delivered section split, Disputes/Success
+Stories refetch-on-focus, Available Donations header shortened, donor badge sized up, logout
+confirmation (3 screens), self-service "forgot password," Morada marked required, address now stored
+and shown in Settings, date/time formatting fixed. Also closed the last open question: Admin Users
+list now shows origin country.
+
+**Both apps need a new APK to actually show any of this on-device** — builds triggered, in progress.
 
 ## RC1 Exit Criteria
 
