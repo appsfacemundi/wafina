@@ -1,5 +1,18 @@
 # Pilot Feedback Log
 
+## Implementation status — 2026-08-04
+
+**Phase 1 (Admin + backend) implemented, commit `18ea126`, pushed — live after Render redeploys, no
+APK needed.** Covers: Institutions full list, Users alphabetical sort, Change Request field-type
+input, Corporate Account country dropdown, Admin Donations date-lock after Delivered + institution
+name styling, dashboard cards clickable, Reports CSV curation, per-country donation
+breakdown/filter, Admin logout confirmation. Two logged items deliberately NOT changed on
+reconsideration — see the commit message for why (Countries Active-flag check, and the broadcast-
+to-everyone guard, which turned out to be a deliberate Sheets-quota safety measure, not arbitrary
+UX).
+
+**Phase 2 (Donor app) and Phase 3 (Institution app) — in progress**, each ending in one APK build.
+
 ## RC1 Exit Criteria
 
 RC1 is only declared **"Launch Ready"** when every one of these is checked:
