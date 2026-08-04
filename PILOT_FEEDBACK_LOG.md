@@ -140,6 +140,144 @@ issue is only closed once it's ✅, not just because the code changed.
 
 ---
 
+## Batch 2 — Investigated 2026-08-04, classification proposed, nothing implemented yet
+
+Source: real-device/real-admin-usage report covering Donor, Institution, and Admin in one session.
+Every item below was checked against the actual current code (not assumed from the description)
+before being classified. Per Rule 0, nothing here gets implemented until you approve the grouping.
+
+### Corrections — reported as bugs, not confirmed as bugs
+
+These four are flagged here, not in the epics below, so they don't get "fixed" against a premise
+that isn't actually true:
+
+- **"No code generator for corporate accounts"** — it exists. `apps/admin/src/app/companies/page.tsx`
+  has a "generate code" action per company (`onGenerateCode`), wired to
+  `POST /admin/corporate-accounts/:id/codes` → `createInvitationCode`. The Donor-side "Código de
+  convite" field in Settings redeems exactly that code. This isn't a missing feature — it's that the
+  generator lives inside each company's row in the Companies tab, which is easy to miss. Worth a
+  small discoverability fix (clearer label/placement), not the "review the logic, it doesn't make
+  sense" framing.
+- **"Resolve button stays active after a dispute is resolved"** — checked both ends: the backend
+  (`resolveDispute`) already throws if a dispute's `Status !== 'Open'`, and the Admin Disputes page
+  only ever loads the *pending* list (`/admin/disputes/pending`) — a resolved dispute drops off the
+  list entirely, so its "Resolver" button is never shown again in the first place. Nothing to fix here.
+- **"Institution can't see the donation"** — already resolved as a non-bug in the Blockers section
+  above (test-account country mismatch, not a defect). Cross-referencing so it isn't logged twice.
+- **Available Donations tab label** — the tab bar already just says "Disponíveis" (not "Doações
+  Disponíveis"). Only the in-screen header still says the longer "Doações Disponíveis" — a much
+  smaller change than "the tab" suggested. Folded into Epic 1 below at the right scope.
+
+### Epic 1 (extends the existing one) — Shared UI Components
+
+- **Status color coding.** `packages/shared/src/lib/status.ts`'s `DONATION_STATUS_TONE` currently
+  gives `Claimed`, `Collection_Scheduled`, and `Collected` the *same* tone (`info`) — three different
+  real-world stages render as the same badge color, with only `Pending` (warning) and `Delivered`
+  (success) visually distinct. This is almost certainly the "no visual distinction between accepted
+  and booked" complaint, and it's a one-file fix (the map, not the Badge component) reaching every
+  screen that shows a status badge in both apps.
+- **Available Donations header text** — "Doações Disponíveis" → shorter, to match the tab label.
+- **Institution/Donor logo+name sizing** — needs your confirmation on which element you meant before
+  I touch it: in the Institution app, the small 18×18px/13.5px element next to a donation is the
+  **donor's** logo/name (`Donor_Display_Logo`/`Donor_Display_Name`), not an institution's — there's
+  no "institution" identity shown small anywhere I can find in that app. The Donor app's own
+  `InstitutionsScreen` shows an institution's logo/name at 40×40px/16px, noticeably larger. Let me
+  know if you meant the donor badge inside Institution (and want it bigger), or something else.
+
+### Epic 2 (extends the existing one) — Shared List Experience
+
+- **Institution's "Aceites" (claimed) list is also unsorted** — same missing-sort pattern as B1, but
+  a different function (`listDonationsClaimedByInstitution` vs. `listDonationsByDonor`). Should be
+  fixed in the same pass as B1 rather than treated as unrelated.
+- **Refetch-on-focus gap — two more confirmed instances of B2**, not new root causes: Institution's
+  `DisputesListScreen` and `MySuccessStoriesScreen` both fetch once on mount only (no
+  `useFocusEffect`, no pull-to-refresh) — exactly why a dispute resolution or Success Story
+  approval/rejection made by Admin never appears without a full app restart. Folds into B2.
+- **Active vs. Delivered visual separation.** Both Donor's My Donations and Institution's Aceites
+  list currently render every status in one flat list with no divider. You raised two options —
+  (a) a divider line within the existing list (small, same-screen change) vs. (b) a genuinely
+  separate tab for active vs. delivered (bigger — a navigation/tab-structure change). I'd recommend
+  starting with (a); I can scope (b) separately if (a) doesn't feel like enough once you've tried it.
+- **Date-format inconsistency.** A shared formatter already exists
+  (`packages/shared/src/lib/relative-date.ts`, `formatDateLabel` → `dd/mm/yyyy` via `pt-PT` locale)
+  and most screens use it, but `NotificationsScreen` (both apps) and Institution's
+  `DisputesListScreen` bypass it with raw `toLocaleString()` (device-default format). One clarifying
+  question for you: is `dd/mm/yyyy` (what the shared formatter already produces) what you meant by
+  "date month year," or did you want it spelled out (e.g. "4 de agosto de 2026")? That changes the fix.
+
+### New Epic — Donor/Institution Screen-Specific (no shared root cause)
+
+- **Donor: no navigation after submitting a donation.** `DonateScreen` shows a success toast/banner
+  and clears the form, but never calls `navigation.navigate(...)` — confirmed zero navigation calls
+  in the file. Matches your exact complaint.
+- **Donor: My Donations card never shows the item's own photo.** Confirmed `Donation.Photo` is never
+  referenced in `MyDonationsScreen.tsx` — the only image shown is a linked Success Story's photo,
+  conditionally, at the bottom (which is already correct and matches "as it is now"). Adding the
+  item photo at the top of the card is a clean, scoped fix.
+- **Institution: Success Story photo — gallery only, no camera.** Confirmed: only
+  `launchImageLibraryAsync` is called, `launchCameraAsync` never appears in the file. This is the
+  same camera capability already tracked in `VERSION_2_ROADMAP.md` (why `CAMERA`/`RECORD_AUDIO`
+  permissions were kept, not removed) — this makes it concretely actionable now rather than backlog.
+- **HomeScreen doesn't show the person's name (Donor and Institution).** This one isn't purely a
+  screen fix — the session payload itself (`AuthenticatedUser` in `packages/shared/src/types/session.ts`)
+  has no `name` field at all, even though `User.Name` exists server-side. Adding it means touching the
+  shared session type and whatever builds it, then both HomeScreens. Classifying as Shared Service +
+  Shared Workflow, not Single Screen, because of that.
+
+### New Epic — Admin Web (not covered by the original mobile-only UX audit)
+
+- **Change Request approval always shows a plain text field**, even though the system already knows
+  which field is being changed (`Field_Requested`/`Field_Label`). Only `Location` gets a hint (still
+  just free text, not real validation). Fix: render an input appropriate to the field — Name/Type/
+  Needs_List stay text (they genuinely are text), Location gets real paired lat/lng inputs instead of
+  a hint on a text field.
+- **Admin Users list is sorted newest-joined-first, not alphabetically**, and blank-name users
+  (exist between account creation and profile completion) have no special placement — confirmed both
+  facts directly. Fix: sort by Name, decide blank-name placement (you suggested bottom).
+- **Corporate Account "country" is free text**, not a dropdown tied to the same Geo_Regions system
+  used everywhere else in the app (donor country, institution country, donation country). Found this
+  while investigating your "why does this feature exist" question — it's a real inconsistency worth
+  fixing alongside explaining the feature's actual purpose (a Corporate Account is a reporting/
+  attribution grouping tied to donors via invite code — nobody logs in "as" the company, so no email
+  field is actually needed there, that part isn't a gap).
+- **Admin Donations: date fields stay editable after Delivered.** Confirmed no `disabled` logic tied
+  to `Status` anywhere on that page. Also confirmed, directly contradicting the "eight days" auto-
+  offset — **there is no automatic date math anywhere in the code.** Grepped the whole repo for any
+  hardcoded day-offset; found none. Each field only changes when you explicitly edit and save it, and
+  the two fields never affect each other. If you saw them looking related, it was two manual edits,
+  not automation — worth mentioning so you're not looking for a bug that isn't there.
+- **Admin Donations: institution name is visually subordinate to the item type** — confirmed
+  (13.5px muted vs. 16px bold). Simple style fix.
+- **Admin dashboard stat cards aren't clickable at all** — confirmed, all seven are plain `<Card>`
+  with no link/onClick. Fix: wire each to its corresponding list page.
+- **Admin Reports CSV is a raw dump of internal fields**, not curated — confirmed the export just
+  does `Object.keys(rows[0])` on whatever the API returns (the full internal `AdminDonationView`
+  shape), so yes, `Donation_ID`/`Public_Donation_Code` *are* technically in there, just buried among
+  every other internal field with no human labels or chosen order. Needs a real curated column list
+  — separate from PDF/charts, see below.
+
+### Needs your decision before I scope it further — bigger than a normal batch item
+
+- **Push notifications.** Confirmed: zero push infrastructure exists anywhere in the codebase (no
+  Expo push tokens, no FCM, no `firebase-admin/messaging`) — every notification today is in-app only.
+  Building real push delivery is new infrastructure (SDK integration, token registration/storage,
+  a sending service), not a UI tweak, and arguably brushes up against Version 1 Feature Freeze. Worth
+  a deliberate go/no-go from you rather than folding into a batch. Separately, smaller and safe to
+  include in the Admin epic above: the broadcast UI already supports role/country filters but the
+  backend explicitly rejects a fully-unfiltered "everyone" broadcast — that part's a small, contained fix.
+- **PDF export + charts for Reports.** Real, substantial new work (a new export format plus chart
+  rendering), not a small fix. Once the CSV column-curation fix above ships, I'd suggest deciding
+  separately whether PDF/charts are worth the effort before RC1 or belong in `VERSION_2_ROADMAP.md`.
+
+### Not enough evidence yet
+
+- **"All apps responding too slowly."** No specific screen, action, or timing given, so there's
+  nothing concrete to investigate yet — this doesn't meet the evidence bar the rest of this log holds
+  to. Next time it happens, note which screen/action and roughly how slow (e.g. "Donations tab takes
+  ~5s to load on Institution"), and I'll profile that specifically.
+
+---
+
 ## Resolved
 
 *(moved here once ✅ Verified on real device, with the commit hash)*
