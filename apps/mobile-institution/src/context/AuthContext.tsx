@@ -24,15 +24,34 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const ROLE_LABEL: Record<string, string> = { Donor: 'Doador', Institution: 'Instituição', Admin: 'Admin' };
+
 async function resolveSession(user: FirebaseUser): Promise<AuthenticatedUser> {
   const idToken = await user.getIdToken();
   // role is only honored by the API when bootstrapping a brand-new account —
   // this is the Institution app, so new sign-ups always request the
   // Institution role (spec 13.3: starts Verified=FALSE, full app block).
-  return apiFetch<AuthenticatedUser>('/auth/session', {
+  const authenticatedUser = await apiFetch<AuthenticatedUser>('/auth/session', {
     method: 'POST',
     body: { idToken, role: 'Institution' },
   });
+
+  // Real-device finding, 2026-08-04: role is fixed on an account's first-ever
+  // sign-up across ANY Wafina app and never changes automatically (see
+  // requireRole's own comment in the API). Without this check, someone signing
+  // into the Institution app with an email already tied to a Donor account got
+  // in fine here, then only discovered the mismatch after filling out the
+  // entire registration form and hitting submit — with RegisterScreen having
+  // no way to back out. Failing fast, right after sign-in, with a message that
+  // says exactly what to do, closes both problems at once.
+  if (authenticatedUser.role !== 'Institution') {
+    throw new ApiError(
+      `Este e-mail já está associado a uma conta de ${ROLE_LABEL[authenticatedUser.role] ?? authenticatedUser.role}. Não pode ser utilizado para uma conta de Instituição — utilize outro e-mail.`,
+      403,
+    );
+  }
+
+  return authenticatedUser;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
