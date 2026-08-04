@@ -97,6 +97,16 @@ ask before expanding scope.
 
 ---
 
+## Blockers — fixed immediately, not batched
+
+| Date | App | Evidence | Expected | Actual | Root Cause | Fix | Status | Verified |
+|---|---|---|---|---|---|---|---|---|
+| 2026-08-04 | Admin | 📱 Real device + 🐛 code confirmed | A donation submitted by a donor is visible to Admin (dashboard count + Donations tab) from the moment it's submitted | `listInFlightDonationsForAdmin` (backing both `/admin/stats` and `/admin/donations`) deliberately excludes `Status: Pending` — a prior fix pass already restored this visibility for Reports only, never extended to Dashboard/Donations. Verified against live Sheets data: 4 real Pending donations (PT-000001, PT-000002, PT-000003, BR-000005) were confirmed invisible to Admin before the fix. | Shared Service (`listInFlightDonationsForAdmin` misuse) | `/admin/donations` now calls `listAllDonationsForAdmin`; added a new `pendingDonations` dashboard stat (`countPendingDonations`) alongside the existing "Doações em curso" tile, so pending and in-progress stay distinguishable rather than merged | Fixed (code) | 🟡 Fixed, waiting for Admin web verification after redeploy |
+
+**Related, NOT a bug — investigated and ruled out:** the same report included "Institution can't see the donation either." Checked live data: the donor test accounts' `Active_Country_ID` was switched to Portugal/Brasil (via the Settings → "Simulate Country Detection" dev tool), while the institution accounts used for testing are registered in Angola. `listAvailableDonations` correctly scopes by the institution's own country — an Angola institution is *supposed* to not see a Portugal donation. A verified "Portugal Institution" account already exists and should see PT-000001/2/3. Not fixed because nothing is broken — flagging here so it isn't retested as if it were.
+
+---
+
 ## Batch 1 — Open
 
 **Version/Commit/Device:** which build exposed the issue — matters months later for knowing exactly what

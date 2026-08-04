@@ -92,7 +92,7 @@ export default function AdminDonationsPage() {
           <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>
         )}
         {donations?.length === 0 && (
-          <EmptyState title="Sem doações em curso" description="Doações aceites por instituições aparecem aqui." />
+          <EmptyState title="Sem doações" description="Doações aparecem aqui assim que são submetidas por um doador." />
         )}
         {donations && donations.length > 0 && (
           <div className="stack">

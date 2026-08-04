@@ -325,6 +325,16 @@ export async function listAllDonationsForAdmin(): Promise<AdminDonationView[]> {
   });
 }
 
+/**
+ * Dashboard stat — count only, no view enrichment (Users/Corporate_Accounts/Institutions
+ * reads), since `listAllDonationsForAdmin` does that enrichment for display purposes the
+ * stat tile doesn't need.
+ */
+export async function countPendingDonations(): Promise<number> {
+  const rows = await getRows(SHEET_TABS.donations);
+  return rows.filter((row) => row.Status === 'Pending').length;
+}
+
 /** Donor may edit their own donation only while it's still Pending (spec 11.1.2). */
 export async function editDonation(
   donorId: string,

@@ -15,7 +15,7 @@ import {
   suspendCorporateAccount,
   updateCorporateAccount,
 } from '../services/corporate-accounts';
-import { listAllDonationsForAdmin, listInFlightDonationsForAdmin } from '../services/donations';
+import { listAllDonationsForAdmin } from '../services/donations';
 import { listAllOpenDisputes, resolveDispute } from '../services/disputes';
 import { createCountry, listAllCountries, setCountryActive } from '../services/geo-regions';
 import {
@@ -108,13 +108,22 @@ adminRouter.post(
  * Institution App Polish module — donations Admin can set logistics
  * estimates for. Also usable in /donations/:id/expected-dates (defined in
  * donations.ts route) to actually write the estimate.
+ *
+ * Real-device finding, 2026-08-04: this used to call `listInFlightDonationsForAdmin`,
+ * which deliberately excludes Pending donations (see that function's comment) — the
+ * unintended effect was that Admin had zero visibility into a donation between
+ * submission and claim anywhere in the app except Reports. Switched to
+ * `listAllDonationsForAdmin` so every donation is visible here, matching the page's
+ * own "view every donation" intent. Pending donations will show without collection/
+ * delivery date fields making much sense yet — that's the separately logged
+ * per-status date-field issue, not addressed here.
  */
 adminRouter.get(
   '/admin/donations',
   requireAuth,
   requireRole('Admin'),
   asyncHandler(async (_req, res) => {
-    res.json(await listInFlightDonationsForAdmin());
+    res.json(await listAllDonationsForAdmin());
   }),
 );
 

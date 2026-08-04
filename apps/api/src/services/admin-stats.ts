@@ -1,6 +1,6 @@
 import type { AdminDashboardStats } from '@wafina/shared';
 import { listPendingChangeRequests } from './change-requests';
-import { listInFlightDonationsForAdmin } from './donations';
+import { countPendingDonations, listInFlightDonationsForAdmin } from './donations';
 import { listAllOpenDisputes } from './disputes';
 import { listPendingInstitutions, listVerifiedInstitutions } from './institutions';
 import { listPendingSuccessStories } from './success-stories';
@@ -10,6 +10,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   const [
     pendingInstitutions,
     verifiedInstitutions,
+    pendingDonations,
     inFlightDonations,
     pendingSuccessStories,
     pendingChangeRequests,
@@ -17,6 +18,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   ] = await Promise.all([
     listPendingInstitutions(),
     listVerifiedInstitutions(),
+    countPendingDonations(),
     listInFlightDonationsForAdmin(),
     listPendingSuccessStories(),
     listPendingChangeRequests(),
@@ -26,6 +28,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   return {
     pendingInstitutions: pendingInstitutions.length,
     verifiedInstitutions: verifiedInstitutions.length,
+    pendingDonations,
     inFlightDonations: inFlightDonations.length,
     pendingSuccessStories: pendingSuccessStories.length,
     pendingChangeRequests: pendingChangeRequests.length,

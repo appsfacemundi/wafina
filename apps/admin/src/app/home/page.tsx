@@ -47,6 +47,10 @@ export default function AdminHomePage() {
             <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Instituições verificadas</p>
           </Card>
           <Card className="stack">
+            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats?.pendingDonations ?? '—'}</p>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Doações pendentes</p>
+          </Card>
+          <Card className="stack">
             <p style={{ fontSize: 28, fontWeight: 700 }}>{stats?.inFlightDonations ?? '—'}</p>
             <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Doações em curso</p>
           </Card>
