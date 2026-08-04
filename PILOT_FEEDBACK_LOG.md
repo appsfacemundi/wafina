@@ -303,26 +303,31 @@ that isn't actually true:
   Sign In or a "Change password" option in Settings — a user can only get a password reset if an
   Admin does it for them. Same underlying Firebase call already proven in Admin, just missing on the
   user-facing side. Shared Workflow (SignInScreen, both apps).
-- **Address/personal info not shown to the user anywhere.** Confirmed no address is displayed in
-  either app's Home or Settings. Deeper finding: **there's no stored "address" text field in the data
-  model at all** for either Donor or Institution — only geographic coordinates (`Location: {lat,lng}`).
-  Showing an address would mean either reverse-geocoding the stored coordinates into readable text for
-  display (no schema change) or adding a real stored address field (bigger change). Needs your input
-  on which — see open questions below.
+- **Address/personal info not shown to the user anywhere, and not editable after registration.**
+  Confirmed no address is displayed in either app's Home or Settings, and confirmed via screenshot
+  (2026-08-04, Institution registration, GPS-failed path): the typed "Morada" is only ever used to
+  *geocode* into `{lat, lng}` at registration — the text itself is never stored. So even if an edit
+  screen existed, there'd be nothing to show — the original address the person typed is gone the
+  moment registration completes, only coordinates survive. Fixing "let me edit my address" requires
+  first storing the address text at all, not just adding an edit screen.
+- **Institution registration: the actually-required field isn't visually distinguished from the
+  three optional ones next to it.** Resolved via screenshot — this is now confirmed, not a
+  misunderstanding. On the GPS-failed path, the screen shows, in order: "Necessidades (opcional)",
+  "Raio de cobertura em km (opcional)", "Área de cobertura (opcional)" — all genuinely optional, no
+  bug there — immediately followed by "Localização" → "Morada", which has **no "(obrigatório)" or
+  equivalent marker** even though it's the one field in that whole section actually required to
+  submit (`hasValidLocation` blocks submission without it). Three optional-labeled fields in a row
+  right before the one required one, with no visual distinction, is a real, confirmed UX gap — not a
+  code contradiction, but exactly the kind of thing that reads as "it let me skip the optional stuff
+  but then blocked me anyway" that you described. Fix: mark Morada as required once the GPS-failed
+  fallback is showing (e.g. "Morada (obrigatório quando o GPS falha)"), and/or move it before the
+  optional fields so the required step isn't the last thing in a cluster of skippable ones.
 
-### Couldn't reproduce as described — need one more detail from you
+### Still unclear — need one more detail from you
 
-- **"Coordinates says optional but is required" (Institution registration).** Read
-  `apps/mobile-institution/src/screens/RegisterScreen.tsx` closely: the three fields actually labeled
-  "(opcional)" — Needs List, Service Radius, Coverage Area — are genuinely optional in both the UI and
-  the backend validation, no mismatch there. The Location/GPS section itself is not labeled optional
-  anywhere in the current code — it's presented as automatic (captured via GPS, with a manual-address
-  fallback if GPS fails) and is required to submit. I can't find the specific "says optional, acts
-  required" contradiction you saw. Could you confirm the exact field label next time you hit it, or a
-  screenshot? I'd rather not guess and fix the wrong thing.
-- **"Why does it ask to confirm the address" during registration.** Genuinely unclear what this
-  refers to — which field, which screen exactly (Donor or Institution registration)? Happy to
-  investigate once I know what "confirm" refers to.
+- **"Why does it ask to confirm the address" during registration.** The screenshot shows a
+  "Confirmar morada" button, which just triggers geocoding the typed text into coordinates before
+  submit — is that what you meant, or something else?
 
 ### Open questions before I finalize scope
 
