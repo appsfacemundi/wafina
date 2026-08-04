@@ -2,31 +2,20 @@
 
 ## Implementation status — 2026-08-04
 
-**Phase 1 (Admin + backend) implemented, commit `18ea126`, pushed — live after Render redeploys, no
-APK needed.** Covers: Institutions full list, Users alphabetical sort, Change Request field-type
-input, Corporate Account country dropdown, Admin Donations date-lock after Delivered + institution
-name styling, dashboard cards clickable, Reports CSV curation, per-country donation
-breakdown/filter, Admin logout confirmation. Two logged items deliberately NOT changed on
-reconsideration — see the commit message for why (Countries Active-flag check, and the broadcast-
-to-everyone guard, which turned out to be a deliberate Sheets-quota safety measure, not arbitrary
-UX).
+| ID | Description | Status | Commit | Verified |
+|---|---|---|---|---|
+| BLK-1 | Admin couldn't see Pending donations (dashboard + Donations tab) | Implemented | `b45799b` | ✅ Verified — you confirmed AO-000036/PT-000001 visible |
+| BLK-2 | Institution registration trap (no exit) + role-mismatch fails fast at sign-in | Implemented | `2b89abd`, `c4e2f1b` | ✅ Verified — you confirmed working on build 5 |
+| P1 | Admin + backend: Institutions full list, Users sort, Change Request field types, Corporate country dropdown, Donations date-lock/styling, dashboard links, Reports CSV curation, per-country filter | Implemented | `18ea126` | ⏳ Awaiting your review (web only — reload Admin, no phone needed) |
+| B1 | Donor app + shared package: post-submit navigation, item photo, refetch-on-focus, name greeting, logout confirm, forgot password, date/time format, status colors | Implemented | `166ad01` | ⏳ Awaiting phone test (build 18 installed) |
+| B2 | Institution app + last Admin decision: camera option, list sort + active/delivered split, refetch-on-focus, logout confirm, forgot password, Morada required-marker, address storage, donor badge size, Users origin country | Implemented | `e7571aa` | ⏳ Awaiting phone test (build 6 installed) |
 
-**Phase 2 (Donor app + shared package), commit `166ad01`, pushed.** Covers: navigate to My Donations
-after a successful submit, item photo on My Donations cards, refetch-on-focus, Home greets by name,
-logout confirmation, self-service "forgot password," date/time format fixed to explicit DD/MM/YYYY +
-24h, status badge colors no longer collapse 3 statuses into one.
+Two items from P1 deliberately **not** changed on reconsideration, not omissions — see that commit's
+message for why (Countries active-flag check in `listAvailableDonations`, and the broadcast-to-
+everyone guard, which turned out to be a deliberate Sheets-quota safety measure).
 
-**Phase 3 (Institution app), commit `e7571aa`, pushed.** Covers: camera option for Success Story
-photos, Claimed list sorted + refetch-on-focus + active/delivered section split, Disputes/Success
-Stories refetch-on-focus, Available Donations header shortened, donor badge sized up, logout
-confirmation (3 screens), self-service "forgot password," Morada marked required, address now stored
-and shown in Settings, date/time formatting fixed. Also closed the last open question: Admin Users
-list now shows origin country.
-
-**Both apps built and installed on the test device (OnePlus 7 Pro) via wireless adb** — Wafina Doador
-build 18, Wafina Instituição build 6. Donor required a fresh install (different signing key from the
-prior session); Institution upgraded in place. 🟡 Ready for your review on-device — nothing marked
-✅ Verified until you've actually checked each item.
+Both mobile apps are installed on the test device (OnePlus 7 Pro) via wireless adb — Donor required a
+fresh install (different signing key from the prior session), Institution upgraded in place.
 
 ## RC1 Exit Criteria
 
