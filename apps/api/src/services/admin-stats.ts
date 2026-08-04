@@ -28,7 +28,8 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   return {
     pendingInstitutions: pendingInstitutions.length,
     verifiedInstitutions: verifiedInstitutions.length,
-    pendingDonations,
+    pendingDonations: pendingDonations.total,
+    pendingDonationsByCountry: pendingDonations.byCountry,
     inFlightDonations: inFlightDonations.length,
     pendingSuccessStories: pendingSuccessStories.length,
     pendingChangeRequests: pendingChangeRequests.length,

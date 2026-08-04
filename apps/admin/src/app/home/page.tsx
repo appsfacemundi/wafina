@@ -1,16 +1,43 @@
 'use client';
 
-import type { AdminDashboardStats } from '@wafina/shared';
+import type { AdminDashboardStats, GeoRegion } from '@wafina/shared';
 import { Card } from '@wafina/ui';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
 
+/** Real-device finding, 2026-08-04: none of these tiles linked anywhere. */
+function StatCard({
+  href,
+  value,
+  label,
+  breakdown,
+}: {
+  href: string;
+  value: number | undefined;
+  label: string;
+  breakdown?: string;
+}) {
+  return (
+    <Link href={href} style={{ textDecoration: 'none', color: 'inherit' }}>
+      <Card className="stack" style={{ cursor: 'pointer' }}>
+        <p style={{ fontSize: 28, fontWeight: 700 }}>{value ?? '—'}</p>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{label}</p>
+        {breakdown && (
+          <p style={{ color: 'var(--color-text-faint)', fontSize: 11.5 }}>{breakdown}</p>
+        )}
+      </Card>
+    </Link>
+  );
+}
+
 export default function AdminHomePage() {
   const session = useRequireAdminSession();
   const { firebaseUser } = useAuth();
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
+  const [countries, setCountries] = useState<GeoRegion[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -18,7 +45,12 @@ export default function AdminHomePage() {
     (async () => {
       try {
         const idToken = await firebaseUser.getIdToken();
-        setStats(await apiFetch<AdminDashboardStats>('/admin/stats', { idToken }));
+        const [statsResult, countryList] = await Promise.all([
+          apiFetch<AdminDashboardStats>('/admin/stats', { idToken }),
+          apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }),
+        ]);
+        setStats(statsResult);
+        setCountries(countryList);
       } catch {
         setError('Não foi possível carregar as estatísticas.');
       }
@@ -26,6 +58,15 @@ export default function AdminHomePage() {
   }, [firebaseUser]);
 
   if (!session) return null;
+
+  const pendingByCountryLabel = stats
+    ? Object.entries(stats.pendingDonationsByCountry)
+        .map(([countryId, count]) => {
+          const name = countries.find((c) => c.Region_ID === countryId)?.ISO_Code ?? countryId;
+          return `${name}: ${count}`;
+        })
+        .join(' · ')
+    : undefined;
 
   return (
     <AppShell>
@@ -38,34 +79,18 @@ export default function AdminHomePage() {
         {error && <div className="banner banner-error">{error}</div>}
 
         <div className="stats-grid">
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats?.pendingInstitutions ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Instituições pendentes</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats?.verifiedInstitutions ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Instituições verificadas</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats?.pendingDonations ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Doações pendentes</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats?.inFlightDonations ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Doações em curso</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats?.pendingSuccessStories ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Histórias por rever</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats?.pendingChangeRequests ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Pedidos de alteração por rever</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats?.openDisputes ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Ocorrências abertas</p>
-          </Card>
+          <StatCard href="/institutions" value={stats?.pendingInstitutions} label="Instituições pendentes" />
+          <StatCard href="/institutions" value={stats?.verifiedInstitutions} label="Instituições verificadas" />
+          <StatCard
+            href="/donations"
+            value={stats?.pendingDonations}
+            label="Doações pendentes"
+            breakdown={pendingByCountryLabel}
+          />
+          <StatCard href="/donations" value={stats?.inFlightDonations} label="Doações em curso" />
+          <StatCard href="/success-stories" value={stats?.pendingSuccessStories} label="Histórias por rever" />
+          <StatCard href="/change-requests" value={stats?.pendingChangeRequests} label="Pedidos de alteração por rever" />
+          <StatCard href="/disputes" value={stats?.openDisputes} label="Ocorrências abertas" />
         </div>
       </div>
     </AppShell>

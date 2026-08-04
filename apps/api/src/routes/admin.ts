@@ -86,6 +86,21 @@ adminRouter.get(
   }),
 );
 
+/**
+ * Real-device finding, 2026-08-04: Admin had no way to browse every
+ * institution (verified + rejected included) the way the Users page already
+ * allows for every user — listAllInstitutions existed but was only ever wired
+ * to the Reports export. This is that same data, exposed as a real page.
+ */
+adminRouter.get(
+  '/admin/institutions',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listAllInstitutions());
+  }),
+);
+
 adminRouter.post(
   '/admin/institutions/:id/verify',
   requireAuth,

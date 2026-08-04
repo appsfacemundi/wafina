@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 
 const NAV_ITEMS = [
   { href: '/home', label: 'Dashboard' },
-  { href: '/institutions', label: 'Instituições Pendentes' },
+  { href: '/institutions', label: 'Instituições' },
   { href: '/donations', label: 'Doações' },
   { href: '/success-stories', label: 'Histórias de Impacto' },
   { href: '/change-requests', label: 'Pedidos de Alteração' },
@@ -32,7 +32,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="app-mark-dot" />
             Wafina Admin
           </span>
-          <Button variant="ghost" onClick={() => signOutUser()}>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (window.confirm('Tem a certeza que quer sair?')) signOutUser();
+            }}
+          >
             Sair
           </Button>
         </div>

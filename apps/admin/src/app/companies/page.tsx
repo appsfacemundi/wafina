@@ -1,7 +1,7 @@
 'use client';
 
-import type { AdminCorporateAccountView, InvitationCode } from '@wafina/shared';
-import { Badge, Button, Card, EmptyState, Input, useToast } from '@wafina/ui';
+import type { AdminCorporateAccountView, GeoRegion, InvitationCode } from '@wafina/shared';
+import { Badge, Button, Card, EmptyState, Input, Select, useToast } from '@wafina/ui';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
@@ -13,6 +13,7 @@ export default function AdminCompaniesPage() {
   const { showToast } = useToast();
 
   const [companies, setCompanies] = useState<AdminCorporateAccountView[] | null>(null);
+  const [countries, setCountries] = useState<GeoRegion[]>([]);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -33,7 +34,12 @@ export default function AdminCompaniesPage() {
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
-      setCompanies(await apiFetch<AdminCorporateAccountView[]>('/admin/corporate-accounts', { idToken }));
+      const [companyList, countryList] = await Promise.all([
+        apiFetch<AdminCorporateAccountView[]>('/admin/corporate-accounts', { idToken }),
+        apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }),
+      ]);
+      setCompanies(companyList);
+      setCountries(countryList);
     } catch {
       setError('Não foi possível carregar as empresas.');
     }
@@ -188,7 +194,14 @@ export default function AdminCompaniesPage() {
           <p style={{ fontWeight: 700, fontSize: 15 }}>Adicionar empresa</p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <Input label="Nome da empresa" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
-            <Input label="País" value={country} onChange={(e) => setCountry(e.target.value)} />
+            <Select label="País" value={country} onChange={(e) => setCountry(e.target.value)}>
+              <option value="">Selecione um país…</option>
+              {countries.map((c) => (
+                <option key={c.Region_ID} value={c.Name}>
+                  {c.Name}
+                </option>
+              ))}
+            </Select>
             <Button onClick={onCreate} disabled={creating}>
               {creating ? 'A criar…' : 'Criar'}
             </Button>
@@ -206,7 +219,14 @@ export default function AdminCompaniesPage() {
                 {editingId === c.Corporate_Account_ID ? (
                   <div className="stack">
                     <Input label="Nome da empresa" value={editName} onChange={(e) => setEditName(e.target.value)} />
-                    <Input label="País" value={editCountry} onChange={(e) => setEditCountry(e.target.value)} />
+                    <Select label="País" value={editCountry} onChange={(e) => setEditCountry(e.target.value)}>
+                      <option value="">Selecione um país…</option>
+                      {countries.map((c) => (
+                        <option key={c.Region_ID} value={c.Name}>
+                          {c.Name}
+                        </option>
+                      ))}
+                    </Select>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <Button onClick={() => onSaveEdit(c.Corporate_Account_ID)} disabled={busyId === c.Corporate_Account_ID}>
                         Guardar

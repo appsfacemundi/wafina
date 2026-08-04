@@ -4,9 +4,10 @@ import {
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   type AdminDonationView,
+  type GeoRegion,
 } from '@wafina/shared';
-import { Badge, Button, Card, EmptyState, Input, Photo, useToast } from '@wafina/ui';
-import { useEffect, useState } from 'react';
+import { Badge, Button, Card, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
+import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
 import { ApiError, apiFetch } from '@/lib/api';
@@ -23,6 +24,8 @@ export default function AdminDonationsPage() {
   const { showToast } = useToast();
 
   const [donations, setDonations] = useState<AdminDonationView[] | null>(null);
+  const [countries, setCountries] = useState<GeoRegion[]>([]);
+  const [countryFilter, setCountryFilter] = useState('');
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { collection: string; delivery: string }>>({});
@@ -31,8 +34,12 @@ export default function AdminDonationsPage() {
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
-      const list = await apiFetch<AdminDonationView[]>('/admin/donations', { idToken });
+      const [list, countryList] = await Promise.all([
+        apiFetch<AdminDonationView[]>('/admin/donations', { idToken }),
+        apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }),
+      ]);
       setDonations(list);
+      setCountries(countryList);
       setDrafts(
         Object.fromEntries(
           list.map((d) => [
@@ -52,6 +59,12 @@ export default function AdminDonationsPage() {
   useEffect(() => {
     load();
   }, [firebaseUser]);
+
+  const filteredDonations = useMemo(() => {
+    if (!donations) return null;
+    if (!countryFilter) return donations;
+    return donations.filter((d) => d.Country_ID === countryFilter);
+  }, [donations, countryFilter]);
 
   async function onSave(donationId: string) {
     const draft = drafts[donationId];
@@ -88,15 +101,28 @@ export default function AdminDonationsPage() {
           notificados quando uma estimativa já definida é alterada.
         </p>
         {error && <div className="banner banner-error">{error}</div>}
-        {!error && donations === null && (
+        {donations && donations.length > 0 && (
+          <Select label="Filtrar por país" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
+            <option value="">Todos os países</option>
+            {countries.map((c) => (
+              <option key={c.Region_ID} value={c.Region_ID}>
+                {c.Name}
+              </option>
+            ))}
+          </Select>
+        )}
+        {!error && filteredDonations === null && (
           <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>
         )}
-        {donations?.length === 0 && (
+        {filteredDonations?.length === 0 && donations?.length === 0 && (
           <EmptyState title="Sem doações" description="Doações aparecem aqui assim que são submetidas por um doador." />
         )}
-        {donations && donations.length > 0 && (
+        {filteredDonations?.length === 0 && donations && donations.length > 0 && (
+          <EmptyState title="Sem doações neste país" description="Experimente outro país, ou limpe o filtro." />
+        )}
+        {filteredDonations && filteredDonations.length > 0 && (
           <div className="stack">
-            {donations.map((d) => (
+            {filteredDonations.map((d) => (
               <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
                 <div style={{ display: 'flex', gap: 12, padding: 'var(--space-4)' }}>
                   <Photo
@@ -116,7 +142,7 @@ export default function AdminDonationsPage() {
                       {d.City ? ` · ${d.City}` : ''}
                     </p>
                     {d.Claimed_By_Institution_Name && (
-                      <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <p style={{ fontSize: 14.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Photo
                           src={d.Claimed_By_Institution_Logo}
                           placeholderIcon="🏢"
@@ -135,10 +161,16 @@ export default function AdminDonationsPage() {
                     background: 'var(--color-surface-muted, transparent)',
                   }}
                 >
+                  {d.Status === 'Delivered' && (
+                    <p style={{ fontSize: 12.5, color: 'var(--color-text-faint)' }}>
+                      Doação já entregue — as datas ficam por referência e não podem ser alteradas.
+                    </p>
+                  )}
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     <Input
                       label="Data estimada de recolha"
                       type="date"
+                      disabled={d.Status === 'Delivered'}
                       value={drafts[d.Donation_ID]?.collection ?? ''}
                       onChange={(e) =>
                         setDrafts((prev) => ({
@@ -150,6 +182,7 @@ export default function AdminDonationsPage() {
                     <Input
                       label="Data estimada de entrega"
                       type="date"
+                      disabled={d.Status === 'Delivered'}
                       value={drafts[d.Donation_ID]?.delivery ?? ''}
                       onChange={(e) =>
                         setDrafts((prev) => ({
@@ -159,9 +192,11 @@ export default function AdminDonationsPage() {
                       }
                     />
                   </div>
-                  <Button onClick={() => onSave(d.Donation_ID)} disabled={savingId === d.Donation_ID}>
-                    {savingId === d.Donation_ID ? 'A guardar…' : 'Guardar estimativas'}
-                  </Button>
+                  {d.Status !== 'Delivered' && (
+                    <Button onClick={() => onSave(d.Donation_ID)} disabled={savingId === d.Donation_ID}>
+                      {savingId === d.Donation_ID ? 'A guardar…' : 'Guardar estimativas'}
+                    </Button>
+                  )}
                 </div>
               </Card>
             ))}

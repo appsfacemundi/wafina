@@ -329,10 +329,19 @@ export async function listAllDonationsForAdmin(): Promise<AdminDonationView[]> {
  * Dashboard stat — count only, no view enrichment (Users/Corporate_Accounts/Institutions
  * reads), since `listAllDonationsForAdmin` does that enrichment for display purposes the
  * stat tile doesn't need.
+ *
+ * Real-device finding, 2026-08-04: a single mixed total across every country
+ * made it impossible to tell at a glance where pending donations actually are
+ * — byCountry gives the dashboard a per-country breakdown alongside the total.
  */
-export async function countPendingDonations(): Promise<number> {
+export async function countPendingDonations(): Promise<{ total: number; byCountry: Record<string, number> }> {
   const rows = await getRows(SHEET_TABS.donations);
-  return rows.filter((row) => row.Status === 'Pending').length;
+  const pending = rows.filter((row) => row.Status === 'Pending');
+  const byCountry: Record<string, number> = {};
+  for (const row of pending) {
+    byCountry[row.Country_ID] = (byCountry[row.Country_ID] ?? 0) + 1;
+  }
+  return { total: pending.length, byCountry };
 }
 
 /** Donor may edit their own donation only while it's still Pending (spec 11.1.2). */

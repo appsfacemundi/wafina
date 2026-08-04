@@ -1,11 +1,25 @@
 'use client';
 
 import type { GeoRegion, Institution } from '@wafina/shared';
-import { Button, Card, EmptyState, Input, Photo, useToast } from '@wafina/ui';
-import { useEffect, useState } from 'react';
+import { Badge, Button, Card, EmptyState, Input, Photo, useToast } from '@wafina/ui';
+import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
 import { ApiError, apiFetch } from '@/lib/api';
+
+type InstitutionStatus = 'pending' | 'verified' | 'rejected';
+
+function statusOf(institution: Institution): InstitutionStatus {
+  if (institution.Verified) return 'verified';
+  if (institution.Rejection_Reason) return 'rejected';
+  return 'pending';
+}
+
+const STATUS_BADGE: Record<InstitutionStatus, { label: string; tone: 'success' | 'warning' | 'danger' }> = {
+  verified: { label: 'Verificada', tone: 'success' },
+  pending: { label: 'Pendente', tone: 'warning' },
+  rejected: { label: 'Rejeitada', tone: 'danger' },
+};
 
 export default function AdminInstitutionsPage() {
   const session = useRequireAdminSession();
@@ -14,6 +28,7 @@ export default function AdminInstitutionsPage() {
 
   const [institutions, setInstitutions] = useState<Institution[] | null>(null);
   const [countries, setCountries] = useState<GeoRegion[]>([]);
+  const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -23,20 +38,27 @@ export default function AdminInstitutionsPage() {
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
-      const [pending, allCountries] = await Promise.all([
-        apiFetch<Institution[]>('/admin/institutions/pending', { idToken }),
+      const [all, allCountries] = await Promise.all([
+        apiFetch<Institution[]>('/admin/institutions', { idToken }),
         apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }),
       ]);
-      setInstitutions(pending);
+      setInstitutions(all);
       setCountries(allCountries);
     } catch {
-      setError('Não foi possível carregar as instituições pendentes.');
+      setError('Não foi possível carregar as instituições.');
     }
   }
 
   useEffect(() => {
     load();
   }, [firebaseUser]);
+
+  const filtered = useMemo(() => {
+    if (!institutions) return null;
+    const q = search.trim().toLowerCase();
+    if (!q) return institutions;
+    return institutions.filter((i) => i.Name.toLowerCase().includes(q));
+  }, [institutions, search]);
 
   function countryName(countryId: string): string {
     return countries.find((c) => c.Region_ID === countryId)?.Name ?? countryId;
@@ -87,94 +109,112 @@ export default function AdminInstitutionsPage() {
   return (
     <AppShell>
       <div className="stack">
-        <h1 style={{ fontSize: 24 }}>Instituições Pendentes</h1>
+        <h1 style={{ fontSize: 24 }}>Instituições</h1>
+        <Input
+          label="Procurar por nome"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         {error && <div className="banner banner-error">{error}</div>}
 
-        {institutions === null && !error && (
+        {filtered === null && !error && (
           <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>
         )}
 
-        {institutions?.length === 0 && (
+        {filtered?.length === 0 && (
           <EmptyState
-            title="Sem instituições pendentes"
-            description="Quando uma instituição se registar, aparece aqui para revisão."
+            title="Sem instituições"
+            description="Quando uma instituição se registar, aparece aqui."
           />
         )}
 
-        {institutions?.map((institution) => (
-          <Card key={institution.Institution_ID} className="stack">
-            <div className="institution-card" style={{ display: 'flex', gap: 12 }}>
-              <Photo
-                src={institution.Logo}
-                placeholderIcon="🏢"
-                style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
-              />
-              <div className="stack" style={{ gap: 2, flex: 1 }}>
-                <p style={{ fontWeight: 600, fontSize: 16 }}>{institution.Name}</p>
-                <p className="needs">
-                  {institution.Type} · {countryName(institution.Country_ID)}
-                </p>
-                <p className="mono" style={{ fontSize: 11.5, color: 'var(--color-text-faint)' }}>
-                  {institution.Institution_ID}
-                </p>
-                <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                  Localização: {institution.Location.lat.toFixed(5)}, {institution.Location.lng.toFixed(5)}
-                  {institution.Service_Radius_Km ? ` · Raio: ${institution.Service_Radius_Km} km` : ''}
-                </p>
-                {institution.Coverage_Area && (
-                  <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                    Área de cobertura: {institution.Coverage_Area}
-                  </p>
-                )}
-                {institution.Needs_List && <p className="needs">Necessidades: {institution.Needs_List}</p>}
-              </div>
-            </div>
-
-            {rejectingId === institution.Institution_ID ? (
-              <div className="stack">
-                <Input
-                  label="Motivo da rejeição"
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
+        {filtered?.map((institution) => {
+          const status = statusOf(institution);
+          const badge = STATUS_BADGE[status];
+          return (
+            <Card key={institution.Institution_ID} className="stack">
+              <div className="institution-card" style={{ display: 'flex', gap: 12 }}>
+                <Photo
+                  src={institution.Logo}
+                  placeholderIcon="🏢"
+                  style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
                 />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Button
-                    variant="danger"
-                    onClick={() => onReject(institution.Institution_ID)}
-                    disabled={busyId === institution.Institution_ID}
-                  >
-                    Confirmar rejeição
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setRejectingId(null);
-                      setRejectReason('');
-                    }}
-                  >
-                    Cancelar
-                  </Button>
+                <div className="stack" style={{ gap: 2, flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <p style={{ fontWeight: 600, fontSize: 16 }}>{institution.Name}</p>
+                    <Badge tone={badge.tone}>{badge.label}</Badge>
+                  </div>
+                  <p className="needs">
+                    {institution.Type} · {countryName(institution.Country_ID)}
+                  </p>
+                  <p className="mono" style={{ fontSize: 11.5, color: 'var(--color-text-faint)' }}>
+                    {institution.Institution_ID}
+                  </p>
+                  <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                    Localização: {institution.Location.lat.toFixed(5)}, {institution.Location.lng.toFixed(5)}
+                    {institution.Service_Radius_Km ? ` · Raio: ${institution.Service_Radius_Km} km` : ''}
+                  </p>
+                  {institution.Coverage_Area && (
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                      Área de cobertura: {institution.Coverage_Area}
+                    </p>
+                  )}
+                  {institution.Needs_List && <p className="needs">Necessidades: {institution.Needs_List}</p>}
+                  {status === 'rejected' && institution.Rejection_Reason && (
+                    <p style={{ fontSize: 13, color: 'var(--color-danger, #b8433a)' }}>
+                      Motivo: {institution.Rejection_Reason}
+                    </p>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Button
-                  onClick={() => onApprove(institution.Institution_ID)}
-                  disabled={busyId === institution.Institution_ID}
-                >
-                  Aprovar
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => setRejectingId(institution.Institution_ID)}
-                  disabled={busyId === institution.Institution_ID}
-                >
-                  Rejeitar
-                </Button>
-              </div>
-            )}
-          </Card>
-        ))}
+
+              {status === 'pending' &&
+                (rejectingId === institution.Institution_ID ? (
+                  <div className="stack">
+                    <Input
+                      label="Motivo da rejeição"
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Button
+                        variant="danger"
+                        onClick={() => onReject(institution.Institution_ID)}
+                        disabled={busyId === institution.Institution_ID}
+                      >
+                        Confirmar rejeição
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setRejectingId(null);
+                          setRejectReason('');
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button
+                      onClick={() => onApprove(institution.Institution_ID)}
+                      disabled={busyId === institution.Institution_ID}
+                    >
+                      Aprovar
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={() => setRejectingId(institution.Institution_ID)}
+                      disabled={busyId === institution.Institution_ID}
+                    >
+                      Rejeitar
+                    </Button>
+                  </div>
+                ))}
+            </Card>
+          );
+        })}
       </div>
     </AppShell>
   );

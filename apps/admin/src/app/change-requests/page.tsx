@@ -17,6 +17,8 @@ export default function AdminChangeRequestsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [newValue, setNewValue] = useState('');
+  const [newLat, setNewLat] = useState('');
+  const [newLng, setNewLng] = useState('');
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -34,9 +36,10 @@ export default function AdminChangeRequestsPage() {
     load();
   }, [firebaseUser]);
 
-  async function onApprove(requestId: string) {
-    if (!newValue.trim()) {
-      setError('Indique o novo valor a aplicar.');
+  async function onApprove(requestId: string, isLocation: boolean) {
+    const value = isLocation ? `${newLat.trim()},${newLng.trim()}` : newValue.trim();
+    if (isLocation ? !newLat.trim() || !newLng.trim() : !newValue.trim()) {
+      setError(isLocation ? 'Indique latitude e longitude.' : 'Indique o novo valor a aplicar.');
       return;
     }
     setError('');
@@ -46,10 +49,12 @@ export default function AdminChangeRequestsPage() {
       await apiFetch(`/admin/change-requests/${requestId}/approve`, {
         method: 'POST',
         idToken,
-        body: { value: newValue },
+        body: { value },
       });
       setApprovingId(null);
       setNewValue('');
+      setNewLat('');
+      setNewLng('');
       await load();
       showToast('Pedido aprovado — a instituição foi notificada.');
     } catch (err) {
@@ -120,14 +125,33 @@ export default function AdminChangeRequestsPage() {
 
                 {approvingId === request.Request_ID ? (
                   <div className="stack">
-                    <Input
-                      label="Novo valor"
-                      hint={request.Field_Requested === 'Location' ? 'Formato: latitude,longitude' : undefined}
-                      value={newValue}
-                      onChange={(e) => setNewValue(e.target.value)}
-                    />
+                    {request.Field_Requested === 'Location' ? (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Input
+                          label="Latitude"
+                          type="number"
+                          value={newLat}
+                          onChange={(e) => setNewLat(e.target.value)}
+                        />
+                        <Input
+                          label="Longitude"
+                          type="number"
+                          value={newLng}
+                          onChange={(e) => setNewLng(e.target.value)}
+                        />
+                      </div>
+                    ) : (
+                      <Input
+                        label="Novo valor"
+                        value={newValue}
+                        onChange={(e) => setNewValue(e.target.value)}
+                      />
+                    )}
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <Button onClick={() => onApprove(request.Request_ID)} disabled={busyId === request.Request_ID}>
+                      <Button
+                        onClick={() => onApprove(request.Request_ID, request.Field_Requested === 'Location')}
+                        disabled={busyId === request.Request_ID}
+                      >
                         {busyId === request.Request_ID ? 'A aprovar…' : 'Confirmar aprovação'}
                       </Button>
                       <Button
@@ -135,6 +159,8 @@ export default function AdminChangeRequestsPage() {
                         onClick={() => {
                           setApprovingId(null);
                           setNewValue('');
+                          setNewLat('');
+                          setNewLng('');
                         }}
                       >
                         Cancelar

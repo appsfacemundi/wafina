@@ -38,10 +38,18 @@ export default function AdminUsersPage() {
   const filtered = useMemo(() => {
     if (!users) return null;
     const q = search.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
-      (u) => u.Name.toLowerCase().includes(q) || u.Email.toLowerCase().includes(q),
-    );
+    const matching = q
+      ? users.filter((u) => u.Name.toLowerCase().includes(q) || u.Email.toLowerCase().includes(q))
+      : users;
+    // Real-device finding, 2026-08-04: previously sorted by join date. Blank
+    // names (between account creation and profile completion) sort to the
+    // bottom rather than interleaving alphabetically ahead of real names.
+    return [...matching].sort((a, b) => {
+      if (!a.Name.trim() && !b.Name.trim()) return 0;
+      if (!a.Name.trim()) return 1;
+      if (!b.Name.trim()) return -1;
+      return a.Name.localeCompare(b.Name);
+    });
   }, [users, search]);
 
   async function onSuspend(userId: string) {
