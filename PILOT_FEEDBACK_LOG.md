@@ -103,11 +103,21 @@ ask before expanding scope.
 introduced or revealed something. Most relevant for 📱 device-observed issues; mark N/A for 📋/🐛 findings
 that came from code review rather than a specific build on a specific device.
 
-| Version | Commit | Device | Priority | Evidence | Screen | Issue | Suggested Fix | Owner | Status | Verified |
-|---|---|---|---|---|---|---|---|---|---|---|
-| N/A | N/A (code review) | N/A | 🔴 High | 📋 Store compliance | Shared `Button` component (Donor + Institution) | No `accessibilityRole`/`accessibilityLabel` anywhere; touch target ~43px, just under Apple's 44pt minimum | Add accessibility props at the component level; bump `minHeight` to 48 | Claude | Open | ☐ Not tested |
+**Expected / Actual:** state what a first-time user should experience, then what actually happens — this
+makes the issue actionable without anyone having to rediscover the context later.
 
-*(Priority/Evidence/Screen/Issue are required; the rest fill in as you triage)*
+**Root Cause / Epic:** classify per Rule 0 in `RC1_EXPERT_UX_AUDIT.md` (Shared Component / Shared Service /
+Shared Workflow / Single Screen), then tag which epic it belongs to (Epic 1 Shared UI, Epic 2 Shared Lists,
+Epic 3 Screen-Specific). A device-testing finding that turns out to share a root cause with an existing
+audit finding gets folded into that finding, not treated as a new one — this is what keeps the batches from
+becoming a list of five symptoms of the same underlying problem.
+
+| Version | Commit | Device | App | Screen | Priority | Evidence | Expected | Actual | Root Cause | Epic | Suggested Fix | Owner | Status | Verified |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| N/A | N/A (code review) | N/A | Both | Shared `Button` component | 🔴 High | 📋 Store compliance | Screen-reader users can identify and hear every button's purpose; every tap target meets Apple's 44pt minimum | No `accessibilityRole`/`accessibilityLabel` anywhere; touch target ~43px, just under the minimum | Shared Component (`Button.tsx`) | Epic 1 | Add accessibility props at the component level; bump `minHeight` to 48 | Claude | Open | ☐ Not tested |
+
+*(App/Screen/Priority/Evidence/Expected/Actual are required; Root Cause/Epic fill in during triage against
+`RC1_EXPERT_UX_AUDIT.md`, the rest as you go)*
 
 **Owner:** Claude (code fix) · You (a decision/content/account-side thing) · Both (needs your input, then
 a code fix).
