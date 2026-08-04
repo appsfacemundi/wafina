@@ -278,6 +278,61 @@ that isn't actually true:
 
 ---
 
+## Batch 3 — Investigated 2026-08-04, classification proposed, nothing implemented yet
+
+### Confirmed, ready to scope
+
+- **No logout confirmation anywhere.** Checked every "Sair"/"Terminar sessão" button — Donor
+  (`SettingsScreen.tsx`, `HomeScreen.tsx`), Institution (`SettingsScreen.tsx`,
+  `VerificationStatusScreen.tsx`), and Admin (`AppShell.tsx`) — all five call `signOutUser()`
+  directly with zero confirmation step. Shared Workflow, same missing pattern in 5 places (a native
+  `Alert.alert` confirm on mobile, a confirm dialog on Admin web).
+- **Admin has no "all institutions" list — only a pending-review queue.** Confirmed:
+  `apps/admin/src/app/institutions/page.tsx` calls only `/admin/institutions/pending` and is titled
+  "Instituições Pendentes." `listAllInstitutions` already exists as a service function but is
+  currently wired to nothing except the Reports CSV export — there's no page a human can browse to
+  see every institution (verified + rejected included) the way the Users page lets you see every
+  user. Real, confirmed gap, matches your comparison to Users exactly.
+- **Admin Users list shows no country at all.** Confirmed — `apps/admin/src/app/users/page.tsx`
+  renders Name/Email/Role only. One clarifying question: "origin" could mean `Home_Country_ID` (where
+  they registered from, fixed) or `Active_Country_ID` (can change, e.g. via the Settings country-
+  simulation tool) — I'd default to showing `Home_Country_ID` as "origin" unless you mean something else.
+- **No self-service password change/reset in Donor or Institution.** Confirmed asymmetry: Admin
+  already has a working "Redefinir password" button per user (`sendPasswordResetEmail` — sends
+  Firebase's standard reset-link email), but neither mobile app has a "Forgot password?" link on
+  Sign In or a "Change password" option in Settings — a user can only get a password reset if an
+  Admin does it for them. Same underlying Firebase call already proven in Admin, just missing on the
+  user-facing side. Shared Workflow (SignInScreen, both apps).
+- **Address/personal info not shown to the user anywhere.** Confirmed no address is displayed in
+  either app's Home or Settings. Deeper finding: **there's no stored "address" text field in the data
+  model at all** for either Donor or Institution — only geographic coordinates (`Location: {lat,lng}`).
+  Showing an address would mean either reverse-geocoding the stored coordinates into readable text for
+  display (no schema change) or adding a real stored address field (bigger change). Needs your input
+  on which — see open questions below.
+
+### Couldn't reproduce as described — need one more detail from you
+
+- **"Coordinates says optional but is required" (Institution registration).** Read
+  `apps/mobile-institution/src/screens/RegisterScreen.tsx` closely: the three fields actually labeled
+  "(opcional)" — Needs List, Service Radius, Coverage Area — are genuinely optional in both the UI and
+  the backend validation, no mismatch there. The Location/GPS section itself is not labeled optional
+  anywhere in the current code — it's presented as automatic (captured via GPS, with a manual-address
+  fallback if GPS fails) and is required to submit. I can't find the specific "says optional, acts
+  required" contradiction you saw. Could you confirm the exact field label next time you hit it, or a
+  screenshot? I'd rather not guess and fix the wrong thing.
+- **"Why does it ask to confirm the address" during registration.** Genuinely unclear what this
+  refers to — which field, which screen exactly (Donor or Institution registration)? Happy to
+  investigate once I know what "confirm" refers to.
+
+### Open questions before I finalize scope
+
+1. For the Users country column — `Home_Country_ID` (origin) or `Active_Country_ID` (current), or both?
+2. For address visibility — reverse-geocode existing coordinates into a readable address (no schema
+   change), or do you want a real stored address field added to registration? These are different
+   sizes of work.
+
+---
+
 ## Resolved
 
 *(moved here once ✅ Verified on real device, with the commit hash)*
