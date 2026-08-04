@@ -23,7 +23,10 @@ confirmation (3 screens), self-service "forgot password," Morada marked required
 and shown in Settings, date/time formatting fixed. Also closed the last open question: Admin Users
 list now shows origin country.
 
-**Both apps need a new APK to actually show any of this on-device** — builds triggered, in progress.
+**Both apps built and installed on the test device (OnePlus 7 Pro) via wireless adb** — Wafina Doador
+build 18, Wafina Instituição build 6. Donor required a fresh install (different signing key from the
+prior session); Institution upgraded in place. 🟡 Ready for your review on-device — nothing marked
+✅ Verified until you've actually checked each item.
 
 ## RC1 Exit Criteria
 
