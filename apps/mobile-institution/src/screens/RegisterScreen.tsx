@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function RegisterScreen({ onRegistered }: Props) {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, signOutUser } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [name, setName] = useState('');
@@ -210,6 +210,9 @@ export function RegisterScreen({ onRegistered }: Props) {
           {error ? <ErrorBanner message={error} /> : null}
           <Button onPress={onSubmit} loading={submitting} fullWidth>
             Submeter registo
+          </Button>
+          <Button variant="ghost" onPress={() => signOutUser()} fullWidth>
+            Não é a sua conta? Sair
           </Button>
         </Card>
       </ScrollView>

@@ -81,11 +81,29 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
   next();
 });
 
-/** Section 4 permission gate — use after requireAuth. */
+const ROLE_LABEL: Record<Role, string> = { Donor: 'Doador', Institution: 'Instituição', Admin: 'Admin' };
+
+/**
+ * Section 4 permission gate — use after requireAuth.
+ *
+ * Real-device finding, 2026-08-04: the same Wafina account (Firebase email) works
+ * across every app, but Role is fixed on the account's first-ever sign-up and
+ * never changes automatically. Someone who signs into the Institution app with an
+ * email that already has a Donor account hits this check on submitting their
+ * institution profile — previously a generic "Acesso não autorizado" with no
+ * indication of why. Naming the actual mismatch here means the message is
+ * self-explanatory wherever this gate fires, not just at that one call site.
+ */
 export function requireRole(...roles: Role[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user) {
       res.status(403).json({ error: 'Acesso não autorizado' });
+      return;
+    }
+    if (!roles.includes(req.user.role)) {
+      res.status(403).json({
+        error: `Esta conta está registada como ${ROLE_LABEL[req.user.role]}, não é possível continuar aqui.`,
+      });
       return;
     }
     next();
