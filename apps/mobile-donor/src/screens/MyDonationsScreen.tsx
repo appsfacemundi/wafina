@@ -7,7 +7,8 @@ import {
   type SuccessStory,
 } from '@wafina/shared';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
@@ -29,22 +30,28 @@ export function MyDonationsScreen({ navigation }: Props) {
   const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!firebaseUser) return;
-    (async () => {
-      try {
-        const idToken = await firebaseUser.getIdToken();
-        const [donationList, stories] = await Promise.all([
-          apiFetch<Donation[]>('/donations/mine', { idToken }),
-          apiFetch<SuccessStory[]>('/donor/success-stories', { idToken }),
-        ]);
-        setDonations(donationList);
-        setStoriesByDonation(new Map(stories.map((s) => [s.Donation_ID, s])));
-      } catch {
-        setError('Não foi possível carregar as suas doações.');
-      }
-    })();
-  }, [firebaseUser]);
+  // Real-device finding, 2026-08-04: this only ran once on mount, so a
+  // donation submitted on the Donate tab never appeared here until the app
+  // was fully restarted — useFocusEffect refetches every time this tab
+  // becomes active, not just the first time.
+  useFocusEffect(
+    useCallback(() => {
+      if (!firebaseUser) return;
+      (async () => {
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          const [donationList, stories] = await Promise.all([
+            apiFetch<Donation[]>('/donations/mine', { idToken }),
+            apiFetch<SuccessStory[]>('/donor/success-stories', { idToken }),
+          ]);
+          setDonations(donationList);
+          setStoriesByDonation(new Map(stories.map((s) => [s.Donation_ID, s])));
+        } catch {
+          setError('Não foi possível carregar as suas doações.');
+        }
+      })();
+    }, [firebaseUser]),
+  );
 
   useEffect(() => {
     if (!firebaseUser || !session?.corporateAccountId) return;
@@ -117,6 +124,7 @@ export function MyDonationsScreen({ navigation }: Props) {
           const story = storiesByDonation.get(item.Donation_ID);
           return (
             <Card style={{ marginBottom: spacing[3], gap: spacing[3] }}>
+              {item.Photo && <Image source={{ uri: item.Photo }} style={styles.itemPhoto} />}
               <View style={styles.donationRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemType}>{item.Item_Type}</Text>
@@ -219,6 +227,11 @@ const styles = StyleSheet.create({
     fontFamily: 'WorkSans-400',
     fontSize: 13,
     color: colors.danger,
+  },
+  itemPhoto: {
+    width: '100%',
+    height: 140,
+    borderRadius: radius.md,
   },
   donationRow: {
     flexDirection: 'row',

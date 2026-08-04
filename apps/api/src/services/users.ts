@@ -259,6 +259,7 @@ export function toAuthenticatedUser(uid: string, row: UserRow): AuthenticatedUse
     uid,
     email: row.Email,
     userId: row.User_ID,
+    name: row.Name?.trim() || null,
     role: row.Role as Role,
     verified: row.Verified === 'TRUE',
     donorSubtype: (row.Donor_Subtype as DonorSubtype) || null,

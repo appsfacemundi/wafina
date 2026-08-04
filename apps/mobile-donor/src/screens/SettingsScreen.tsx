@@ -163,6 +163,13 @@ export function SettingsScreen() {
     }
   }
 
+  function onPressSignOut() {
+    Alert.alert('Sair', 'Tem a certeza que quer sair?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Sair', style: 'destructive', onPress: () => signOutUser() },
+    ]);
+  }
+
   function onPressDeleteAccount() {
     Alert.alert(
       'Eliminar conta',
@@ -316,7 +323,7 @@ export function SettingsScreen() {
           </Button>
         </Card>
 
-        <Button variant="ghost" onPress={() => signOutUser()}>
+        <Button variant="ghost" onPress={onPressSignOut}>
           Sair
         </Button>
       </ScrollView>

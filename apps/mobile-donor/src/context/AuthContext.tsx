@@ -2,6 +2,7 @@ import type { AuthenticatedUser } from '@wafina/shared';
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   type User as FirebaseUser,
@@ -20,6 +21,7 @@ interface AuthContextValue {
   signUp: (email: string, password: string) => Promise<void>;
   signOutUser: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -92,6 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseAuth.currentUser) {
         setSession(await resolveSession(firebaseAuth.currentUser));
       }
+    },
+    async resetPassword(email) {
+      await sendPasswordResetEmail(firebaseAuth, email);
     },
   };
 

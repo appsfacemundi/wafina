@@ -10,6 +10,8 @@ export interface AuthenticatedUser {
   uid: string;
   email: string;
   userId: string;
+  /** Null until profile completion sets it (Donor) or never set at all (Institution — see User.Name). */
+  name: string | null;
   role: Role;
   verified: boolean;
   donorSubtype: DonorSubtype | null;

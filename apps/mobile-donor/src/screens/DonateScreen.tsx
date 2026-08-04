@@ -1,3 +1,4 @@
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CONDITIONS, ITEM_TYPES, type CorporateAccount } from '@wafina/shared';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
@@ -12,11 +13,13 @@ import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { ApiError, apiFetch, uploadFile } from '@/lib/api';
+import type { AppTabParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 type LocationStatus = 'capturing' | 'captured' | 'failed' | 'geocoding' | 'geocoded';
+type Props = BottomTabScreenProps<AppTabParamList, 'Donate'>;
 
-export function DonateScreen() {
+export function DonateScreen({ navigation }: Props) {
   const { firebaseUser, session } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -37,7 +40,6 @@ export function DonateScreen() {
   const [locationError, setLocationError] = useState('');
 
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -112,7 +114,6 @@ export function DonateScreen() {
 
   async function onSubmit() {
     setError('');
-    setSuccess(false);
 
     if (!photo) {
       setError('Adicione uma fotografia da doação.');
@@ -143,10 +144,15 @@ export function DonateScreen() {
           ...(corporateAccount ? { isCorporateDonation: String(isCorporateDonation) } : {}),
         },
       });
-      setSuccess(true);
       setQuantity('');
       setPhoto(null);
       showToast('Doação submetida com sucesso!');
+      // Real-device finding, 2026-08-04: staying on the form after a
+      // successful submit read as "did this actually work?" — the toast
+      // above is easy to miss, and nothing on this screen changes to confirm
+      // it. Navigating to the list where the new donation now appears is the
+      // clearest possible confirmation.
+      navigation.navigate('MyDonations');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível submeter a doação.');
     } finally {
@@ -217,11 +223,6 @@ export function DonateScreen() {
           </View>
 
           {error ? <ErrorBanner message={error} /> : null}
-          {success && (
-            <View style={styles.successBanner}>
-              <Text style={styles.successText}>Doação submetida com sucesso.</Text>
-            </View>
-          )}
 
           <Button onPress={onSubmit} loading={submitting} fullWidth>
             Confirmar doação
@@ -274,15 +275,5 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: radius.md,
-  },
-  successBanner: {
-    backgroundColor: colors.successSoft,
-    borderRadius: radius.sm,
-    padding: spacing[3],
-  },
-  successText: {
-    fontFamily: 'WorkSans-400',
-    fontSize: 13,
-    color: colors.success,
   },
 });

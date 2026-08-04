@@ -18,11 +18,18 @@ export function daysAgoLabel(isoDate: string): string {
  * Expected_Delivery_Date. Absolute, not relative: these are future estimates,
  * so "in N days" would need constant recomputation for no real benefit over
  * a plain calendar date.
+ *
+ * Real-device finding, 2026-08-04: built the string manually (not
+ * toLocaleDateString) so the dd/mm/yyyy format and separator are guaranteed
+ * regardless of device locale/settings, not just "however pt-PT usually
+ * renders it."
  */
 export function formatDateLabel(isoDate: string): string {
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${day}/${month}/${date.getFullYear()}`;
 }
 
 /**
@@ -33,11 +40,15 @@ export function formatDateLabel(isoDate: string): string {
  * actual event timestamps, never for Expected_Collection_Date/
  * Expected_Delivery_Date (those stay date-only via formatDateLabel — an
  * estimate has no meaningful time-of-day).
+ *
+ * Real-device finding, 2026-08-04: explicit 24h HH:mm, not device-locale-
+ * dependent — some locales/settings render 12h with AM/PM, which the
+ * stakeholder didn't want.
  */
 export function formatDateTimeLabel(isoDate: string): string {
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return '';
-  const datePart = date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const timePart = date.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-  return `${datePart} ${timePart}`;
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${formatDateLabel(isoDate)} ${hours}:${minutes}`;
 }

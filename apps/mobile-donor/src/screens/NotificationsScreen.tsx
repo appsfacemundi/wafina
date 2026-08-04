@@ -1,4 +1,4 @@
-import type { Notification } from '@wafina/shared';
+import { formatDateTimeLabel, type Notification } from '@wafina/shared';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -92,7 +92,7 @@ export function NotificationsScreen({ navigation }: Props) {
               <Text style={[styles.message, { color: item.Status === 'Read' ? colors.textMuted : colors.text }]}>
                 {item.Message}
               </Text>
-              <Text style={styles.time}>{new Date(item.Created_At).toLocaleString()}</Text>
+              <Text style={styles.time}>{formatDateTimeLabel(item.Created_At)}</Text>
             </View>
           </Pressable>
         )}

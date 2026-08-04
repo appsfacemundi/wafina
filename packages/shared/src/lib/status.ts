@@ -9,9 +9,16 @@ export const DONATION_STATUS_LABEL: Record<DonationStatus, string> = {
   Delivered: 'Entregue',
 };
 
-export const DONATION_STATUS_TONE: Record<DonationStatus, 'warning' | 'info' | 'success'> = {
+/**
+ * Real-device finding, 2026-08-04: Claimed/Collection_Scheduled/Collected
+ * previously all shared 'info', so three different real-world stages read as
+ * the same badge color. Spread across distinct tones so each stage of the
+ * journey is visually distinguishable, not just Pending vs. everything-else
+ * vs. Delivered.
+ */
+export const DONATION_STATUS_TONE: Record<DonationStatus, 'warning' | 'info' | 'success' | 'neutral'> = {
   Pending: 'warning',
-  Claimed: 'info',
+  Claimed: 'neutral',
   Collection_Scheduled: 'info',
   Collected: 'info',
   Delivered: 'success',

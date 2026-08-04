@@ -1,6 +1,6 @@
 import type { GeoRegion } from '@wafina/shared';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -26,10 +26,17 @@ export function HomeScreen() {
     })();
   }, [firebaseUser, session?.activeCountryId]);
 
+  function onPressSignOut() {
+    Alert.alert('Sair', 'Tem a certeza que quer sair?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Sair', style: 'destructive', onPress: () => signOutUser() },
+    ]);
+  }
+
   return (
     <View style={styles.screen}>
       <View style={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
-        <Text style={styles.title}>Bem-vindo(a)</Text>
+        <Text style={styles.title}>Bem-vindo(a){session?.name ? `, ${session.name}` : ''}</Text>
         {activeCountryName && (
           <Card style={{ gap: 2 }}>
             <Text style={styles.activeCountryLabel}>🌍 País ativo</Text>
@@ -40,7 +47,7 @@ export function HomeScreen() {
           <Text style={styles.email}>{session?.email}</Text>
           <Text style={styles.id}>ID: {session?.userId}</Text>
         </Card>
-        <Button variant="secondary" onPress={() => signOutUser()}>
+        <Button variant="secondary" onPress={onPressSignOut}>
           Sair
         </Button>
       </View>
