@@ -1,7 +1,18 @@
 import { INSTITUTION_FIELD_LABELS } from '@wafina/shared';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { ErrorBanner } from '@/components/Banner';
@@ -60,6 +71,13 @@ export function SettingsScreen() {
   }
 
   const logoLocked = institution?.Locked_Fields.includes('Logo') ?? false;
+
+  function onPressSignOut() {
+    Alert.alert('Sair', 'Tem a certeza que quer sair?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Sair', style: 'destructive', onPress: () => signOutUser() },
+    ]);
+  }
 
   async function onSubmit() {
     setError('');
@@ -134,6 +152,7 @@ export function SettingsScreen() {
           )}
           <Text style={styles.hint}>{session?.email}</Text>
           <Text style={styles.hint}>Tipo: {institution?.Type}</Text>
+          {institution?.Address && <Text style={styles.hint}>Morada: {institution.Address}</Text>}
           {institution?.Needs_List && <Text style={styles.hint}>Necessidades: {institution.Needs_List}</Text>}
         </Card>
 
@@ -176,7 +195,7 @@ export function SettingsScreen() {
           </Button>
         </Card>
 
-        <Button variant="secondary" onPress={() => signOutUser()}>
+        <Button variant="secondary" onPress={onPressSignOut}>
           Sair
         </Button>
       </ScrollView>

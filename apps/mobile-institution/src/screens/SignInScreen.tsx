@@ -14,11 +14,13 @@ import { colors, fonts, spacing } from '@/theme/tokens';
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
 
 export function SignInScreen({ navigation }: Props) {
-  const { signIn, sessionError } = useAuth();
+  const { signIn, sessionError, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetting, setResetting] = useState(false);
   const displayedError = error || sessionError;
 
   async function onSubmit() {
@@ -38,6 +40,27 @@ export function SignInScreen({ navigation }: Props) {
     }
   }
 
+  // Real-device finding, 2026-08-04: only Admin could reset a user's password
+  // before this — an Institution user who forgot theirs had no self-service
+  // path at all.
+  async function onForgotPassword() {
+    setError('');
+    setResetMessage('');
+    if (!email.trim()) {
+      setError('Introduza o seu e-mail para recuperar a palavra-passe.');
+      return;
+    }
+    setResetting(true);
+    try {
+      await resetPassword(email.trim());
+      setResetMessage('Enviámos um e-mail com instruções para redefinir a sua palavra-passe.');
+    } catch {
+      setResetMessage('Se existir uma conta com este e-mail, foi enviado um e-mail de recuperação.');
+    } finally {
+      setResetting(false);
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.screen}
@@ -49,8 +72,12 @@ export function SignInScreen({ navigation }: Props) {
           <Input label="E-mail" keyboardType="email-address" value={email} onChangeText={setEmail} />
           <Input label="Palavra-passe" secureTextEntry value={password} onChangeText={setPassword} />
           {displayedError ? <ErrorBanner message={displayedError} /> : null}
+          {resetMessage ? <Text style={styles.resetMessage}>{resetMessage}</Text> : null}
           <Button onPress={onSubmit} loading={submitting} fullWidth>
             Entrar
+          </Button>
+          <Button variant="ghost" onPress={onForgotPassword} loading={resetting} fullWidth>
+            Esqueceu-se da palavra-passe?
           </Button>
           <Button variant="ghost" onPress={() => navigation.navigate('SignUp')} fullWidth>
             Ainda não tem conta? Criar conta
@@ -78,5 +105,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 24,
     color: colors.text,
+  },
+  resetMessage: {
+    fontFamily: 'WorkSans-400',
+    fontSize: 13,
+    color: colors.textMuted,
   },
 });

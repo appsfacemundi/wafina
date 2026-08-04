@@ -1,5 +1,6 @@
-import type { Dispute, InstitutionDonationView } from '@wafina/shared';
-import { useEffect, useState } from 'react';
+import { formatDateTimeLabel, type Dispute, type InstitutionDonationView } from '@wafina/shared';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
@@ -16,22 +17,26 @@ export function DisputesListScreen() {
   const [codeByDonationId, setCodeByDonationId] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!firebaseUser) return;
-    (async () => {
-      try {
-        const idToken = await firebaseUser.getIdToken();
-        const [disputeList, donations] = await Promise.all([
-          apiFetch<Dispute[]>('/disputes/mine', { idToken }),
-          apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
-        ]);
-        setDisputes(disputeList);
-        setCodeByDonationId(new Map(donations.map((d) => [d.Donation_ID, d.Public_Donation_Code])));
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as ocorrências.');
-      }
-    })();
-  }, [firebaseUser]);
+  // Real-device finding, 2026-08-04: only fetched once on mount — an Admin
+  // resolution never showed up here without a full app restart.
+  useFocusEffect(
+    useCallback(() => {
+      if (!firebaseUser) return;
+      (async () => {
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          const [disputeList, donations] = await Promise.all([
+            apiFetch<Dispute[]>('/disputes/mine', { idToken }),
+            apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
+          ]);
+          setDisputes(disputeList);
+          setCodeByDonationId(new Map(donations.map((d) => [d.Donation_ID, d.Public_Donation_Code])));
+        } catch (err) {
+          setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as ocorrências.');
+        }
+      })();
+    }, [firebaseUser]),
+  );
 
   return (
     <View style={styles.screen}>
@@ -66,7 +71,7 @@ export function DisputesListScreen() {
             </View>
             <Text style={styles.body}>{item.Issue_Description}</Text>
             {item.Resolution_Notes && <Text style={styles.hint}>Resposta: {item.Resolution_Notes}</Text>}
-            <Text style={styles.time}>{new Date(item.Date_Raised).toLocaleString()}</Text>
+            <Text style={styles.time}>{formatDateTimeLabel(item.Date_Raised)}</Text>
           </Card>
         )}
       />

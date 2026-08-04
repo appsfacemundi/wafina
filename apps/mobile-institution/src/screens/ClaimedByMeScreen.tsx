@@ -7,8 +7,9 @@ import {
   type SuccessStory,
 } from '@wafina/shared';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
-import { Alert, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, Linking, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
@@ -48,9 +49,27 @@ export function ClaimedByMeScreen({ navigation }: Props) {
     }
   }
 
-  useEffect(() => {
-    load();
-  }, [firebaseUser]);
+  // Real-device finding, 2026-08-04: only fetched once on mount, so this
+  // tab never reflected a change made elsewhere without a full app restart.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [firebaseUser]),
+  );
+
+  // Real-device finding, 2026-08-04: everything rendered in one flat list
+  // with no distinction between "still needs action" and "delivered — done."
+  // A thin section header separates them instead of a new tab, so this
+  // stays a small, contained change rather than a navigation restructure.
+  const sections = useMemo(() => {
+    if (!donations) return null;
+    const active = donations.filter((d) => d.Status !== 'Delivered');
+    const delivered = donations.filter((d) => d.Status === 'Delivered');
+    return [
+      ...(active.length ? [{ title: null, data: active }] : []),
+      ...(delivered.length ? [{ title: 'Entregues', data: delivered }] : []),
+    ];
+  }, [donations]);
 
   const SUCCESS_MESSAGE: Record<'schedule-collection' | 'collect' | 'deliver', string> = {
     'schedule-collection': 'Recolha agendada com sucesso!',
@@ -93,7 +112,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <FlatList
+      <SectionList
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
@@ -117,8 +136,15 @@ export function ClaimedByMeScreen({ navigation }: Props) {
             )}
           </>
         }
-        data={donations ?? []}
+        sections={sections ?? []}
         keyExtractor={(item) => item.Donation_ID}
+        renderSectionHeader={({ section }) =>
+          section.title ? (
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionHeaderText}>{section.title}</Text>
+            </View>
+          ) : null
+        }
         renderItem={({ item }) => (
           <Card style={styles.card}>
             <Photo uri={item.Photo} style={styles.photo} />
@@ -146,7 +172,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
               {item.Donor_Display_Name && (
                 <View style={styles.donorRow}>
                   <Photo uri={item.Donor_Display_Logo} placeholderIcon="👤" style={styles.donorLogo} />
-                  <Text style={styles.meta}>{item.Donor_Display_Name}</Text>
+                  <Text style={styles.donorName}>{item.Donor_Display_Name}</Text>
                 </View>
               )}
               <Text style={styles.dateLabel}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
@@ -273,6 +299,17 @@ const styles = StyleSheet.create({
     padding: spacing[4],
     gap: 6,
   },
+  sectionHeader: {
+    paddingTop: spacing[2],
+    paddingBottom: spacing[1],
+  },
+  sectionHeaderText: {
+    fontFamily: 'WorkSans-600',
+    fontSize: 12,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    color: colors.textFaint,
+  },
   rowBetween: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -318,9 +355,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   donorLogo: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+  },
+  donorName: {
+    fontFamily: 'WorkSans-600',
+    fontSize: 14,
+    color: colors.text,
   },
   dateLabel: {
     fontFamily: 'WorkSans-400',

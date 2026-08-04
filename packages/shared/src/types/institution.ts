@@ -36,4 +36,12 @@ export interface Institution {
   Service_Radius_Km: number | null;
   /** Optional free-text description of the area served, e.g. "all of Luanda province". */
   Coverage_Area: string | null;
+  /**
+   * Real-device finding, 2026-08-04: the address typed at registration (when
+   * GPS wasn't available) was only ever used to geocode into Location — the
+   * text itself was discarded, so there was nothing to show back to the
+   * institution or let them edit later. Stored as entered; null when
+   * registration used GPS directly (no typed address to store).
+   */
+  Address: string | null;
 }

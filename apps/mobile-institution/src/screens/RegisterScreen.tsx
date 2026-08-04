@@ -132,6 +132,7 @@ export function RegisterScreen({ onRegistered }: Props) {
           Country_ID: countryId,
           Service_Radius_Km: serviceRadiusKm ? Number(serviceRadiusKm) : undefined,
           Coverage_Area: coverageArea || undefined,
+          Address: address.trim() || undefined,
         },
       });
       await onRegistered();
@@ -198,7 +199,12 @@ export function RegisterScreen({ onRegistered }: Props) {
                 <Text style={styles.hint}>
                   Não foi possível obter a sua localização automaticamente. Introduza a sua morada.
                 </Text>
-                <Input label="Morada" placeholder="Ex: Rua Amílcar Cabral, Luanda" value={address} onChangeText={setAddress} />
+                <Input
+                  label="Morada (obrigatório)"
+                  placeholder="Ex: Rua Amílcar Cabral, Luanda"
+                  value={address}
+                  onChangeText={setAddress}
+                />
                 <Button variant="secondary" onPress={onFindAddress} loading={locationStatus === 'geocoding'}>
                   Confirmar morada
                 </Button>

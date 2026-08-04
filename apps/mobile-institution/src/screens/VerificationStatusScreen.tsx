@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -11,6 +11,13 @@ export function VerificationStatusScreen() {
   const { institution, loading } = useOwnInstitution();
 
   if (loading) return null;
+
+  function onPressSignOut() {
+    Alert.alert('Sair', 'Tem a certeza que quer sair?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Sair', style: 'destructive', onPress: () => signOutUser() },
+    ]);
+  }
 
   return (
     <View style={styles.screen}>
@@ -39,7 +46,7 @@ export function VerificationStatusScreen() {
               </Text>
             </>
           )}
-          <Button variant="secondary" onPress={() => signOutUser()}>
+          <Button variant="secondary" onPress={onPressSignOut}>
             Sair
           </Button>
         </Card>

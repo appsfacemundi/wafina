@@ -261,7 +261,11 @@ export async function listDonationsClaimedByInstitution(
   institutionId: string,
 ): Promise<InstitutionDonationView[]> {
   const rows = await getRows(SHEET_TABS.donations);
-  const filtered = rows.filter((row) => row.Claimed_By_Institution_ID === institutionId);
+  // Real-device finding, 2026-08-04: unsorted, same missing-sort pattern as
+  // listDonationsByDonor — newest-claimed first, matching every sibling list.
+  const filtered = rows
+    .filter((row) => row.Claimed_By_Institution_ID === institutionId)
+    .sort((a, b) => (b.Date_Claimed || '').localeCompare(a.Date_Claimed || ''));
   return toInstitutionDonationViews(filtered);
 }
 

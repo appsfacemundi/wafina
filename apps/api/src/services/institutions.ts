@@ -45,6 +45,7 @@ async function rowToInstitution(row: Record<string, string>): Promise<Institutio
     Region_ID: row.Region_ID || null,
     Service_Radius_Km: row.Service_Radius_Km ? Number(row.Service_Radius_Km) : null,
     Coverage_Area: row.Coverage_Area || null,
+    Address: row.Address || null,
   };
 }
 
@@ -59,6 +60,8 @@ export interface CreateInstitutionInput {
   Region_ID?: string;
   Service_Radius_Km?: number;
   Coverage_Area?: string;
+  /** The typed address that was geocoded into Location, when GPS wasn't available. */
+  Address?: string;
 }
 
 /**
@@ -112,6 +115,7 @@ export async function createInstitution(
     Region_ID: input.Region_ID ?? '',
     Service_Radius_Km: input.Service_Radius_Km !== undefined ? String(input.Service_Radius_Km) : '',
     Coverage_Area: input.Coverage_Area ?? '',
+    Address: input.Address ?? '',
   };
 
   await appendRow(SHEET_TABS.institutions, row);

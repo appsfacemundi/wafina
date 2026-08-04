@@ -1,6 +1,6 @@
 'use client';
 
-import type { RegistrableRole, User } from '@wafina/shared';
+import type { GeoRegion, RegistrableRole, User } from '@wafina/shared';
 import { Badge, Button, Card, EmptyState, Input, useToast } from '@wafina/ui';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useEffect, useMemo, useState } from 'react';
@@ -17,6 +17,7 @@ export default function AdminUsersPage() {
   const { showToast } = useToast();
 
   const [users, setUsers] = useState<User[] | null>(null);
+  const [countries, setCountries] = useState<GeoRegion[]>([]);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -25,10 +26,19 @@ export default function AdminUsersPage() {
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
-      setUsers(await apiFetch<User[]>('/admin/users', { idToken }));
+      const [userList, countryList] = await Promise.all([
+        apiFetch<User[]>('/admin/users', { idToken }),
+        apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }),
+      ]);
+      setUsers(userList);
+      setCountries(countryList);
     } catch {
       setError('Não foi possível carregar os utilizadores.');
     }
+  }
+
+  function countryName(countryId: string): string {
+    return countries.find((c) => c.Region_ID === countryId)?.Name ?? countryId;
   }
 
   useEffect(() => {
@@ -139,6 +149,7 @@ export default function AdminUsersPage() {
                 <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
                   {ROLE_LABEL[u.Role] ?? u.Role}
                   {u.Donor_Subtype === 'Corporate' ? ' · Corporativo' : ''}
+                  {u.Home_Country_ID ? ` · ${countryName(u.Home_Country_ID)}` : ''}
                 </p>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                   {u.Status === 'Suspended' ? (

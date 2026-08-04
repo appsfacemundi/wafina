@@ -1,5 +1,6 @@
 import { formatDateTimeLabel, type SuccessStory, type SuccessStoryStatus } from '@wafina/shared';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
@@ -32,17 +33,21 @@ export function MySuccessStoriesScreen() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
 
-  useEffect(() => {
-    if (!firebaseUser) return;
-    (async () => {
-      try {
-        const idToken = await firebaseUser.getIdToken();
-        setStories(await apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }));
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as histórias.');
-      }
-    })();
-  }, [firebaseUser]);
+  // Real-device finding, 2026-08-04: only fetched once on mount — an Admin
+  // approval/rejection never showed up here without a full app restart.
+  useFocusEffect(
+    useCallback(() => {
+      if (!firebaseUser) return;
+      (async () => {
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          setStories(await apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }));
+        } catch (err) {
+          setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as histórias.');
+        }
+      })();
+    }, [firebaseUser]),
+  );
 
   const filtered = useMemo(() => {
     if (!stories) return stories;

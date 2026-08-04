@@ -81,7 +81,7 @@ export function AvailableDonationsScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
-            <Text style={styles.title}>Doações Disponíveis</Text>
+            <Text style={styles.title}>Disponíveis</Text>
             {donations && donations.length > 0 && (
               <Input label="Filtrar" placeholder="Tipo ou estado…" value={query} onChangeText={setQuery} />
             )}
@@ -130,7 +130,7 @@ export function AvailableDonationsScreen() {
               {item.Donor_Display_Name && (
                 <View style={styles.donorRow}>
                   <Photo uri={item.Donor_Display_Logo} placeholderIcon="👤" style={styles.donorLogo} />
-                  <Text style={styles.meta}>{item.Donor_Display_Name}</Text>
+                  <Text style={styles.donorName}>{item.Donor_Display_Name}</Text>
                 </View>
               )}
               <Text style={styles.dateLabel}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
@@ -222,9 +222,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   donorLogo: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+  },
+  donorName: {
+    fontFamily: 'WorkSans-600',
+    fontSize: 14,
+    color: colors.text,
   },
   dateLabel: {
     fontFamily: 'WorkSans-400',
