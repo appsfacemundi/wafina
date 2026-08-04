@@ -242,13 +242,28 @@ Command, no port handling needed — Static Sites just serve the built directory
   favicons. Verified against real platform masking (circle/squircle/rounded-square), minimum sizes down to
   16px, and iOS's no-alpha-channel requirement — see the branding freeze checklist for full detail.
 - ⬜ Splash screens
-- ⬜ Screenshots
-- ⬜ Feature graphics
-- ⬜ Store descriptions
-- ⬜ Keywords
+- ⬜ Screenshots — see "Screenshot capture plan" below; blocked on a logged-in device session,
+  which Claude cannot do on the stakeholder's behalf
+- ✅ Feature graphics — 2026-08-04, Play Store 1024×500 feature graphic for both apps, built from
+  the frozen brand assets (icon, master color, Fraunces/WorkSans type). See
+  `branding/store-assets/play-feature-graphic-{donor,institution}.png`
+- ✅ Store descriptions — 2026-08-04, Title/Short/Full description for both apps, PT-PT + EN. See
+  `STORE_LISTING_COPY.md`
+- ✅ Keywords — 2026-08-04, Apple keyword fields for both apps included in `STORE_LISTING_COPY.md`
 - ⬜ Website
-- ⬜ Support email
-- ⬜ Privacy Policy
+- ✅ Support email — `support@zuinder.com`, already confirmed in Play Console account details and
+  used throughout Privacy Policy/Terms/delete-account pages (checkbox here was just stale)
+- ✅ Privacy Policy — published at `/privacy` on Donor Web since Phase 3 (checkbox here was just
+  stale; see Phase 3 entry above)
+
+### Screenshot capture plan
+
+Store screenshots require navigating the app while signed in. Claude does not sign in or enter
+credentials on the stakeholder's behalf (hard rule, not a judgment call), so this can't be
+automated end-to-end. Workable path: the stakeholder navigates each key screen on the connected
+device (same phone/adb setup already used for real-device testing) and shares the raw screenshots;
+Claude then adds device framing, captions, and consistent styling using the frozen brand identity
+— no login or app interaction required for that half of the work.
 
 **Note (2026-08-02):** the stakeholder issued a detailed 18-category "Brand Package" master prompt
 (Brand Guidelines, icons, Google Play/Apple assets, screenshots, feature graphic, social media kit,
