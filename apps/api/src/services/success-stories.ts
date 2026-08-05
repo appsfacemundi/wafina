@@ -94,10 +94,23 @@ export async function createSuccessStory(
   return rowToSuccessStory(row);
 }
 
+// Pilot feedback, 2026-08-05 — same missing-sort pattern already fixed
+// today on listDonationsByDonor, listAvailableDonations, and
+// listDonationsClaimedByInstitution, but never caught on any of the
+// Success_Stories list functions. All four sorted here, not just the one
+// reported, since every prior round of this fix turned out to have a
+// sibling function that got missed.
+function byPublishedDesc(a: SuccessStory, b: SuccessStory): number {
+  return (b.Date_Published || '').localeCompare(a.Date_Published || '');
+}
+
 /** Institution's own stories, any status — the "Histórias de Impacto" list with status filter tabs. */
 export async function listSuccessStoriesByInstitution(institutionId: string): Promise<SuccessStory[]> {
   const rows = await getRows(SHEET_TABS.successStories);
-  return rows.filter((row) => row.Institution_ID === institutionId).map(rowToSuccessStory);
+  return rows
+    .filter((row) => row.Institution_ID === institutionId)
+    .map(rowToSuccessStory)
+    .sort(byPublishedDesc);
 }
 
 /** Donor-facing — Approved stories about their own donations only (not a public feed). */
@@ -105,19 +118,20 @@ export async function listSuccessStoriesByDonor(donorId: string): Promise<Succes
   const rows = await getRows(SHEET_TABS.successStories);
   return rows
     .filter((row) => row.Donor_ID === donorId && row.Status === 'Approved')
-    .map(rowToSuccessStory);
+    .map(rowToSuccessStory)
+    .sort(byPublishedDesc);
 }
 
 /** Admin Web App Parity Phase C — Reports, every story regardless of status. */
 export async function listAllSuccessStories(): Promise<SuccessStory[]> {
   const rows = await getRows(SHEET_TABS.successStories);
-  return rows.map(rowToSuccessStory);
+  return rows.map(rowToSuccessStory).sort(byPublishedDesc);
 }
 
 /** Admin moderation queue. */
 export async function listPendingSuccessStories(): Promise<AdminSuccessStoryView[]> {
   const rows = await getRows(SHEET_TABS.successStories);
-  const pending = rows.filter((row) => row.Status === 'Pending').map(rowToSuccessStory);
+  const pending = rows.filter((row) => row.Status === 'Pending').map(rowToSuccessStory).sort(byPublishedDesc);
 
   const institutionIds = new Set(pending.map((s) => s.Institution_ID));
   const institutionById = new Map(
