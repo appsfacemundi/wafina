@@ -1,6 +1,7 @@
 import {
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
+  DONATION_STATUSES,
   daysAgoLabel,
   formatDateLabel,
   type InstitutionDonationView,
@@ -16,6 +17,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { DonationTimeline } from '@/components/DonationTimeline';
 import { EmptyState } from '@/components/EmptyState';
+import { Input } from '@/components/Input';
 import { Photo } from '@/components/Photo';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
@@ -33,6 +35,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
   const [storiesByDonation, setStoriesByDonation] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [actingId, setActingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   async function load() {
     if (!firebaseUser) return;
@@ -61,15 +64,34 @@ export function ClaimedByMeScreen({ navigation }: Props) {
   // with no distinction between "still needs action" and "delivered — done."
   // A thin section header separates them instead of a new tab, so this
   // stays a small, contained change rather than a navigation restructure.
+  // Pilot feedback, 2026-08-05: within each section, order followed
+  // whatever /donations/claimed-by-me returned (Date_Claimed desc) — this
+  // sorts by pipeline stage instead (Aceite → Recolha Agendada → Recolhida
+  // → Entregue), Date_Claimed desc as the tiebreaker within a stage. Plus a
+  // search box, also requested.
+  const byStage = (a: InstitutionDonationView, b: InstitutionDonationView) => {
+    const byStatus = DONATION_STATUSES.indexOf(a.Status) - DONATION_STATUSES.indexOf(b.Status);
+    return byStatus !== 0 ? byStatus : (b.Date_Claimed ?? '').localeCompare(a.Date_Claimed ?? '');
+  };
+
   const sections = useMemo(() => {
     if (!donations) return null;
-    const active = donations.filter((d) => d.Status !== 'Delivered');
-    const delivered = donations.filter((d) => d.Status === 'Delivered');
+    const q = search.trim().toLowerCase();
+    const visible = q
+      ? donations.filter(
+          (d) =>
+            d.Item_Type.toLowerCase().includes(q) ||
+            d.Public_Donation_Code.toLowerCase().includes(q) ||
+            (d.Donor_Display_Name ?? '').toLowerCase().includes(q),
+        )
+      : donations;
+    const active = visible.filter((d) => d.Status !== 'Delivered').sort(byStage);
+    const delivered = visible.filter((d) => d.Status === 'Delivered').sort(byStage);
     return [
       ...(active.length ? [{ title: null, data: active }] : []),
       ...(delivered.length ? [{ title: 'Entregues', data: delivered }] : []),
     ];
-  }, [donations]);
+  }, [donations, search]);
 
   const SUCCESS_MESSAGE: Record<'schedule-collection' | 'collect' | 'deliver', string> = {
     'schedule-collection': 'Recolha agendada com sucesso!',
@@ -128,11 +150,23 @@ export function ClaimedByMeScreen({ navigation }: Props) {
               </View>
             )}
             {!error && donations === null && <Text style={styles.loading}>A carregar…</Text>}
+            {donations && donations.length > 0 && (
+              <Input
+                label="Pesquisar"
+                placeholder="Pesquisar por item, código ou doador…"
+                value={search}
+                onChangeText={setSearch}
+                style={{ marginBottom: spacing[3] }}
+              />
+            )}
             {donations?.length === 0 && (
               <EmptyState
                 title="Ainda sem doações aceites"
                 description="As doações que aceitar aparecem aqui."
               />
+            )}
+            {donations && donations.length > 0 && sections?.length === 0 && (
+              <EmptyState title="Sem resultados" description="Nenhuma doação corresponde à pesquisa." />
             )}
           </>
         }
