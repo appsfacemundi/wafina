@@ -110,7 +110,17 @@ export function ClaimedByMeScreen({ navigation }: Props) {
     try {
       const idToken = await firebaseUser?.getIdToken();
       await apiFetch(`/donations/${donationId}/${action}`, { method: 'POST', idToken });
+      // Pilot feedback, 2026-08-05: load() swallows its own errors (sets
+      // `error` internally, doesn't re-throw) — so if only the post-action
+      // refresh hit a transient hiccup (e.g. Sheets rate limit), the success
+      // toast/alert below still fired right next to a leftover error banner,
+      // showing "success!" and "something's wrong" at the same time. The
+      // action itself already succeeded by this point; a stale list is
+      // harmless (useFocusEffect refetches on the next visit), so clear
+      // whatever load() may have just set rather than let it contradict the
+      // success feedback the user is about to see.
       await load();
+      setError('');
       showToast(SUCCESS_MESSAGE[action]);
       if (action === 'deliver') {
         Alert.alert(
