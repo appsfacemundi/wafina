@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -66,13 +67,24 @@ const AppTab = createBottomTabNavigator<AppTabParamList>();
 function tabLabel(label: string) {
   return ({ color }: { color: string }) => (
     <Text
-      style={{ fontFamily: 'WorkSans-600', fontSize: 9.5, color, textAlign: 'center' }}
+      style={{ fontFamily: 'WorkSans-600', fontSize: 10.5, color, textAlign: 'center' }}
       numberOfLines={1}
       adjustsFontSizeToFit
-      minimumFontScale={0.75}
+      minimumFontScale={0.8}
     >
       {label}
     </Text>
+  );
+}
+
+// Real-device finding, 2026-08-05: six text-only tabs at 9.5px were reported
+// as too small to reliably tap. Icons don't change each tab's tap-target
+// width (fixed by having six tabs), but they do make each one instantly
+// recognizable without reading the shrunk label, and the taller bar below
+// gives more forgiving vertical tap room.
+function tabIcon(name: keyof typeof Ionicons.glyphMap) {
+  return ({ color, focused }: { color: string; focused: boolean }) => (
+    <Ionicons name={focused ? name : (`${name}-outline` as keyof typeof Ionicons.glyphMap)} size={22} color={color} />
   );
 }
 
@@ -127,36 +139,46 @@ export function RootNavigator() {
             headerShown: false,
             tabBarActiveTintColor: colors.accent,
             tabBarInactiveTintColor: colors.textFaint,
-            tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+            tabBarStyle: {
+              backgroundColor: colors.surface,
+              borderTopColor: colors.border,
+              height: 68,
+              paddingTop: 8,
+              paddingBottom: 10,
+            },
+            tabBarItemStyle: { paddingVertical: 2 },
             tabBarLabelStyle: { fontFamily: 'WorkSans-600', fontSize: 10 },
-            tabBarIcon: () => null,
           }}
         >
-          <AppTab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: tabLabel('Início') }} />
+          <AppTab.Screen
+            name="Home"
+            component={HomeScreen}
+            options={{ tabBarLabel: tabLabel('Início'), tabBarIcon: tabIcon('home') }}
+          />
           <AppTab.Screen
             name="AvailableDonations"
             component={AvailableDonationsScreen}
-            options={{ tabBarLabel: tabLabel('Disponíveis') }}
+            options={{ tabBarLabel: tabLabel('Disponíveis'), tabBarIcon: tabIcon('cube') }}
           />
           <AppTab.Screen
             name="ClaimedByMe"
             component={ClaimedByMeNavigator}
-            options={{ tabBarLabel: tabLabel('Aceites') }}
+            options={{ tabBarLabel: tabLabel('Aceites'), tabBarIcon: tabIcon('checkmark-circle') }}
           />
           <AppTab.Screen
             name="Disputes"
             component={DisputesNavigator}
-            options={{ tabBarLabel: tabLabel('Ocorrências') }}
+            options={{ tabBarLabel: tabLabel('Ocorrências'), tabBarIcon: tabIcon('alert-circle') }}
           />
           <AppTab.Screen
             name="Notifications"
             component={NotificationsScreen}
-            options={{ tabBarLabel: tabLabel('Notificações') }}
+            options={{ tabBarLabel: tabLabel('Notificações'), tabBarIcon: tabIcon('notifications') }}
           />
           <AppTab.Screen
             name="Settings"
             component={SettingsScreen}
-            options={{ tabBarLabel: tabLabel('Definições') }}
+            options={{ tabBarLabel: tabLabel('Definições'), tabBarIcon: tabIcon('settings') }}
           />
         </AppTab.Navigator>
       )}
