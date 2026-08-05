@@ -1,6 +1,7 @@
 import {
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
+  DONATION_STATUSES,
   formatDateLabel,
   type CorporateAccount,
   type Donation,
@@ -15,6 +16,7 @@ import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
 import { DonationTimeline } from '@/components/DonationTimeline';
 import { EmptyState } from '@/components/EmptyState';
+import { Input } from '@/components/Input';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
 import type { MyDonationsStackParamList } from '@/navigation/RootNavigator';
@@ -29,6 +31,7 @@ export function MyDonationsScreen({ navigation }: Props) {
   const [storiesByDonation, setStoriesByDonation] = useState<Map<string, SuccessStory>>(new Map());
   const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
 
   // Real-device finding, 2026-08-04: this only ran once on mount, so a
   // donation submitted on the Donate tab never appeared here until the app
@@ -76,6 +79,25 @@ export function MyDonationsScreen({ navigation }: Props) {
     };
   }, [donations, session]);
 
+  // Pilot feedback, 2026-08-05: sorted by newest-first only (B3 fix) — this
+  // groups by pipeline stage instead (Pending first, matching the same
+  // status order used for the Admin Reports donations filter), newest-first
+  // as the tiebreaker within a stage. Plus a search box, also requested.
+  const visibleDonations = useMemo(() => {
+    let result = donations ?? [];
+    result = [...result].sort((a, b) => {
+      const byStatus = DONATION_STATUSES.indexOf(a.Status) - DONATION_STATUSES.indexOf(b.Status);
+      return byStatus !== 0 ? byStatus : (b.Date_Submitted ?? '').localeCompare(a.Date_Submitted ?? '');
+    });
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter(
+        (d) => d.Item_Type.toLowerCase().includes(q) || d.Public_Donation_Code.toLowerCase().includes(q),
+      );
+    }
+    return result;
+  }, [donations, search]);
+
   return (
     <View style={styles.screen}>
       <FlatList
@@ -110,15 +132,27 @@ export function MyDonationsScreen({ navigation }: Props) {
               </View>
             )}
             {!error && donations === null && <Text style={styles.loading}>A carregar…</Text>}
+            {donations && donations.length > 0 && (
+              <Input
+                label="Pesquisar"
+                placeholder="Pesquisar por item ou código…"
+                value={search}
+                onChangeText={setSearch}
+                style={{ marginBottom: spacing[4] }}
+              />
+            )}
             {donations?.length === 0 && (
               <EmptyState
                 title="Ainda sem doações"
                 description="Quando submeter uma doação, o estado dela aparece aqui."
               />
             )}
+            {donations && donations.length > 0 && visibleDonations.length === 0 && (
+              <EmptyState title="Sem resultados" description="Nenhuma doação corresponde à pesquisa." />
+            )}
           </>
         }
-        data={donations ?? []}
+        data={visibleDonations}
         keyExtractor={(item) => item.Donation_ID}
         renderItem={({ item }) => {
           const story = storiesByDonation.get(item.Donation_ID);
