@@ -9,10 +9,17 @@
 | P1 | Admin + backend: Institutions full list, Users sort, Change Request field types, Corporate country dropdown, Donations date-lock/styling, dashboard links, Reports CSV curation, per-country filter | Implemented | `18ea126` | ⏳ Awaiting your review (web only — reload Admin, no phone needed) |
 | B1 | Donor app + shared package: post-submit navigation, item photo, refetch-on-focus, name greeting, logout confirm, forgot password, date/time format, status colors | Implemented | `166ad01` | ⏳ Awaiting phone test (build 18 installed) |
 | B2 | Institution app + last Admin decision: camera option, list sort + active/delivered split, refetch-on-focus, logout confirm, forgot password, Morada required-marker, address storage, donor badge size, Users origin country | Implemented | `e7571aa` | ⏳ Awaiting phone test (build 6 installed) |
+| B3 | **Correction** — 3 items from the *original* Batch 1 (logged before P1/B1/B2 existed) that got missed in the "all logged items" sweep: Button accessibility/touch-target (both apps), Donor donation sort (`listDonationsByDonor` — only the Institution equivalent got fixed earlier), and Sign In/Sign Up app identity (icon + "Wafina Doador"/"Wafina Instituição") on all 4 auth screens. Also added iOS Info.plist photo/camera permissions to Institution (found while answering a readiness question, not a bug report) | Implemented | `39f04b4` | ⏳ Awaiting phone test (Donor build 19, Institution build 7 — building) |
 
 Two items from P1 deliberately **not** changed on reconsideration, not omissions — see that commit's
 message for why (Countries active-flag check in `listAvailableDonations`, and the broadcast-to-
 everyone guard, which turned out to be a deliberate Sheets-quota safety measure).
+
+**Process note on B3:** B1/B2 were described as covering "all logged items," but that sweep only
+re-checked Batch 2/3 findings and never re-verified the original Batch 1 items were actually done —
+they'd been sitting logged since early in this process. Caught because the stakeholder re-tested the
+sign-in screen and noticed the app-identity fix wasn't there. Lesson: "implemented X" claims need to
+be verified against the actual current code, not assumed from an earlier log entry.
 
 Both mobile apps are installed on the test device (OnePlus 7 Pro) via wireless adb — Donor required a
 fresh install (different signing key from the prior session), Institution upgraded in place.
