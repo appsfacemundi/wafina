@@ -3,7 +3,7 @@ import { CONDITIONS, ITEM_TYPES, type CorporateAccount } from '@wafina/shared';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
@@ -72,19 +72,35 @@ export function DonateScreen({ navigation }: Props) {
     })();
   }, []);
 
-  async function onPickPhoto() {
+  // Pilot feedback, 2026-08-05: only the gallery was ever offered here —
+  // Institution's success-story photo already got a camera option
+  // (2026-08-04); this was the last of the three upload points to catch up.
+  async function onPickFromCamera() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      setError('É necessário acesso à câmara para tirar uma fotografia.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (!result.canceled && result.assets[0]) setPhoto(result.assets[0]);
+  }
+
+  async function onPickFromLibrary() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       setError('É necessário acesso às fotografias para anexar uma imagem.');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPhoto(result.assets[0]);
-    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (!result.canceled && result.assets[0]) setPhoto(result.assets[0]);
+  }
+
+  function onPickPhoto() {
+    Alert.alert('Adicionar fotografia', undefined, [
+      { text: 'Tirar fotografia', onPress: onPickFromCamera },
+      { text: 'Escolher da galeria', onPress: onPickFromLibrary },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   }
 
   const hasValidLocation =

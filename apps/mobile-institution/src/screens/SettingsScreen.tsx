@@ -41,17 +41,7 @@ export function SettingsScreen() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
 
-  async function onPickLogo() {
-    setLogoError('');
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      setLogoError('É necessário acesso às fotografias para escolher um logótipo.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (result.canceled || !result.assets[0]) return;
-
-    const photo = result.assets[0];
+  async function uploadLogo(photo: ImagePicker.ImagePickerAsset) {
     setUploadingLogo(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
@@ -68,6 +58,39 @@ export function SettingsScreen() {
     } finally {
       setUploadingLogo(false);
     }
+  }
+
+  async function onPickLogoFromCamera() {
+    setLogoError('');
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      setLogoError('É necessário acesso à câmara para tirar uma fotografia.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (!result.canceled && result.assets[0]) await uploadLogo(result.assets[0]);
+  }
+
+  async function onPickLogoFromLibrary() {
+    setLogoError('');
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      setLogoError('É necessário acesso às fotografias para escolher um logótipo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (!result.canceled && result.assets[0]) await uploadLogo(result.assets[0]);
+  }
+
+  // Pilot feedback, 2026-08-05: last of the three upload points to catch up
+  // with a camera option — Institution's success-story photo and Donor's
+  // donation photo both already had this.
+  function onPickLogo() {
+    Alert.alert('Logótipo', undefined, [
+      { text: 'Tirar fotografia', onPress: onPickLogoFromCamera },
+      { text: 'Escolher da galeria', onPress: onPickLogoFromLibrary },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   }
 
   const logoLocked = institution?.Locked_Fields.includes('Logo') ?? false;
