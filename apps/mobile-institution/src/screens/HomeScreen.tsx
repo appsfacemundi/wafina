@@ -67,6 +67,11 @@ export function HomeScreen() {
         Bem-vindo(a){institution ? `, ${institution.Name}` : ''}
       </Text>
       <Card style={{ gap: spacing[2] }}>
+        {/* Pilot feedback, 2026-08-05: the greeting above shows the
+         * institution's own name, not the signed-in person's — this line is
+         * the only place that ever did (or, for older accounts that never
+         * set one via Settings, will once they do). */}
+        {session?.name && <Text style={styles.name}>{session.name}</Text>}
         <Text style={styles.email}>{session?.email}</Text>
       </Card>
 
@@ -116,6 +121,11 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.display,
     fontSize: 24,
+    color: colors.text,
+  },
+  name: {
+    fontFamily: 'WorkSans-600',
+    fontSize: 15,
     color: colors.text,
   },
   email: {

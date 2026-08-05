@@ -2,7 +2,7 @@ import { SWITCH_PREFERENCES } from '@wafina/shared';
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth } from '../middleware/auth';
-import { updateActiveCountry, updateShowNameToInstitutions, updateSwitchPreference } from '../services/users';
+import { updateActiveCountry, updateShowNameToInstitutions, updateSwitchPreference, updateUserName } from '../services/users';
 import { ValidationError } from '../services/validation-error';
 
 export const usersRouter = Router();
@@ -49,5 +49,19 @@ usersRouter.patch(
     if (typeof show !== 'boolean') throw new ValidationError('show must be a boolean');
     await updateShowNameToInstitutions(req.user!.userId, show);
     res.json({ showNameToInstitutions: show });
+  }),
+);
+
+/** Pilot feedback, 2026-08-05 — Institution's self-service path to set the
+ * signed-in account holder's own name, mirroring what Donor onboarding
+ * already does for Donor accounts (see services/users.ts updateUserName). */
+usersRouter.patch(
+  '/users/me/name',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const name = req.body?.name as string | undefined;
+    if (!name?.trim()) throw new ValidationError('name is required');
+    await updateUserName(req.user!.userId, name.trim());
+    res.json({ name: name.trim() });
   }),
 );

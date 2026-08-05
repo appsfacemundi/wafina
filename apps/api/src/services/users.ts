@@ -161,6 +161,18 @@ export async function updateShowNameToInstitutions(userId: string, show: boolean
 }
 
 /**
+ * Pilot feedback, 2026-08-05 — Donor's Users.Name gets set during onboarding
+ * (OnboardingProfileScreen, spec 13.1), but Institution accounts never had
+ * any path to set their own Users.Name at all (see AuthenticatedUser.name's
+ * doc comment) — an Institution's Home screen had nowhere to show who's
+ * actually signed in, only the org name from the Institutions row. Generic
+ * on purpose: any role can call this to set their own display name.
+ */
+export async function updateUserName(userId: string, name: string): Promise<void> {
+  await updateRow(SHEET_TABS.users, 'User_ID', userId, { Name: name });
+}
+
+/**
  * Spec 13.2 — joining a company via an Admin-issued invite code. Phase 3A
  * Module 2: existing teammates are looked up *before* the link, so the
  * joining user is never notified about their own arrival, then everyone who

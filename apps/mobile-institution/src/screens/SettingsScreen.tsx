@@ -18,6 +18,7 @@ import { Badge } from '@/components/Badge';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
@@ -26,7 +27,7 @@ import { ApiError, apiFetch, uploadFile } from '@/lib/api';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 export function SettingsScreen() {
-  const { session, firebaseUser, signOutUser } = useAuth();
+  const { session, firebaseUser, signOutUser, refreshSession } = useAuth();
   const { institution, loading, refetch } = useOwnInstitution();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -40,6 +41,33 @@ export function SettingsScreen() {
   const [logoError, setLogoError] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
+
+  // Pilot feedback, 2026-08-05: the Home screen's card had nowhere to show
+  // who's actually signed in — Institution's Users.Name was never set by
+  // any screen (unlike Donor, set during onboarding). Self-service here
+  // both fixes new accounts and backfills existing ones like this test one.
+  const [name, setName] = useState(session?.name ?? '');
+  const [nameError, setNameError] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
+  async function onSaveName() {
+    setNameError('');
+    if (!name.trim()) {
+      setNameError('Indique o seu nome.');
+      return;
+    }
+    setSavingName(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/users/me/name', { method: 'PATCH', idToken, body: { name: name.trim() } });
+      await refreshSession();
+      showToast('Nome atualizado com sucesso!');
+    } catch (err) {
+      setNameError(err instanceof ApiError ? err.message : 'Não foi possível guardar o nome.');
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   async function uploadLogo(photo: ImagePicker.ImagePickerAsset) {
     setUploadingLogo(true);
@@ -175,6 +203,13 @@ export function SettingsScreen() {
           )}
           <Text style={styles.hint}>{session?.email}</Text>
           <Text style={styles.hint}>Tipo: {institution?.Type}</Text>
+          <View style={{ gap: 4 }}>
+            <Input label="O seu nome" value={name} onChangeText={setName} placeholder="Ex: Maria Silva" />
+            {nameError ? <ErrorBanner message={nameError} /> : null}
+            <Button variant="secondary" onPress={onSaveName} loading={savingName}>
+              Guardar nome
+            </Button>
+          </View>
           {institution?.Address && <Text style={styles.hint}>Morada: {institution.Address}</Text>}
           {institution?.Needs_List && <Text style={styles.hint}>Necessidades: {institution.Needs_List}</Text>}
         </Card>
