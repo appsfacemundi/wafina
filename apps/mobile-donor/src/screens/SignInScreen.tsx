@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import appIcon from '../../assets/icon.png';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -67,7 +68,13 @@ export function SignInScreen({ navigation }: Props) {
     >
       <View style={styles.center}>
         <Card style={styles.card}>
-          <Text style={styles.title}>Entrar</Text>
+          <View style={styles.brand}>
+            <Image source={appIcon} style={styles.logo} />
+            <View>
+              <Text style={styles.appName}>Wafina Doador</Text>
+              <Text style={styles.title}>Entrar</Text>
+            </View>
+          </View>
           <Input label="E-mail" keyboardType="email-address" value={email} onChangeText={setEmail} />
           <Input label="Palavra-passe" secureTextEntry value={password} onChangeText={setPassword} />
           {displayedError ? <ErrorBanner message={displayedError} /> : null}
@@ -99,6 +106,21 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
+  },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  logo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+  },
+  appName: {
+    fontFamily: 'WorkSans-700',
+    fontSize: 13,
+    color: colors.textMuted,
   },
   title: {
     fontFamily: fonts.display,

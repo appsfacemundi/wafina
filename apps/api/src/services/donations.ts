@@ -171,7 +171,13 @@ export async function getDonation(donationId: string): Promise<Donation | null> 
 
 export async function listDonationsByDonor(donorId: string): Promise<Donation[]> {
   const rows = await getRows(SHEET_TABS.donations);
-  return rows.filter((row) => row.Donor_ID === donorId).map(rowToDonation);
+  // Real-device finding, 2026-08-04/05 — this was logged in the very first
+  // batch (matching every sibling list function) but missed in the big
+  // implementation sweep; only the Institution equivalent got fixed then.
+  return rows
+    .filter((row) => row.Donor_ID === donorId)
+    .sort((a, b) => (b.Date_Submitted || '').localeCompare(a.Date_Submitted || ''))
+    .map(rowToDonation);
 }
 
 /**
