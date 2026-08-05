@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -16,6 +17,10 @@ export default function App() {
     'WorkSans-600': require('./assets/fonts/worksans-600.ttf'),
     'WorkSans-700': require('./assets/fonts/worksans-700.ttf'),
     'PlexMono-400': require('./assets/fonts/plexmono-400.ttf'),
+    // Tab bar icons — loaded explicitly here (rather than relying on
+    // @expo/vector-icons' own async self-load on first mount) so they're
+    // guaranteed ready before the tab bar's first paint.
+    ...Ionicons.font,
   });
 
   useEffect(() => {

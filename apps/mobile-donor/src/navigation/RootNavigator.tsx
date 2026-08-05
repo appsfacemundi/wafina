@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { DonateScreen } from '@/screens/DonateScreen';
 import { HomeScreen } from '@/screens/HomeScreen';
@@ -80,6 +81,7 @@ function tabIcon(name: keyof typeof Ionicons.glyphMap) {
 
 export function RootNavigator() {
   const { session, loading } = useAuth();
+  const insets = useSafeAreaInsets();
 
   // Nothing renders while Firebase resolves the initial auth state — avoids a
   // flash of the sign-in screen for already-authenticated users on cold start.
@@ -107,9 +109,17 @@ export function RootNavigator() {
             tabBarStyle: {
               backgroundColor: colors.surface,
               borderTopColor: colors.border,
-              height: 68,
-              paddingTop: 8,
-              paddingBottom: 10,
+              // React Navigation uses a custom `height` as-is — unlike its own
+              // default sizing, it does NOT add insets.bottom on top — but
+              // still applies insets.bottom as inner padding. A fixed height
+              // that didn't account for that padding on a real device (3
+              // button nav or gesture nav both report a non-zero inset here)
+              // squeezed the icon+label into a sliver. Adding insets.bottom
+              // to the total height, matching what React Navigation's own
+              // default does, fixes it.
+              height: 60 + insets.bottom,
+              paddingTop: 6,
+              paddingBottom: insets.bottom + 6,
             },
             tabBarItemStyle: { paddingVertical: 2 },
             tabBarLabelStyle: { fontFamily: 'WorkSans-600', fontSize: 10 },
