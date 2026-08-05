@@ -256,9 +256,12 @@ async function toInstitutionDonationViews(
  */
 export async function listAvailableDonations(countryId?: string): Promise<InstitutionDonationView[]> {
   const rows = await getRows(SHEET_TABS.donations);
-  const filtered = rows.filter(
-    (row) => row.Status === 'Pending' && (!countryId || row.Country_ID === countryId),
-  );
+  // Pilot feedback, 2026-08-05: unsorted — same missing-sort pattern already
+  // fixed on listDonationsByDonor and listDonationsClaimedByInstitution, but
+  // never caught here. Newest-submitted first, matching every sibling list.
+  const filtered = rows
+    .filter((row) => row.Status === 'Pending' && (!countryId || row.Country_ID === countryId))
+    .sort((a, b) => (b.Date_Submitted || '').localeCompare(a.Date_Submitted || ''));
   return toInstitutionDonationViews(filtered);
 }
 
