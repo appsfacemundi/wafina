@@ -1,7 +1,15 @@
 'use client';
 
-import { daysAgoLabel, type GeoRegion, type InstitutionDonationView } from '@wafina/shared';
-import { Button, Card, EmptyState, Input, Photo, useToast } from '@wafina/ui';
+import {
+  daysAgoLabel,
+  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHODS,
+  RECIPIENT_CATEGORY_LABEL,
+  type DeliveryMethod,
+  type GeoRegion,
+  type InstitutionDonationView,
+} from '@wafina/shared';
+import { Button, Card, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
@@ -18,15 +26,20 @@ export default function AvailableDonationsPage() {
   const [error, setError] = useState('');
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | ''>('');
 
   const filtered = useMemo(() => {
     if (!donations) return donations;
+    let result = donations;
     const q = query.trim().toLowerCase();
-    if (!q) return donations;
-    return donations.filter(
-      (d) => d.Item_Type.toLowerCase().includes(q) || d.Condition.toLowerCase().includes(q),
-    );
-  }, [donations, query]);
+    if (q) {
+      result = result.filter(
+        (d) => d.Item_Type.toLowerCase().includes(q) || d.Condition.toLowerCase().includes(q),
+      );
+    }
+    if (deliveryFilter) result = result.filter((d) => d.Delivery_Method === deliveryFilter);
+    return result;
+  }, [donations, query, deliveryFilter]);
 
   async function load() {
     if (!firebaseUser) return;
@@ -77,12 +90,26 @@ export default function AvailableDonationsPage() {
       <div className="stack">
         <h1 style={{ fontSize: 24 }}>Doações Disponíveis</h1>
         {donations && donations.length > 0 && (
-          <Input
-            label="Filtrar"
-            placeholder="Tipo ou estado…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <Input
+              label="Filtrar"
+              placeholder="Tipo ou estado…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <Select
+              label="Método de entrega"
+              value={deliveryFilter}
+              onChange={(e) => setDeliveryFilter(e.target.value as DeliveryMethod | '')}
+            >
+              <option value="">Todos os métodos</option>
+              {DELIVERY_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {DELIVERY_METHOD_LABEL[m]}
+                </option>
+              ))}
+            </Select>
+          </div>
         )}
         {error && <div className="banner banner-error">{error}</div>}
         {!error && donations === null && (
@@ -121,6 +148,11 @@ export default function AvailableDonationsPage() {
                   </div>
                   <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
                     Qtd: {d.Quantity} · Estado: {d.Condition}
+                  </p>
+                  <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
+                    {d.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[d.Recipient_Category] : '—'}
+                    {' · '}
+                    {d.Delivery_Method ? DELIVERY_METHOD_LABEL[d.Delivery_Method] : '—'}
                   </p>
                   {(d.City || countryName) && (
                     <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>

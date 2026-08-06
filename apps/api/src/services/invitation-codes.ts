@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { InvitationCode } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
-import { nowIso, toSheetBool, fromSheetBool } from '../config/sheet-values';
+import { fromSheetBool, nowIso, parseSheetDate, toSheetBool } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { getCorporateAccountById } from './corporate-accounts';
 import { ValidationError } from './validation-error';
@@ -57,7 +57,7 @@ export async function listCodesForAccount(corporateAccountId: string): Promise<I
   return rows
     .filter((row) => row.Corporate_Account_ID === corporateAccountId)
     .map(rowToInvitationCode)
-    .sort((a, b) => b.Date_Created.localeCompare(a.Date_Created));
+    .sort((a, b) => parseSheetDate(b.Date_Created) - parseSheetDate(a.Date_Created));
 }
 
 export async function deactivateCode(code: string): Promise<void> {

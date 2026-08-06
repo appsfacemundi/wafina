@@ -1,4 +1,6 @@
+import type { DeliveryMethod } from '../enums/delivery-method';
 import type { DonationStatus } from '../enums/donation-status';
+import type { RecipientCategory } from '../enums/recipient-category';
 import type { GeoPoint } from './geo-point';
 
 export interface Donation {
@@ -23,6 +25,15 @@ export interface Donation {
   Quantity: number;
   /** Extensible list (spec 12.1) — see enums/condition.ts for the current known-good set. */
   Condition: string;
+  /**
+   * Epic 0.6, 2026-08-06 — who the donation is intended for. Fixed set,
+   * required going forward at creation — nullable here (like Institution's
+   * Created_At/Review_History) because donations created before this field
+   * existed have no value to backfill.
+   */
+  Recipient_Category: RecipientCategory | null;
+  /** Epic 0.6, 2026-08-06 — required going forward; nullable for the same pre-existing-row reason above. */
+  Delivery_Method: DeliveryMethod | null;
   /** Google Drive file reference — a public-read, directly viewable URL. */
   Photo: string;
   Location: GeoPoint;

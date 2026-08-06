@@ -9,7 +9,7 @@ import type {
   UserStatus,
 } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
-import { nowIso, toSheetBool } from '../config/sheet-values';
+import { nowIso, parseSheetDate, toSheetBool } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { isActiveCountry } from './geo-regions';
 import { createNotification } from './notifications';
@@ -208,7 +208,7 @@ export async function listAllUsers(): Promise<User[]> {
   const rows = await getRows(SHEET_TABS.users);
   return rows
     .map((row) => rowToUser(row as unknown as UserRow))
-    .sort((a, b) => b.Date_Joined.localeCompare(a.Date_Joined));
+    .sort((a, b) => parseSheetDate(b.Date_Joined) - parseSheetDate(a.Date_Joined));
 }
 
 async function getUserOrThrow(userId: string): Promise<UserRow> {

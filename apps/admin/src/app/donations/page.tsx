@@ -1,9 +1,13 @@
 'use client';
 
 import {
+  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHODS,
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
+  RECIPIENT_CATEGORY_LABEL,
   type AdminDonationView,
+  type DeliveryMethod,
   type GeoRegion,
 } from '@wafina/shared';
 import { Badge, Button, Card, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
@@ -26,6 +30,7 @@ export default function AdminDonationsPage() {
   const [donations, setDonations] = useState<AdminDonationView[] | null>(null);
   const [countries, setCountries] = useState<GeoRegion[]>([]);
   const [countryFilter, setCountryFilter] = useState('');
+  const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | ''>('');
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { collection: string; delivery: string }>>({});
@@ -62,9 +67,11 @@ export default function AdminDonationsPage() {
 
   const filteredDonations = useMemo(() => {
     if (!donations) return null;
-    if (!countryFilter) return donations;
-    return donations.filter((d) => d.Country_ID === countryFilter);
-  }, [donations, countryFilter]);
+    let result = donations;
+    if (countryFilter) result = result.filter((d) => d.Country_ID === countryFilter);
+    if (deliveryFilter) result = result.filter((d) => d.Delivery_Method === deliveryFilter);
+    return result;
+  }, [donations, countryFilter, deliveryFilter]);
 
   async function onSave(donationId: string) {
     const draft = drafts[donationId];
@@ -102,14 +109,28 @@ export default function AdminDonationsPage() {
         </p>
         {error && <div className="banner banner-error">{error}</div>}
         {donations && donations.length > 0 && (
-          <Select label="Filtrar por país" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
-            <option value="">Todos os países</option>
-            {countries.map((c) => (
-              <option key={c.Region_ID} value={c.Region_ID}>
-                {c.Name}
-              </option>
-            ))}
-          </Select>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <Select label="Filtrar por país" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
+              <option value="">Todos os países</option>
+              {countries.map((c) => (
+                <option key={c.Region_ID} value={c.Region_ID}>
+                  {c.Name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Filtrar por método de entrega"
+              value={deliveryFilter}
+              onChange={(e) => setDeliveryFilter(e.target.value as DeliveryMethod | '')}
+            >
+              <option value="">Todos os métodos</option>
+              {DELIVERY_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {DELIVERY_METHOD_LABEL[m]}
+                </option>
+              ))}
+            </Select>
+          </div>
         )}
         {!error && filteredDonations === null && (
           <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>
@@ -140,6 +161,11 @@ export default function AdminDonationsPage() {
                     <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
                       Qtd: {d.Quantity} · Estado: {d.Condition}
                       {d.City ? ` · ${d.City}` : ''}
+                    </p>
+                    <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
+                      {d.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[d.Recipient_Category] : '—'}
+                      {' · '}
+                      {d.Delivery_Method ? DELIVERY_METHOD_LABEL[d.Delivery_Method] : '—'}
                     </p>
                     {d.Claimed_By_Institution_Name && (
                       <p style={{ fontSize: 14.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>

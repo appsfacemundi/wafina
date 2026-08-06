@@ -22,3 +22,6 @@ credentials/
 
 # Sheets backup exports (apps/api/scripts/backup-sheets.ts) — real donor/institution data, never committed
 apps/api/backups/
+
+# Local reference screenshots from browser-preview checks — snapshots for comparison, not project source
+reference-screenshots/

@@ -1,5 +1,15 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { CONDITIONS, ITEM_TYPES, type CorporateAccount } from '@wafina/shared';
+import {
+  CONDITIONS,
+  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHODS,
+  ITEM_TYPES,
+  RECIPIENT_CATEGORIES,
+  RECIPIENT_CATEGORY_LABEL,
+  type CorporateAccount,
+  type DeliveryMethod,
+  type RecipientCategory,
+} from '@wafina/shared';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
@@ -27,6 +37,8 @@ export function DonateScreen({ navigation }: Props) {
   const [itemType, setItemType] = useState<string>(ITEM_TYPES[0]);
   const [quantity, setQuantity] = useState('');
   const [condition, setCondition] = useState<string>(CONDITIONS[0]);
+  const [recipientCategory, setRecipientCategory] = useState<RecipientCategory>(RECIPIENT_CATEGORIES[0]);
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(DELIVERY_METHODS[0]);
   const [city, setCity] = useState('');
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
@@ -154,6 +166,8 @@ export function DonateScreen({ navigation }: Props) {
           Item_Type: itemType,
           Quantity: quantity,
           Condition: condition,
+          Recipient_Category: recipientCategory,
+          Delivery_Method: deliveryMethod,
           City: city,
           Location_lat: lat,
           Location_lng: lng,
@@ -189,6 +203,18 @@ export function DonateScreen({ navigation }: Props) {
             onChangeText={setQuantity}
           />
           <Select label="Estado" value={condition} onValueChange={setCondition} options={CONDITIONS} />
+          <Select
+            label="Categoria do destinatário"
+            value={recipientCategory}
+            onValueChange={(v) => setRecipientCategory(v as RecipientCategory)}
+            options={RECIPIENT_CATEGORIES.map((c) => ({ label: RECIPIENT_CATEGORY_LABEL[c], value: c }))}
+          />
+          <Select
+            label="Método de entrega"
+            value={deliveryMethod}
+            onValueChange={(v) => setDeliveryMethod(v as DeliveryMethod)}
+            options={DELIVERY_METHODS.map((m) => ({ label: DELIVERY_METHOD_LABEL[m], value: m }))}
+          />
           {corporateAccount && (
             <Select
               label="Doar como"

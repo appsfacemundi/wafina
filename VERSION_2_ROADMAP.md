@@ -54,17 +54,36 @@ will come up that aren't here yet.
 
 ## Donor & Institution Mobile
 
-- **Take Photo + Choose from Gallery (both apps)** — today `DonateScreen` (Donor), `SettingsScreen`'s logo
-  upload, and `NewSuccessStoryScreen` (Institution) only call `ImagePicker.launchImageLibraryAsync` (gallery
-  picker); no screen ever calls `launchCameraAsync`. Product decision (2026-08-03): Wafina will support
-  direct camera capture, so this is intentional future scope, not dead code — build a proper "Take Photo /
-  Choose from Gallery" choice into each of these upload points. Because camera capture is explicitly
-  planned, the `CAMERA` (and `RECORD_AUDIO`, needed for video-capable camera flows) Android permissions stay
-  declared as-is rather than being blocked via `expo-image-picker`'s config plugin — a same-day investigation
-  into removing them as "unused" was reverted once this was clarified. Scope for this item: add a
-  take-photo/choose-from-gallery picker UI (likely an action sheet) at each of the three upload points above,
-  in both apps, using the same `uploadFile()` helper already proven working — not a new upload pipeline, just
-  a new capture entry point feeding the existing one.
+- ~~**Take Photo + Choose from Gallery (both apps)**~~ — **DONE, 2026-08-05/06.** `DonateScreen` (Donor),
+  `SettingsScreen`'s logo upload (both apps), and `NewSuccessStoryScreen` (Institution) all now offer a
+  Camera/Gallery `Alert.alert` choice feeding the same existing `uploadFile()` pipeline. Kept here
+  struck-through rather than deleted so the `CAMERA`/`RECORD_AUDIO` permission-retention rationale above
+  stays discoverable. No further action needed.
+
+- **Push notifications (both apps)** — user question, 2026-08-06: today `Notifications` is pure in-app pull
+  (`NotificationsScreen` fetches `/notifications` once on mount, no polling, no OS-level alert, no tab-bar
+  unread badge) — nothing tells the user something new arrived unless they happen to open that tab. A real
+  push implementation needs `expo-notifications`, a device push token registered per user (Expo Push
+  Service, or direct FCM/APNs), a `POST /notifications` server-side hook to actually send the push at
+  creation time (`apps/api/src/services/notifications.ts`'s `createNotification`), and a test device/build to
+  verify delivery — not something Expo Go can demo, since remote push requires a registered dev-or-prod
+  build. Scoped as V2, not a launch blocker: current in-app list is functionally correct, just not
+  proactive. **Why:** falls under Version 1 Feature Freeze — this is new functionality, not a bug fix.
+
+- **Proactive cross-app role-mismatch check on session restore (both apps)** — found during RC1 Epic 0
+  live-workflow verification, 2026-08-06: a saved Firebase session for a wrong-role account (e.g. an
+  Institution account's session restored inside the Donor app, or vice versa) currently routes straight to
+  that app's onboarding/profile-completion screen, and the mismatch is only caught when the user submits the
+  form — the backend's `requireRole` gate (`apps/api/src/middleware/auth.ts:97-111`) rejects it with "Esta
+  conta está registada como X, não é possível continuar aqui." RC1 fix (same day): both onboarding screens
+  now have a "Não é a sua conta? Sair" escape hatch (Donor's `OnboardingProfileScreen.tsx`, matching
+  Institution's pre-existing `RegisterScreen.tsx:220-221` pattern), so the user is never fully stuck — but
+  they still have to hit the error once before finding the way out. Stakeholder-proposed V2 improvement:
+  validate the restored session's role *before* navigating to onboarding at all, and if it doesn't match the
+  current app, show an immediate "Esta conta pertence à aplicação Wafina Instituição. Pretende terminar
+  sessão?" prompt with "Sair" / "Abrir Wafina Instituição" options — eliminates the dead-end (and the wasted
+  form-fill) entirely instead of just providing an exit from it. Needs a session/role check added early in
+  each app's `RootNavigator.tsx`, before the `!session.profileComplete` branch.
 
 ## Cross-cutting / Infrastructure
 

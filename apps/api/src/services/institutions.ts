@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto';
 import type { Institution, InstitutionReviewEvent } from '@wafina/shared';
 import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
-import { fromSheetBool, fromSheetLatLong, nowIso, toSheetBool, toSheetLatLong } from '../config/sheet-values';
+import {
+  fromSheetBool,
+  fromSheetLatLong,
+  nowIso,
+  parseSheetDate,
+  toSheetBool,
+  toSheetLatLong,
+} from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { isActiveCountry } from './geo-regions';
 import { sumDeliveredQuantityForInstitution } from './donations';
@@ -198,7 +205,7 @@ export async function listVerifiedInstitutions(countryId?: string): Promise<Inst
   // registered before this field existed sort last rather than erroring.
   const verifiedRows = rows
     .filter((row) => fromSheetBool(row.Verified ?? '') && (!countryId || row.Country_ID === countryId))
-    .sort((a, b) => (b.Created_At || '').localeCompare(a.Created_At || ''));
+    .sort((a, b) => parseSheetDate(b.Created_At) - parseSheetDate(a.Created_At));
   return Promise.all(verifiedRows.map(rowToInstitution));
 }
 
@@ -207,14 +214,14 @@ export async function listPendingInstitutions(): Promise<Institution[]> {
   const rows = await getRows(SHEET_TABS.institutions);
   const pendingRows = rows
     .filter((row) => !fromSheetBool(row.Verified ?? ''))
-    .sort((a, b) => (b.Created_At || '').localeCompare(a.Created_At || ''));
+    .sort((a, b) => parseSheetDate(b.Created_At) - parseSheetDate(a.Created_At));
   return Promise.all(pendingRows.map(rowToInstitution));
 }
 
 /** Admin Web App Parity Phase C — Reports, unfiltered by verification status. */
 export async function listAllInstitutions(): Promise<Institution[]> {
   const rows = await getRows(SHEET_TABS.institutions);
-  const sorted = [...rows].sort((a, b) => (b.Created_At || '').localeCompare(a.Created_At || ''));
+  const sorted = [...rows].sort((a, b) => parseSheetDate(b.Created_At) - parseSheetDate(a.Created_At));
   return Promise.all(sorted.map(rowToInstitution));
 }
 

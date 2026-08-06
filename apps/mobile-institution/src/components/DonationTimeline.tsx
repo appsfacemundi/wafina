@@ -1,4 +1,5 @@
 import {
+  DELIVERY_METHOD_LABEL,
   DONATION_JOURNEY_DATE_FIELD,
   DONATION_JOURNEY_STEPS,
   DONATION_STATUS_LABEL,
@@ -33,6 +34,9 @@ export function DonationTimeline({ donation }: { donation: Donation }) {
           </View>
         );
       })}
+      {donation.Delivery_Method && (
+        <Text style={styles.deliveryMethod}>{DELIVERY_METHOD_LABEL[donation.Delivery_Method]}</Text>
+      )}
     </View>
   );
 }
@@ -71,5 +75,11 @@ const styles = StyleSheet.create({
     fontFamily: 'WorkSans-400',
     fontSize: 11.5,
     color: colors.textFaint,
+  },
+  deliveryMethod: {
+    fontFamily: 'WorkSans-400',
+    fontSize: 12.5,
+    color: colors.textMuted,
+    marginTop: 4,
   },
 });

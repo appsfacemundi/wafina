@@ -1,4 +1,6 @@
+import type { DeliveryMethod } from '../enums/delivery-method';
 import type { DonationStatus } from '../enums/donation-status';
+import type { RecipientCategory } from '../enums/recipient-category';
 
 /** Shared between Donor and Institution apps so a status always reads identically. */
 export const DONATION_STATUS_LABEL: Record<DonationStatus, string> = {
@@ -22,6 +24,18 @@ export const DONATION_STATUS_TONE: Record<DonationStatus, 'warning' | 'info' | '
   Collection_Scheduled: 'info',
   Collected: 'info',
   Delivered: 'success',
+};
+
+/** Epic 0.6, 2026-08-06 — same Record<EnumType, string> pattern as DONATION_STATUS_LABEL above. */
+export const RECIPIENT_CATEGORY_LABEL: Record<RecipientCategory, string> = {
+  People: '👨‍👩‍👧 Pessoas',
+  Institutions: '🏢 Instituições',
+  Animal_Shelters: '🐾 Abrigos de Animais',
+};
+
+export const DELIVERY_METHOD_LABEL: Record<DeliveryMethod, string> = {
+  Donor_Delivers: '🚗 Doador entrega',
+  Pickup_Required: '📦 Necessita recolha',
 };
 
 type JourneyStatus = Exclude<DonationStatus, 'Pending'>;

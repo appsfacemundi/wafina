@@ -1,4 +1,5 @@
 import {
+  DELIVERY_METHOD_LABEL,
   DONATION_JOURNEY_DATE_FIELD,
   DONATION_JOURNEY_STEPS,
   DONATION_STATUS_LABEL,
@@ -52,6 +53,11 @@ export function DonationTimeline({ donation }: { donation: Donation }) {
           </div>
         );
       })}
+      {donation.Delivery_Method && (
+        <span style={{ fontSize: 12.5, color: 'var(--color-text-muted, #666)', marginTop: 4 }}>
+          {DELIVERY_METHOD_LABEL[donation.Delivery_Method]}
+        </span>
+      )}
     </div>
   );
 }

@@ -1,8 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import type { AdminDonationView, Donation, DonationStatus, InstitutionDonationView } from '@wafina/shared';
+import { DELIVERY_METHOD_LABEL, DELIVERY_METHODS, RECIPIENT_CATEGORIES } from '@wafina/shared';
+import type {
+  AdminDonationView,
+  DeliveryMethod,
+  Donation,
+  DonationStatus,
+  InstitutionDonationView,
+  RecipientCategory,
+} from '@wafina/shared';
 import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
-import { fromSheetLatLong, nowIso, toSheetLatLong } from '../config/sheet-values';
+import { fromSheetLatLong, nowIso, parseSheetDate, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { getRegionById } from './geo-regions';
 import { createNotification } from './notifications';
@@ -23,6 +31,8 @@ function rowToDonation(row: Record<string, string>): Donation {
     Item_Type: row.Item_Type,
     Quantity: Number(row.Quantity),
     Condition: row.Condition,
+    Recipient_Category: (row.Recipient_Category || null) as RecipientCategory | null,
+    Delivery_Method: (row.Delivery_Method || null) as DeliveryMethod | null,
     Photo: toProxiedUrl(row.Photo) ?? '',
     Location: fromSheetLatLong(row.Location ?? '') ?? { lat: 0, lng: 0 },
     Status: row.Status as DonationStatus,
@@ -94,6 +104,10 @@ export interface CreateDonationInput {
   Location: { lat: number; lng: number };
   /** Free text, optional (e.g. "Luanda") — see the City field comment on the shared Donation type. */
   City?: string;
+  /** Epic 0.6, 2026-08-06 — required, fixed set. */
+  Recipient_Category: RecipientCategory;
+  /** Epic 0.6, 2026-08-06 — required, fixed set. */
+  Delivery_Method: DeliveryMethod;
 }
 
 /**
@@ -106,6 +120,12 @@ export function assertValidDonationFields(
 ): void {
   if (!input.Item_Type) throw new ValidationError('O tipo de item é obrigatório');
   if (!input.Condition) throw new ValidationError('O estado é obrigatório');
+  if (!RECIPIENT_CATEGORIES.includes(input.Recipient_Category)) {
+    throw new ValidationError('É necessário indicar a categoria do destinatário');
+  }
+  if (!DELIVERY_METHODS.includes(input.Delivery_Method)) {
+    throw new ValidationError('É necessário indicar o método de entrega');
+  }
   assertValidQuantity(input.Quantity);
   assertValidLocation(input.Location);
 }
@@ -145,6 +165,8 @@ export async function createDonation(
     Item_Type: input.Item_Type,
     Quantity: String(input.Quantity),
     Condition: input.Condition,
+    Recipient_Category: input.Recipient_Category,
+    Delivery_Method: input.Delivery_Method,
     Photo: input.Photo,
     Location: toSheetLatLong(input.Location),
     Status: 'Pending',
@@ -177,7 +199,7 @@ export async function listDonationsByDonor(donorId: string): Promise<Donation[]>
   // implementation sweep; only the Institution equivalent got fixed then.
   return rows
     .filter((row) => row.Donor_ID === donorId)
-    .sort((a, b) => (b.Date_Submitted || '').localeCompare(a.Date_Submitted || ''))
+    .sort((a, b) => parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted))
     .map(rowToDonation);
 }
 
@@ -262,7 +284,7 @@ export async function listAvailableDonations(countryId?: string): Promise<Instit
   // never caught here. Newest-submitted first, matching every sibling list.
   const filtered = rows
     .filter((row) => row.Status === 'Pending' && (!countryId || row.Country_ID === countryId))
-    .sort((a, b) => (b.Date_Submitted || '').localeCompare(a.Date_Submitted || ''));
+    .sort((a, b) => parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted));
   return toInstitutionDonationViews(filtered);
 }
 
@@ -275,7 +297,7 @@ export async function listDonationsClaimedByInstitution(
   // listDonationsByDonor — newest-claimed first, matching every sibling list.
   const filtered = rows
     .filter((row) => row.Claimed_By_Institution_ID === institutionId)
-    .sort((a, b) => (b.Date_Claimed || '').localeCompare(a.Date_Claimed || ''));
+    .sort((a, b) => parseSheetDate(b.Date_Claimed) - parseSheetDate(a.Date_Claimed));
   return toInstitutionDonationViews(filtered);
 }
 
@@ -290,7 +312,7 @@ export async function listInFlightDonationsForAdmin(): Promise<AdminDonationView
   const rows = await getRows(SHEET_TABS.donations);
   const filtered = rows
     .filter((row) => row.Status !== 'Pending')
-    .sort((a, b) => (b.Date_Claimed || '').localeCompare(a.Date_Claimed || ''));
+    .sort((a, b) => parseSheetDate(b.Date_Claimed) - parseSheetDate(a.Date_Claimed));
 
   const views = await toInstitutionDonationViews(filtered);
   const institutionRows = await getRows(SHEET_TABS.institutions);
@@ -321,7 +343,7 @@ export async function listInFlightDonationsForAdmin(): Promise<AdminDonationView
  */
 export async function listAllDonationsForAdmin(): Promise<AdminDonationView[]> {
   const rows = await getRows(SHEET_TABS.donations);
-  const sorted = [...rows].sort((a, b) => (b.Date_Submitted || '').localeCompare(a.Date_Submitted || ''));
+  const sorted = [...rows].sort((a, b) => parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted));
 
   const views = await toInstitutionDonationViews(sorted);
   const institutionRows = await getRows(SHEET_TABS.institutions);
@@ -378,6 +400,8 @@ export async function editDonation(
   if (patch.Item_Type !== undefined) rowPatch.Item_Type = patch.Item_Type;
   if (patch.Quantity !== undefined) rowPatch.Quantity = String(patch.Quantity);
   if (patch.Condition !== undefined) rowPatch.Condition = patch.Condition;
+  if (patch.Recipient_Category !== undefined) rowPatch.Recipient_Category = patch.Recipient_Category;
+  if (patch.Delivery_Method !== undefined) rowPatch.Delivery_Method = patch.Delivery_Method;
   if (patch.Photo !== undefined) rowPatch.Photo = patch.Photo;
   if (patch.Location !== undefined) rowPatch.Location = toSheetLatLong(patch.Location);
   if (patch.City !== undefined) rowPatch.City = patch.City?.trim() ?? '';
@@ -413,7 +437,9 @@ export async function claimDonation(institutionId: string, donationId: string): 
     notificationType: 'donation_claimed',
     entityType: 'Donation',
     entityId: updated.Donation_ID,
-    message: `A sua doação de ${updated.Item_Type} foi aceite por uma instituição.`,
+    message: `A sua doação de ${updated.Item_Type} foi aceite por uma instituição. Método de entrega: ${
+      updated.Delivery_Method ? DELIVERY_METHOD_LABEL[updated.Delivery_Method] : 'não especificado'
+    }`,
   });
 
   return updated;

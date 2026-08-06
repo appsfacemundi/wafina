@@ -11,3 +11,5 @@ export * from './notification-fields';
 export * from './success-story-status';
 export * from './change-request-status';
 export * from './user-status';
+export * from './recipient-category';
+export * from './delivery-method';

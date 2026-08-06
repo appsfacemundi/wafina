@@ -1,6 +1,16 @@
 'use client';
 
-import { CONDITIONS, ITEM_TYPES, type CorporateAccount } from '@wafina/shared';
+import {
+  CONDITIONS,
+  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHODS,
+  ITEM_TYPES,
+  RECIPIENT_CATEGORIES,
+  RECIPIENT_CATEGORY_LABEL,
+  type CorporateAccount,
+  type DeliveryMethod,
+  type RecipientCategory,
+} from '@wafina/shared';
 import { Button, Card, Input, Select, useToast } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -19,6 +29,8 @@ export default function NewDonationPage() {
   const [itemType, setItemType] = useState<string>(ITEM_TYPES[0]);
   const [quantity, setQuantity] = useState('');
   const [condition, setCondition] = useState<string>(CONDITIONS[0]);
+  const [recipientCategory, setRecipientCategory] = useState<RecipientCategory>(RECIPIENT_CATEGORIES[0]);
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(DELIVERY_METHODS[0]);
   const [city, setCity] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -121,6 +133,8 @@ export default function NewDonationPage() {
       form.append('Item_Type', itemType);
       form.append('Quantity', quantity);
       form.append('Condition', condition);
+      form.append('Recipient_Category', recipientCategory);
+      form.append('Delivery_Method', deliveryMethod);
       form.append('City', city);
       form.append('Location_lat', lat);
       form.append('Location_lng', lng);
@@ -168,6 +182,30 @@ export default function NewDonationPage() {
               {CONDITIONS.map((c) => (
                 <option key={c} value={c}>
                   {c}
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              label="Categoria do destinatário"
+              value={recipientCategory}
+              onChange={(e) => setRecipientCategory(e.target.value as RecipientCategory)}
+            >
+              {RECIPIENT_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {RECIPIENT_CATEGORY_LABEL[c]}
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              label="Método de entrega"
+              value={deliveryMethod}
+              onChange={(e) => setDeliveryMethod(e.target.value as DeliveryMethod)}
+            >
+              {DELIVERY_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {DELIVERY_METHOD_LABEL[m]}
                 </option>
               ))}
             </Select>

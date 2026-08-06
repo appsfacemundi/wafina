@@ -1,11 +1,11 @@
 # Wafina Brand Guide
 
-**Status: FROZEN — 2026-08-03.** This is the official Wafina brand identity for Version 1.0 and all future
-applications. Master color (`bougainvillea700`, `#710f44`), the D/I/A badge system, and the wordmark are
-final. No further changes to the logo, colors, favicon, icons, website mark, or wordmark without a real
-technical issue (e.g. a platform rejection or an actual rendering defect — see
-`branding/BRANDING_FREEZE_CHECKLIST.md` for the verification this was frozen against). All future marketing
-materials must reuse this identity, not introduce new colors or marks.
+**Status: UNFROZEN — 2026-08-07 (stakeholder decision).** This guide documented the identity that was frozen
+2026-08-03 through 2026-08-07. The stakeholder has explicitly lifted that freeze to begin a full Brand
+Identity redesign phase (logo, colors, typography, splash screen, authentication screens, navigation, icons,
+design system) — this is not a reopening for a technical fix, it's a deliberate visual overhaul. Everything
+below describes the *previous, now-superseded* identity; treat it as a historical reference, not a current
+constraint, until a new guide replaces it.
 
 **Honesty note, consistent with how this whole process has worked:** everything in this guide is
 code-producible (SVG shapes, flat color, `sharp`-rasterized PNGs). There is no image-generation tool in

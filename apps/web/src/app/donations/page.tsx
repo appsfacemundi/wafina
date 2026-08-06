@@ -1,9 +1,11 @@
 'use client';
 
 import {
+  DELIVERY_METHOD_LABEL,
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   formatDateLabel,
+  RECIPIENT_CATEGORY_LABEL,
   type CorporateAccount,
   type Donation,
   type SuccessStory,
@@ -128,6 +130,11 @@ export default function DonationsPage() {
                     {d.Corporate_Account_ID
                       ? `🏢 Doação da Empresa${corporateAccount ? ` – ${corporateAccount.Company_Name}` : ''}`
                       : '👤 Doação Pessoal'}
+                  </p>
+                  <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+                    {d.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[d.Recipient_Category] : '—'}
+                    {' · '}
+                    {d.Delivery_Method ? DELIVERY_METHOD_LABEL[d.Delivery_Method] : '—'}
                   </p>
                   {(d.Expected_Collection_Date || d.Expected_Delivery_Date) && (
                     <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>

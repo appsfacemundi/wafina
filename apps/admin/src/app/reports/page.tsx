@@ -1,6 +1,16 @@
 'use client';
 
-import { DONATION_STATUS_LABEL, DONATION_STATUSES, type GeoRegion } from '@wafina/shared';
+import {
+  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHODS,
+  DONATION_STATUS_LABEL,
+  DONATION_STATUSES,
+  RECIPIENT_CATEGORIES,
+  RECIPIENT_CATEGORY_LABEL,
+  type DeliveryMethod,
+  type GeoRegion,
+  type RecipientCategory,
+} from '@wafina/shared';
 import { Button, Card, EmptyState, Input, Select } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -45,6 +55,18 @@ const REPORT_COLUMNS: Record<string, Column[]> = {
     { label: 'Item', get: (r) => String(r.Item_Type ?? '') },
     { label: 'Quantidade', get: (r) => String(r.Quantity ?? '') },
     { label: 'Estado do item', get: (r) => String(r.Condition ?? '') },
+    {
+      label: 'Categoria do destinatário',
+      get: (r) =>
+        RECIPIENT_CATEGORY_LABEL[r.Recipient_Category as keyof typeof RECIPIENT_CATEGORY_LABEL] ??
+        String(r.Recipient_Category ?? ''),
+    },
+    {
+      label: 'Método de entrega',
+      get: (r) =>
+        DELIVERY_METHOD_LABEL[r.Delivery_Method as keyof typeof DELIVERY_METHOD_LABEL] ??
+        String(r.Delivery_Method ?? ''),
+    },
     {
       label: 'Estado da doação',
       get: (r) => DONATION_STATUS_LABEL[r.Status as keyof typeof DONATION_STATUS_LABEL] ?? String(r.Status ?? ''),
@@ -135,6 +157,8 @@ export default function AdminReportsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
+  const [recipientCategoryFilter, setRecipientCategoryFilter] = useState<RecipientCategory | 'all'>('all');
+  const [deliveryMethodFilter, setDeliveryMethodFilter] = useState<DeliveryMethod | 'all'>('all');
 
   async function load() {
     if (!firebaseUser) return;
@@ -163,6 +187,8 @@ export default function AdminReportsPage() {
     setSearch('');
     setStatusFilter('all');
     setCountryFilter('all');
+    setRecipientCategoryFilter('all');
+    setDeliveryMethodFilter('all');
   }, [type]);
 
   const countryName = useMemo(() => {
@@ -197,8 +223,14 @@ export default function AdminReportsPage() {
       if (statusFilter !== 'all') result = result.filter((r) => institutionStatus(r) === statusFilter);
     }
 
-    if (type === 'donations' && statusFilter !== 'all') {
-      result = result.filter((r) => r.Status === statusFilter);
+    if (type === 'donations') {
+      if (statusFilter !== 'all') result = result.filter((r) => r.Status === statusFilter);
+      if (recipientCategoryFilter !== 'all') {
+        result = result.filter((r) => r.Recipient_Category === recipientCategoryFilter);
+      }
+      if (deliveryMethodFilter !== 'all') {
+        result = result.filter((r) => r.Delivery_Method === deliveryMethodFilter);
+      }
     }
 
     if (type === 'companies') {
@@ -223,7 +255,17 @@ export default function AdminReportsPage() {
     }
 
     return result;
-  }, [rows, type, statusFilter, countryFilter, search, columns, countryName]);
+  }, [
+    rows,
+    type,
+    statusFilter,
+    countryFilter,
+    recipientCategoryFilter,
+    deliveryMethodFilter,
+    search,
+    columns,
+    countryName,
+  ]);
 
   if (!session) return null;
 
@@ -251,14 +293,40 @@ export default function AdminReportsPage() {
           />
 
           {type === 'donations' && (
-            <Select label="Estado da doação" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="all">Todos</option>
-              {DONATION_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {DONATION_STATUS_LABEL[s]}
-                </option>
-              ))}
-            </Select>
+            <>
+              <Select label="Estado da doação" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="all">Todos</option>
+                {DONATION_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {DONATION_STATUS_LABEL[s]}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                label="Categoria do destinatário"
+                value={recipientCategoryFilter}
+                onChange={(e) => setRecipientCategoryFilter(e.target.value as RecipientCategory | 'all')}
+              >
+                <option value="all">Todas</option>
+                {RECIPIENT_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {RECIPIENT_CATEGORY_LABEL[c]}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                label="Método de entrega"
+                value={deliveryMethodFilter}
+                onChange={(e) => setDeliveryMethodFilter(e.target.value as DeliveryMethod | 'all')}
+              >
+                <option value="all">Todos</option>
+                {DELIVERY_METHODS.map((m) => (
+                  <option key={m} value={m}>
+                    {DELIVERY_METHOD_LABEL[m]}
+                  </option>
+                ))}
+              </Select>
+            </>
           )}
 
           {type === 'institutions' && (

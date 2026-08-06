@@ -1,4 +1,12 @@
-import { daysAgoLabel, type GeoRegion, type InstitutionDonationView } from '@wafina/shared';
+import {
+  daysAgoLabel,
+  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHODS,
+  RECIPIENT_CATEGORY_LABEL,
+  type DeliveryMethod,
+  type GeoRegion,
+  type InstitutionDonationView,
+} from '@wafina/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +31,7 @@ export function AvailableDonationsScreen() {
   const [error, setError] = useState('');
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | 'all'>('all');
 
   async function load() {
     if (!firebaseUser) return;
@@ -53,12 +62,18 @@ export function AvailableDonationsScreen() {
 
   const filtered = useMemo(() => {
     if (!donations) return donations;
+    let result = donations;
     const q = query.trim().toLowerCase();
-    if (!q) return donations;
-    return donations.filter(
-      (d) => d.Item_Type.toLowerCase().includes(q) || d.Condition.toLowerCase().includes(q),
-    );
-  }, [donations, query]);
+    if (q) {
+      result = result.filter(
+        (d) => d.Item_Type.toLowerCase().includes(q) || d.Condition.toLowerCase().includes(q),
+      );
+    }
+    if (deliveryFilter !== 'all') {
+      result = result.filter((d) => d.Delivery_Method === deliveryFilter);
+    }
+    return result;
+  }, [donations, query, deliveryFilter]);
 
   async function onClaim(donationId: string) {
     setClaimingId(donationId);
@@ -83,7 +98,24 @@ export function AvailableDonationsScreen() {
           <>
             <Text style={styles.title}>Disponíveis</Text>
             {donations && donations.length > 0 && (
-              <Input label="Filtrar" placeholder="Tipo ou estado…" value={query} onChangeText={setQuery} />
+              <>
+                <Input label="Filtrar" placeholder="Tipo ou estado…" value={query} onChangeText={setQuery} />
+                <View style={styles.filterRow}>
+                  {(['all', ...DELIVERY_METHODS] as const).map((f) => (
+                    <Pressable
+                      key={f}
+                      onPress={() => setDeliveryFilter(f)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: deliveryFilter === f }}
+                      style={[styles.filterChip, deliveryFilter === f && styles.filterChipActive]}
+                    >
+                      <Text style={[styles.filterChipText, deliveryFilter === f && styles.filterChipTextActive]}>
+                        {f === 'all' ? 'Todos' : DELIVERY_METHOD_LABEL[f]}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
             )}
             {error && (
               <View style={styles.errorBanner}>
@@ -114,6 +146,11 @@ export function AvailableDonationsScreen() {
               </View>
               <Text style={styles.meta}>
                 Qtd: {item.Quantity} · Estado: {item.Condition}
+              </Text>
+              <Text style={styles.meta}>
+                {item.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[item.Recipient_Category] : '—'}
+                {' · '}
+                {item.Delivery_Method ? DELIVERY_METHOD_LABEL[item.Delivery_Method] : '—'}
               </Text>
               {(item.City || countryName) && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
@@ -175,6 +212,31 @@ const styles = StyleSheet.create({
     fontFamily: 'WorkSans-400',
     fontSize: 13,
     color: colors.danger,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+    marginBottom: spacing[2],
+  },
+  filterChip: {
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterChipActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  filterChipText: {
+    fontFamily: 'WorkSans-600',
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  filterChipTextActive: {
+    color: colors.accentText,
   },
   card: {
     padding: 0,

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { AdminSuccessStoryView, SuccessStory, SuccessStoryStatus } from '@wafina/shared';
 import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
-import { nowIso } from '../config/sheet-values';
+import { nowIso, parseSheetDate } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { getDonation } from './donations';
 import { getInstitutionById } from './institutions';
@@ -102,7 +102,7 @@ export async function createSuccessStory(
 // reported, since every prior round of this fix turned out to have a
 // sibling function that got missed.
 function byPublishedDesc(a: SuccessStory, b: SuccessStory): number {
-  return (b.Date_Published || '').localeCompare(a.Date_Published || '');
+  return parseSheetDate(b.Date_Published) - parseSheetDate(a.Date_Published);
 }
 
 /** Institution's own stories, any status — the "Histórias de Impacto" list with status filter tabs. */

@@ -1,7 +1,9 @@
 import {
+  DELIVERY_METHOD_LABEL,
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   DONATION_STATUSES,
+  RECIPIENT_CATEGORY_LABEL,
   formatDateLabel,
   type CorporateAccount,
   type Donation,
@@ -172,6 +174,11 @@ export function MyDonationsScreen({ navigation }: Props) {
                 {item.Corporate_Account_ID
                   ? `🏢 Doação da Empresa${corporateAccount ? ` – ${corporateAccount.Company_Name}` : ''}`
                   : '👤 Doação Pessoal'}
+              </Text>
+              <Text style={styles.donationId}>
+                {item.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[item.Recipient_Category] : '—'}
+                {' · '}
+                {item.Delivery_Method ? DELIVERY_METHOD_LABEL[item.Delivery_Method] : '—'}
               </Text>
               {(item.Expected_Collection_Date || item.Expected_Delivery_Date) && (
                 <Text style={styles.donationId}>

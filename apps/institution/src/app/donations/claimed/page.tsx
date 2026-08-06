@@ -1,10 +1,12 @@
 'use client';
 
 import {
+  DELIVERY_METHOD_LABEL,
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   daysAgoLabel,
   formatDateLabel,
+  RECIPIENT_CATEGORY_LABEL,
   type InstitutionDonationView,
   type SuccessStory,
 } from '@wafina/shared';
@@ -126,6 +128,11 @@ export default function ClaimedDonationsPage() {
                   </p>
                   <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
                     Qtd: {d.Quantity} · Estado: {d.Condition}
+                  </p>
+                  <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
+                    {d.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[d.Recipient_Category] : '—'}
+                    {' · '}
+                    {d.Delivery_Method ? DELIVERY_METHOD_LABEL[d.Delivery_Method] : '—'}
                   </p>
                   {d.City && (
                     <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>

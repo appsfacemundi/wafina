@@ -1,9 +1,13 @@
 import {
+  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHODS,
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   DONATION_STATUSES,
+  RECIPIENT_CATEGORY_LABEL,
   daysAgoLabel,
   formatDateLabel,
+  type DeliveryMethod,
   type InstitutionDonationView,
   type SuccessStory,
 } from '@wafina/shared';
@@ -36,6 +40,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
   const [error, setError] = useState('');
   const [actingId, setActingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | 'all'>('all');
 
   async function load() {
     if (!firebaseUser) return;
@@ -77,7 +82,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
   const sections = useMemo(() => {
     if (!donations) return null;
     const q = search.trim().toLowerCase();
-    const visible = q
+    let visible = q
       ? donations.filter(
           (d) =>
             d.Item_Type.toLowerCase().includes(q) ||
@@ -85,13 +90,16 @@ export function ClaimedByMeScreen({ navigation }: Props) {
             (d.Donor_Display_Name ?? '').toLowerCase().includes(q),
         )
       : donations;
+    if (deliveryFilter !== 'all') {
+      visible = visible.filter((d) => d.Delivery_Method === deliveryFilter);
+    }
     const active = visible.filter((d) => d.Status !== 'Delivered').sort(byStage);
     const delivered = visible.filter((d) => d.Status === 'Delivered').sort(byStage);
     return [
       ...(active.length ? [{ title: null, data: active }] : []),
       ...(delivered.length ? [{ title: 'Entregues', data: delivered }] : []),
     ];
-  }, [donations, search]);
+  }, [donations, search, deliveryFilter]);
 
   const SUCCESS_MESSAGE: Record<'schedule-collection' | 'collect' | 'deliver', string> = {
     'schedule-collection': 'Recolha agendada com sucesso!',
@@ -161,13 +169,30 @@ export function ClaimedByMeScreen({ navigation }: Props) {
             )}
             {!error && donations === null && <Text style={styles.loading}>A carregar…</Text>}
             {donations && donations.length > 0 && (
-              <Input
-                label="Pesquisar"
-                placeholder="Pesquisar por item, código ou doador…"
-                value={search}
-                onChangeText={setSearch}
-                style={{ marginBottom: spacing[3] }}
-              />
+              <>
+                <Input
+                  label="Pesquisar"
+                  placeholder="Pesquisar por item, código ou doador…"
+                  value={search}
+                  onChangeText={setSearch}
+                  style={{ marginBottom: spacing[3] }}
+                />
+                <View style={styles.filterRow}>
+                  {(['all', ...DELIVERY_METHODS] as const).map((f) => (
+                    <Pressable
+                      key={f}
+                      onPress={() => setDeliveryFilter(f)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: deliveryFilter === f }}
+                      style={[styles.filterChip, deliveryFilter === f && styles.filterChipActive]}
+                    >
+                      <Text style={[styles.filterChipText, deliveryFilter === f && styles.filterChipTextActive]}>
+                        {f === 'all' ? 'Todos' : DELIVERY_METHOD_LABEL[f]}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
             )}
             {donations?.length === 0 && (
               <EmptyState
@@ -200,6 +225,11 @@ export function ClaimedByMeScreen({ navigation }: Props) {
               <Text style={styles.mono}>{item.Public_Donation_Code}</Text>
               <Text style={styles.meta}>
                 Qtd: {item.Quantity} · Estado: {item.Condition}
+              </Text>
+              <Text style={styles.meta}>
+                {item.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[item.Recipient_Category] : '—'}
+                {' · '}
+                {item.Delivery_Method ? DELIVERY_METHOD_LABEL[item.Delivery_Method] : '—'}
               </Text>
               {item.City && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
@@ -328,6 +358,31 @@ const styles = StyleSheet.create({
     fontFamily: 'WorkSans-400',
     fontSize: 13,
     color: colors.danger,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+    marginBottom: spacing[3],
+  },
+  filterChip: {
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterChipActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  filterChipText: {
+    fontFamily: 'WorkSans-600',
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  filterChipTextActive: {
+    color: colors.accentText,
   },
   card: {
     padding: 0,

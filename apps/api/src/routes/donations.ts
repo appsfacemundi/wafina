@@ -53,6 +53,8 @@ donationsRouter.post(
       Item_Type: req.body.Item_Type,
       Quantity: Number(req.body.Quantity),
       Condition: req.body.Condition,
+      Recipient_Category: req.body.Recipient_Category,
+      Delivery_Method: req.body.Delivery_Method,
       Location: { lat: Number(req.body.Location_lat), lng: Number(req.body.Location_lng) },
       City: req.body.City as string | undefined,
     };
