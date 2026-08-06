@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { Institution } from '@wafina/shared';
+import { toProxiedUrl } from '../config/drive';
 import { SHEET_TABS } from '../config/sheet-tabs';
-import { fromSheetBool, fromSheetLatLong, toSheetBool, toSheetLatLong } from '../config/sheet-values';
+import { fromSheetBool, fromSheetLatLong, nowIso, toSheetBool, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { isActiveCountry } from './geo-regions';
 import { sumDeliveredQuantityForInstitution } from './donations';
@@ -33,7 +34,7 @@ async function rowToInstitution(row: Record<string, string>): Promise<Institutio
     Institution_ID: row.Institution_ID,
     User_ID: row.User_ID,
     Name: row.Name,
-    Logo: row.Logo || null,
+    Logo: toProxiedUrl(row.Logo),
     Type: row.Type,
     Location: fromSheetLatLong(row.Location ?? '') ?? { lat: 0, lng: 0 },
     Needs_List: row.Needs_List || null,
@@ -46,6 +47,7 @@ async function rowToInstitution(row: Record<string, string>): Promise<Institutio
     Service_Radius_Km: row.Service_Radius_Km ? Number(row.Service_Radius_Km) : null,
     Coverage_Area: row.Coverage_Area || null,
     Address: row.Address || null,
+    Created_At: row.Created_At || null,
   };
 }
 
@@ -119,6 +121,7 @@ export async function createInstitution(
     Service_Radius_Km: input.Service_Radius_Km !== undefined ? String(input.Service_Radius_Km) : '',
     Coverage_Area: input.Coverage_Area ?? '',
     Address: input.Address ?? '',
+    Created_At: nowIso(),
   };
 
   await appendRow(SHEET_TABS.institutions, row);
@@ -144,23 +147,29 @@ export async function getInstitutionById(institutionId: string): Promise<Institu
  */
 export async function listVerifiedInstitutions(countryId?: string): Promise<Institution[]> {
   const rows = await getRows(SHEET_TABS.institutions);
-  const verifiedRows = rows.filter(
-    (row) => fromSheetBool(row.Verified ?? '') && (!countryId || row.Country_ID === countryId),
-  );
+  // Epic 0.5, 2026-08-06: newest-registered first, now that Created_At exists —
+  // same `|| ''` fallback idiom as Donations/SuccessStories, so institutions
+  // registered before this field existed sort last rather than erroring.
+  const verifiedRows = rows
+    .filter((row) => fromSheetBool(row.Verified ?? '') && (!countryId || row.Country_ID === countryId))
+    .sort((a, b) => (b.Created_At || '').localeCompare(a.Created_At || ''));
   return Promise.all(verifiedRows.map(rowToInstitution));
 }
 
 /** Admin Web App foundation — institutions awaiting verification (spec 11.2). */
 export async function listPendingInstitutions(): Promise<Institution[]> {
   const rows = await getRows(SHEET_TABS.institutions);
-  const pendingRows = rows.filter((row) => !fromSheetBool(row.Verified ?? ''));
+  const pendingRows = rows
+    .filter((row) => !fromSheetBool(row.Verified ?? ''))
+    .sort((a, b) => (b.Created_At || '').localeCompare(a.Created_At || ''));
   return Promise.all(pendingRows.map(rowToInstitution));
 }
 
 /** Admin Web App Parity Phase C — Reports, unfiltered by verification status. */
 export async function listAllInstitutions(): Promise<Institution[]> {
   const rows = await getRows(SHEET_TABS.institutions);
-  return Promise.all(rows.map(rowToInstitution));
+  const sorted = [...rows].sort((a, b) => (b.Created_At || '').localeCompare(a.Created_At || ''));
+  return Promise.all(sorted.map(rowToInstitution));
 }
 
 /**

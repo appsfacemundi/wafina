@@ -1,6 +1,7 @@
 'use client';
 
 import type { GeoRegion, Institution } from '@wafina/shared';
+import { formatDateLabel } from '@wafina/shared';
 import { Badge, Button, Card, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -64,7 +65,13 @@ export default function AdminInstitutionsPage() {
     const q = search.trim().toLowerCase();
     let base = q ? institutions.filter((i) => i.Name.toLowerCase().includes(q)) : institutions;
     if (statusFilter !== 'all') base = base.filter((i) => statusOf(i) === statusFilter);
-    return [...base].sort((a, b) => STATUS_PRIORITY[statusOf(a)] - STATUS_PRIORITY[statusOf(b)]);
+    // Epic 0.5, 2026-08-06: Created_At now exists — within a status group,
+    // newest-registered first, closing the gap this comment used to flag.
+    return [...base].sort((a, b) => {
+      const statusDiff = STATUS_PRIORITY[statusOf(a)] - STATUS_PRIORITY[statusOf(b)];
+      if (statusDiff !== 0) return statusDiff;
+      return (b.Created_At || '').localeCompare(a.Created_At || '');
+    });
   }, [institutions, search, statusFilter]);
 
   function countryName(countryId: string): string {
@@ -169,6 +176,11 @@ export default function AdminInstitutionsPage() {
                   <p className="mono" style={{ fontSize: 11.5, color: 'var(--color-text-faint)' }}>
                     {institution.Institution_ID}
                   </p>
+                  {institution.Created_At && (
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                      Registado: {formatDateLabel(institution.Created_At)}
+                    </p>
+                  )}
                   <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
                     Localização: {institution.Location.lat.toFixed(5)}, {institution.Location.lng.toFixed(5)}
                     {institution.Service_Radius_Km ? ` · Raio: ${institution.Service_Radius_Km} km` : ''}

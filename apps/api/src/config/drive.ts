@@ -71,3 +71,53 @@ export async function uploadPhoto(
 
   return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
 }
+
+/**
+ * Root-caused 2026-08-06: Firefox's Enhanced Tracking Protection (on by
+ * default for every Firefox user, not opt-in) blocks `drive.google.com`/
+ * `googleusercontent.com` as third-party tracking-adjacent domains when
+ * embedded cross-site via `<img src>` — even though the `thumbnail?id=`
+ * format above has no CORP header and loads fine via direct navigation or
+ * top-level fetch. Confirmed live: the same URL failed inside the real
+ * rendered Admin page and succeeded when opened directly.
+ *
+ * Fix: proxy through our own domain instead of hotlinking Drive directly.
+ * Applied at read time (see routes/photos.ts + every rowTo* call site),
+ * not at upload time — `uploadPhoto` above is intentionally unchanged, so
+ * this also fixes every already-stored URL retroactively, no migration.
+ *
+ * Handles both the current `thumbnail?id=` format and the prior `uc?id=`
+ * format (live 2026-07-28 to 2026-07-31) — same `id=` query param position
+ * in both, so one extraction covers any row regardless of when it was
+ * created.
+ */
+export function toProxiedUrl(rawUrl: string | null | undefined): string | null {
+  if (!rawUrl) return null;
+  const match = rawUrl.match(/[?&]id=([^&]+)/);
+  if (!match) return rawUrl;
+  return `${env.publicUrl}/photos/${match[1]}`;
+}
+
+/**
+ * Streams a Drive file's bytes back out, for the /photos/:fileId proxy
+ * route. `alt: 'media'` is the googleapis convention for "give me the raw
+ * file content" rather than metadata.
+ */
+export async function getDriveFileStream(
+  fileId: string,
+): Promise<{ stream: NodeJS.ReadableStream; mimeType: string }> {
+  const drive = getClient();
+
+  const metadata = await drive.files.get({
+    fileId,
+    fields: 'mimeType',
+    supportsAllDrives: true,
+  });
+
+  const { data } = await drive.files.get(
+    { fileId, alt: 'media', supportsAllDrives: true },
+    { responseType: 'stream' },
+  );
+
+  return { stream: data as unknown as NodeJS.ReadableStream, mimeType: metadata.data.mimeType ?? 'image/jpeg' };
+}

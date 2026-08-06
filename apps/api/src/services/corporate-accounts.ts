@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AdminCorporateAccountView, CorporateAccount, UserStatus } from '@wafina/shared';
+import { toProxiedUrl } from '../config/drive';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
@@ -13,7 +14,7 @@ function rowToCorporateAccount(row: Record<string, string>): CorporateAccount {
     Country: row.Country,
     Date_Created: row.Date_Created,
     Status: (row.Status as UserStatus) || 'Active',
-    Logo: row.Logo || null,
+    Logo: toProxiedUrl(row.Logo),
   };
 }
 

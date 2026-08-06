@@ -12,9 +12,17 @@ function optionalEnv(name: string): string | undefined {
   return process.env[name];
 }
 
+const port = Number(requireEnv('PORT', '4000'));
+
 export const env = {
-  port: Number(requireEnv('PORT', '4000')),
+  port,
   nodeEnv: requireEnv('NODE_ENV', 'development'),
+  // Base URL this API is reachable at, used to build absolute image-proxy
+  // URLs. Render auto-injects RENDER_EXTERNAL_URL for every web service —
+  // no manual config needed there. API_PUBLIC_URL is an explicit override
+  // for any other host; localhost is the local-dev fallback.
+  publicUrl:
+    optionalEnv('API_PUBLIC_URL') ?? optionalEnv('RENDER_EXTERNAL_URL') ?? `http://localhost:${port}`,
   // Comma-separated list of origins allowed to call this API (the web app's dev/prod URLs).
   allowedOrigins: requireEnv('ALLOWED_ORIGINS', 'http://localhost:3000')
     .split(',')

@@ -14,6 +14,7 @@ import { geoRegionsRouter } from './routes/geo-regions';
 import { healthRouter } from './routes/health';
 import { institutionsRouter } from './routes/institutions';
 import { notificationsRouter } from './routes/notifications';
+import { photosRouter } from './routes/photos';
 import { successStoriesRouter } from './routes/success-stories';
 import { usersRouter } from './routes/users';
 
@@ -38,6 +39,10 @@ app.use(express.json());
 app.use(requestLogger);
 // Health checks stay unthrottled — a monitoring tool polling this shouldn't compete with real traffic for quota.
 app.use(healthRouter);
+// Same reasoning as health: a single list page can request a dozen+ images, and this is IP-keyed —
+// coupling read-only, publicly-cacheable image loads to the same budget as authenticated JSON calls
+// would exhaust real users' quota just from rendering a page (found 2026-08-06, image-proxy fix).
+app.use(photosRouter);
 app.use(generalLimiter);
 app.use(authRouter);
 app.use(geoRegionsRouter);

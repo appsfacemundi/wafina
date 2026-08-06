@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AdminSuccessStoryView, SuccessStory, SuccessStoryStatus } from '@wafina/shared';
+import { toProxiedUrl } from '../config/drive';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
@@ -19,7 +20,7 @@ function rowToSuccessStory(row: Record<string, string>): SuccessStory {
     Donor_ID: row.Donor_ID,
     Title: row.Title,
     Description: row.Description,
-    Image: row.Image,
+    Image: toProxiedUrl(row.Image) ?? '',
     Status: row.Status as SuccessStoryStatus,
     Rejection_Reason: row.Rejection_Reason || null,
     Author_User_ID: row.Author_User_ID,

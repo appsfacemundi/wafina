@@ -44,4 +44,12 @@ export interface Institution {
    * registration used GPS directly (no typed address to store).
    */
   Address: string | null;
+  /**
+   * Epic 0.5, 2026-08-06 — new column, added after some institutions already
+   * existed (same situation as Donations.Date_Submitted/SuccessStories.
+   * Date_Published when those were added). Null on rows registered before
+   * this field existed; those sort last in newest-first lists rather than
+   * erroring.
+   */
+  Created_At: string | null;
 }

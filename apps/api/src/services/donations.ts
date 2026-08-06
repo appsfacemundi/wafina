@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AdminDonationView, Donation, DonationStatus, InstitutionDonationView } from '@wafina/shared';
+import { toProxiedUrl } from '../config/drive';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetLatLong, nowIso, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
@@ -22,7 +23,7 @@ function rowToDonation(row: Record<string, string>): Donation {
     Item_Type: row.Item_Type,
     Quantity: Number(row.Quantity),
     Condition: row.Condition,
-    Photo: row.Photo,
+    Photo: toProxiedUrl(row.Photo) ?? '',
     Location: fromSheetLatLong(row.Location ?? '') ?? { lat: 0, lng: 0 },
     Status: row.Status as DonationStatus,
     Claimed_By_Institution_ID: row.Claimed_By_Institution_ID || null,
@@ -219,7 +220,7 @@ async function resolveDonorDisplays(
     if (donor.Donor_Subtype === 'Corporate' && donor.Corporate_Account_ID) {
       const corp = corpById.get(donor.Corporate_Account_ID);
       if (corp) {
-        result.set(donorId, { name: corp.Company_Name || null, logo: corp.Logo || null });
+        result.set(donorId, { name: corp.Company_Name || null, logo: toProxiedUrl(corp.Logo) });
         continue;
       }
     }
@@ -302,7 +303,7 @@ export async function listInFlightDonationsForAdmin(): Promise<AdminDonationView
     return {
       ...view,
       Claimed_By_Institution_Name: institution?.Name || null,
-      Claimed_By_Institution_Logo: institution?.Logo || null,
+      Claimed_By_Institution_Logo: toProxiedUrl(institution?.Logo),
     };
   });
 }
@@ -333,7 +334,7 @@ export async function listAllDonationsForAdmin(): Promise<AdminDonationView[]> {
     return {
       ...view,
       Claimed_By_Institution_Name: institution?.Name || null,
-      Claimed_By_Institution_Logo: institution?.Logo || null,
+      Claimed_By_Institution_Logo: toProxiedUrl(institution?.Logo),
     };
   });
 }
