@@ -11,7 +11,7 @@ import { ApiError, apiFetch } from '@/lib/api';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
 export function OnboardingProfileScreen() {
-  const { firebaseUser, refreshSession } = useAuth();
+  const { firebaseUser, refreshSession, signOutUser } = useAuth();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [countries, setCountries] = useState<GeoRegion[] | null>(null);
@@ -75,6 +75,9 @@ export function OnboardingProfileScreen() {
           {error ? <ErrorBanner message={error} /> : null}
           <Button onPress={onSubmit} loading={submitting} disabled={!homeCountryId} fullWidth>
             Continuar
+          </Button>
+          <Button variant="ghost" onPress={() => signOutUser()} fullWidth>
+            Não é a sua conta? Sair
           </Button>
         </Card>
       </View>
