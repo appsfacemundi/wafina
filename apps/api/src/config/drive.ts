@@ -82,14 +82,20 @@ export async function uploadPhoto(
  * rendered Admin page and succeeded when opened directly.
  *
  * Fix: proxy through our own domain instead of hotlinking Drive directly.
- * Applied at read time (see routes/photos.ts + every rowTo* call site),
- * not at upload time — `uploadPhoto` above is intentionally unchanged, so
- * this also fixes every already-stored URL retroactively, no migration.
+ * Applied at read time, not at upload time — `uploadPhoto` above is
+ * intentionally unchanged, so this also fixes every already-stored URL
+ * retroactively, no migration.
  *
  * Handles both the current `thumbnail?id=` format and the prior `uc?id=`
  * format (live 2026-07-28 to 2026-07-31) — same `id=` query param position
  * in both, so one extraction covers any row regardless of when it was
  * created.
+ *
+ * This function and `getDriveFileStream` below are Drive-specific
+ * implementation details — nothing outside this file calls them directly.
+ * Every service and the /photos/:id route go through config/photo-storage.ts's
+ * storage-agnostic wrapper instead, so a future storage-provider swap only
+ * touches that one file.
  */
 export function toProxiedUrl(rawUrl: string | null | undefined): string | null {
   if (!rawUrl) return null;
@@ -99,8 +105,8 @@ export function toProxiedUrl(rawUrl: string | null | undefined): string | null {
 }
 
 /**
- * Streams a Drive file's bytes back out, for the /photos/:fileId proxy
- * route. `alt: 'media'` is the googleapis convention for "give me the raw
+ * Streams a Drive file's bytes back out, via config/photo-storage.ts's
+ * `getPhotoStream` wrapper. `alt: 'media'` is the googleapis convention for "give me the raw
  * file content" rather than metadata.
  */
 export async function getDriveFileStream(

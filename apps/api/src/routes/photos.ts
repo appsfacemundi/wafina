@@ -1,21 +1,23 @@
 import { Router } from 'express';
-import { getDriveFileStream } from '../config/drive';
+import { getPhotoStream } from '../config/photo-storage';
 import { asyncHandler } from '../middleware/async-handler';
 
 export const photosRouter = Router();
 
 /**
- * Image proxy — see the comment on `toProxiedUrl` in config/drive.ts for
- * why this exists. Intentionally public: a plain `<img src>`/RN `<Image>`
+ * Image proxy — see config/photo-storage.ts for why this exists and stays
+ * storage-agnostic. Intentionally public: a plain `<img src>`/RN `<Image>`
  * can't attach an Authorization header, and these files are already
- * Drive-permissioned "anyone with the link, read-only" (uploadPhoto grants
- * that on every upload), so this doesn't loosen anything. Mounted before
- * the general rate limiter in index.ts — see that file for why.
+ * permissioned "anyone with the link, read-only" on upload, so this
+ * doesn't loosen anything. Mounted before the general rate limiter in
+ * index.ts — see that file for why. `:id` is deliberately generic, not
+ * `:fileId` — it's whatever identifier the active storage provider needs,
+ * not necessarily a Drive file ID once that provider changes.
  */
 photosRouter.get(
-  '/photos/:fileId',
+  '/photos/:id',
   asyncHandler(async (req, res) => {
-    const { stream, mimeType } = await getDriveFileStream(req.params.fileId);
+    const { stream, mimeType } = await getPhotoStream(req.params.id);
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     stream.pipe(res);

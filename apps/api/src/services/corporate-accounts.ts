@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AdminCorporateAccountView, CorporateAccount, UserStatus } from '@wafina/shared';
-import { toProxiedUrl } from '../config/drive';
+import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
