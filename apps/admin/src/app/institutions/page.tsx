@@ -1,7 +1,7 @@
 'use client';
 
 import type { GeoRegion, Institution } from '@wafina/shared';
-import { Badge, Button, Card, EmptyState, Input, Photo, useToast } from '@wafina/ui';
+import { Badge, Button, Card, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
@@ -29,6 +29,7 @@ export default function AdminInstitutionsPage() {
   const [institutions, setInstitutions] = useState<Institution[] | null>(null);
   const [countries, setCountries] = useState<GeoRegion[]>([]);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<InstitutionStatus | 'all'>('all');
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -53,12 +54,18 @@ export default function AdminInstitutionsPage() {
     load();
   }, [firebaseUser]);
 
+  // Pilot feedback, 2026-08-05: unsorted (whatever order the sheet rows
+  // arrived in) — same pending-needs-attention-first ordering already
+  // applied to the Reports page's Institutions filter.
+  const STATUS_PRIORITY: Record<InstitutionStatus, number> = { pending: 0, rejected: 1, verified: 2 };
+
   const filtered = useMemo(() => {
     if (!institutions) return null;
     const q = search.trim().toLowerCase();
-    if (!q) return institutions;
-    return institutions.filter((i) => i.Name.toLowerCase().includes(q));
-  }, [institutions, search]);
+    let base = q ? institutions.filter((i) => i.Name.toLowerCase().includes(q)) : institutions;
+    if (statusFilter !== 'all') base = base.filter((i) => statusOf(i) === statusFilter);
+    return [...base].sort((a, b) => STATUS_PRIORITY[statusOf(a)] - STATUS_PRIORITY[statusOf(b)]);
+  }, [institutions, search, statusFilter]);
 
   function countryName(countryId: string): string {
     return countries.find((c) => c.Region_ID === countryId)?.Name ?? countryId;
@@ -110,11 +117,23 @@ export default function AdminInstitutionsPage() {
     <AppShell>
       <div className="stack">
         <h1 style={{ fontSize: 24 }}>Instituições</h1>
-        <Input
-          label="Procurar por nome"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <Input
+            label="Procurar por nome"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Select
+            label="Estado"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as InstitutionStatus | 'all')}
+          >
+            <option value="all">Todos</option>
+            <option value="pending">Pendente</option>
+            <option value="verified">Verificada</option>
+            <option value="rejected">Rejeitada</option>
+          </Select>
+        </div>
         {error && <div className="banner banner-error">{error}</div>}
 
         {filtered === null && !error && (
