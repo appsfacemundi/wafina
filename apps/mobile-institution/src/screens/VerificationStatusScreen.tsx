@@ -42,7 +42,7 @@ export function VerificationStatusScreen() {
             <>
               <Badge tone="warning">Por verificar</Badge>
               <Text style={styles.hint}>
-                O seu registo está a aguardar aprovação do Admin. Isto pode demorar alguns dias.
+                O seu registo está a aguardar aprovação do Admin. Isto demora normalmente entre 24 a 48 horas.
               </Text>
             </>
           )}
