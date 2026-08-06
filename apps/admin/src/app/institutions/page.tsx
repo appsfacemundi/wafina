@@ -1,6 +1,6 @@
 'use client';
 
-import type { GeoRegion, Institution } from '@wafina/shared';
+import type { GeoRegion, Institution, InstitutionReviewEvent } from '@wafina/shared';
 import { formatDateLabel } from '@wafina/shared';
 import { Badge, Button, Card, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
@@ -15,6 +15,24 @@ function statusOf(institution: Institution): InstitutionStatus {
   if (institution.Rejection_Reason) return 'rejected';
   return 'pending';
 }
+
+/**
+ * A pending institution whose history includes a prior Rejected event is a
+ * resubmission, not a first-time registration — Admin should be able to
+ * tell those apart at a glance (item 4 of the RC1 rejection/resubmission
+ * UX pass, 2026-08-06). Only meaningful while pending: once rejected again
+ * or approved, the current status badge already says what matters more.
+ */
+function isResubmitted(institution: Institution): boolean {
+  return statusOf(institution) === 'pending' && institution.Review_History.some((e) => e.event === 'Rejected');
+}
+
+const REVIEW_EVENT_LABEL: Record<InstitutionReviewEvent['event'], string> = {
+  Submitted: 'Submetida',
+  Rejected: 'Rejeitada',
+  Resubmitted: 'Reenviada',
+  Approved: 'Aprovada',
+};
 
 const STATUS_BADGE: Record<InstitutionStatus, { label: string; tone: 'success' | 'warning' | 'danger' }> = {
   verified: { label: 'Verificada', tone: 'success' },
@@ -168,7 +186,10 @@ export default function AdminInstitutionsPage() {
                 <div className="stack" style={{ gap: 2, flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                     <p style={{ fontWeight: 600, fontSize: 16 }}>{institution.Name}</p>
-                    <Badge tone={badge.tone}>{badge.label}</Badge>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {isResubmitted(institution) && <Badge tone="info">Reenviada</Badge>}
+                      <Badge tone={badge.tone}>{badge.label}</Badge>
+                    </div>
                   </div>
                   <p className="needs">
                     {institution.Type} · {countryName(institution.Country_ID)}
@@ -196,6 +217,21 @@ export default function AdminInstitutionsPage() {
                       Motivo: {institution.Rejection_Reason}
                     </p>
                   )}
+                  {institution.Review_History.length > 0 && (
+                    <details>
+                      <summary style={{ fontSize: 13, color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+                        Histórico de revisão ({institution.Review_History.length})
+                      </summary>
+                      <ul className="stack" style={{ gap: 2, marginTop: 4, paddingLeft: 16 }}>
+                        {institution.Review_History.map((event, i) => (
+                          <li key={i} style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+                            {REVIEW_EVENT_LABEL[event.event]} — {formatDateLabel(event.at)}
+                            {event.reason ? `: ${event.reason}` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </div>
               </div>
 
@@ -206,11 +242,12 @@ export default function AdminInstitutionsPage() {
                       label="Motivo da rejeição"
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
+                      // Inline, not just the page-top banner — found live, 2026-08-06: a
+                      // validation error rendered only at the top of the page was invisible
+                      // when this form is deep in a long list. Input already supports a red
+                      // border + inline message via `error`, just wasn't wired up here.
+                      error={rejectingId === institution.Institution_ID ? error : undefined}
                     />
-                    {/* Inline, not just the page-top banner (institutions/page.tsx original) —
-                        found live, 2026-08-06: a validation error rendered only at the top of
-                        the page was invisible when this form is deep in a long list. */}
-                    {error && <div className="banner banner-error">{error}</div>}
                     <div style={{ display: 'flex', gap: 8 }}>
                       <Button
                         variant="danger"

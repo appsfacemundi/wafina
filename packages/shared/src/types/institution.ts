@@ -1,5 +1,18 @@
 import type { GeoPoint } from './geo-point';
 
+/**
+ * RC1, 2026-08-06 — the audit trail behind the Admin "Resubmitted" badge
+ * and Review History section. Needed because Rejection_Reason gets cleared
+ * on resubmission (the reject flow's whole point is a clean slate for
+ * re-review) — without a separate log, that clearing would also erase the
+ * only evidence a rejection ever happened.
+ */
+export interface InstitutionReviewEvent {
+  event: 'Submitted' | 'Rejected' | 'Resubmitted' | 'Approved';
+  reason: string | null;
+  at: string;
+}
+
 export interface Institution {
   Institution_ID: string;
   /** FK -> Users.User_ID, unique (spec 7.1: 1:1 Users <-> Institutions). */
@@ -52,4 +65,6 @@ export interface Institution {
    * erroring.
    */
   Created_At: string | null;
+  /** See InstitutionReviewEvent above. Always an array — empty if the row predates this field. */
+  Review_History: InstitutionReviewEvent[];
 }

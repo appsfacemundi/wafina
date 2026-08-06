@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Institution } from '@wafina/shared';
+import type { Institution, InstitutionReviewEvent } from '@wafina/shared';
 import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetBool, fromSheetLatLong, nowIso, toSheetBool, toSheetLatLong } from '../config/sheet-values';
@@ -19,6 +19,32 @@ const MIN_NAME_LENGTH = 2;
  * nothing default, since the column doesn't exist there yet (spec 5.2 gap).
  */
 const ALL_PROFILE_FIELDS = ['Name', 'Type', 'Location', 'Needs_List', 'Logo'];
+
+/**
+ * Review-history audit trail (RC1, 2026-08-06) — a single JSON-encoded cell
+ * rather than a new Sheet tab, same "one more nullable column" pattern as
+ * Created_At. Malformed/empty cells default to [] rather than throwing, so
+ * rows that predate this field (or any unexpected content) degrade
+ * gracefully instead of breaking the page.
+ */
+function parseReviewHistory(raw: string | undefined): InstitutionReviewEvent[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function appendReviewEvent(
+  history: InstitutionReviewEvent[],
+  event: InstitutionReviewEvent['event'],
+  reason: string | null = null,
+): string {
+  const next: InstitutionReviewEvent[] = [...history, { event, reason, at: nowIso() }];
+  return JSON.stringify(next);
+}
 
 async function rowToInstitution(row: Record<string, string>): Promise<Institution> {
   const verified = fromSheetBool(row.Verified ?? '');
@@ -48,6 +74,7 @@ async function rowToInstitution(row: Record<string, string>): Promise<Institutio
     Coverage_Area: row.Coverage_Area || null,
     Address: row.Address || null,
     Created_At: row.Created_At || null,
+    Review_History: parseReviewHistory(row.Review_History),
   };
 }
 
@@ -134,6 +161,9 @@ export async function createInstitution(
     // needs fresh Admin attention now, not to stay buried at its original
     // registration time.
     Created_At: nowIso(),
+    Review_History: isResubmission
+      ? appendReviewEvent(parseReviewHistory(existing!.Review_History), 'Resubmitted')
+      : appendReviewEvent([], 'Submitted'),
   };
 
   if (isResubmission) {
@@ -202,6 +232,7 @@ export async function verifyInstitution(institutionId: string): Promise<Institut
   await updateRow(SHEET_TABS.institutions, 'Institution_ID', institutionId, {
     Verified: toSheetBool(true),
     Rejection_Reason: '',
+    Review_History: appendReviewEvent(parseReviewHistory(row.Review_History), 'Approved'),
   });
 
   await createNotification({
@@ -249,6 +280,7 @@ export async function rejectInstitution(institutionId: string, reason: string): 
   await updateRow(SHEET_TABS.institutions, 'Institution_ID', institutionId, {
     Verified: toSheetBool(false),
     Rejection_Reason: reason.trim(),
+    Review_History: appendReviewEvent(parseReviewHistory(row.Review_History), 'Rejected', reason.trim()),
   });
 
   await createNotification({
