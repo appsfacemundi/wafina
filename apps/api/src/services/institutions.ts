@@ -53,6 +53,8 @@ export interface CreateInstitutionInput {
   Name: string;
   Type: string;
   Location: { lat: number; lng: number };
+  /** RC1 design decision, 2026-08-06: logo is part of registration, required — not a post-hoc Settings upload. */
+  Logo: string;
   Needs_List?: string;
   /** Phase 3A Module 1 — the institution's actual operating country, required. */
   Country_ID: string;
@@ -79,6 +81,7 @@ export async function createInstitution(
     throw new ValidationError(`O nome deve ter pelo menos ${MIN_NAME_LENGTH} caracteres`);
   }
   if (!input.Type) throw new ValidationError('O tipo é obrigatório');
+  if (!input.Logo) throw new ValidationError('O logótipo da instituição é obrigatório');
   if (
     !Number.isFinite(input.Location?.lat) ||
     !Number.isFinite(input.Location?.lng) ||
@@ -109,7 +112,7 @@ export async function createInstitution(
     Location: toSheetLatLong(input.Location),
     Verified: toSheetBool(false),
     Needs_List: input.Needs_List ?? '',
-    Logo: '',
+    Logo: input.Logo,
     Rejection_Reason: '',
     Country_ID: input.Country_ID,
     Region_ID: input.Region_ID ?? '',

@@ -1,7 +1,18 @@
 import { detectSupportedCountryFromCoords, type GeoRegion } from '@wafina/shared';
+import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
@@ -9,8 +20,8 @@ import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
-import { ApiError, apiFetch } from '@/lib/api';
-import { colors, fonts, spacing } from '@/theme/tokens';
+import { ApiError, apiFetch, uploadFile } from '@/lib/api';
+import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 type LocationStatus = 'capturing' | 'captured' | 'failed' | 'geocoding' | 'geocoded';
 
@@ -24,6 +35,7 @@ export function RegisterScreen({ onRegistered }: Props) {
 
   const [name, setName] = useState('');
   const [type, setType] = useState('');
+  const [logo, setLogo] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [needsList, setNeedsList] = useState('');
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('capturing');
   const [lat, setLat] = useState('');
@@ -79,6 +91,37 @@ export function RegisterScreen({ onRegistered }: Props) {
     if (match) setCountryId(match.Region_ID);
   }, [locationStatus, lat, lng, countries]);
 
+  // RC1 design decision, 2026-08-06: logo is required at registration — same
+  // camera/gallery Alert-based picker pattern already proven on Donor's
+  // DonateScreen and this app's own Settings logo upload.
+  async function onPickLogoFromCamera() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      setError('É necessário acesso à câmara para tirar uma fotografia.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (!result.canceled && result.assets[0]) setLogo(result.assets[0]);
+  }
+
+  async function onPickLogoFromLibrary() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      setError('É necessário acesso às fotografias para anexar uma imagem.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (!result.canceled && result.assets[0]) setLogo(result.assets[0]);
+  }
+
+  function onPickLogo() {
+    Alert.alert('Adicionar logótipo', undefined, [
+      { text: 'Tirar fotografia', onPress: onPickLogoFromCamera },
+      { text: 'Escolher da galeria', onPress: onPickLogoFromLibrary },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  }
+
   const hasValidLocation =
     lat !== '' && lng !== '' && !(Number(lat) === 0 && Number(lng) === 0) && !Number.isNaN(Number(lat));
 
@@ -110,6 +153,10 @@ export function RegisterScreen({ onRegistered }: Props) {
       setError('Preencha o nome e o tipo da instituição.');
       return;
     }
+    if (!logo) {
+      setError('Adicione o logótipo da instituição.');
+      return;
+    }
     if (!hasValidLocation) {
       setError('É necessária uma localização válida. Ative o GPS ou confirme a sua morada.');
       return;
@@ -121,18 +168,19 @@ export function RegisterScreen({ onRegistered }: Props) {
     setSubmitting(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
-      await apiFetch('/institutions', {
-        method: 'POST',
+      await uploadFile('/institutions', 'logo', logo.uri, {
         idToken,
-        body: {
+        mimeType: logo.mimeType ?? 'image/jpeg',
+        parameters: {
           Name: name,
           Type: type,
-          Location: { lat: Number(lat), lng: Number(lng) },
-          Needs_List: needsList || undefined,
+          Location_lat: lat,
+          Location_lng: lng,
+          Needs_List: needsList,
           Country_ID: countryId,
-          Service_Radius_Km: serviceRadiusKm ? Number(serviceRadiusKm) : undefined,
-          Coverage_Area: coverageArea || undefined,
-          Address: address.trim() || undefined,
+          Service_Radius_Km: serviceRadiusKm,
+          Coverage_Area: coverageArea,
+          Address: address.trim(),
         },
       });
       await onRegistered();
@@ -158,6 +206,23 @@ export function RegisterScreen({ onRegistered }: Props) {
             value={type}
             onChangeText={setType}
           />
+
+          <View style={{ gap: spacing[1] }}>
+            <Text style={styles.label}>Logótipo da instituição</Text>
+            {logo ? (
+              <Image source={{ uri: logo.uri }} style={styles.logoPreview} />
+            ) : (
+              <Pressable style={styles.uploadWell} onPress={onPickLogo}>
+                <Text style={styles.hint}>Escolha um logótipo</Text>
+              </Pressable>
+            )}
+            {logo && (
+              <Button variant="secondary" onPress={onPickLogo}>
+                Escolher outro logótipo
+              </Button>
+            )}
+          </View>
+
           {countries ? (
             <Select
               label="País"
@@ -253,5 +318,18 @@ const styles = StyleSheet.create({
     fontFamily: 'WorkSans-400',
     fontSize: 12,
     color: colors.textFaint,
+  },
+  uploadWell: {
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
+    borderStyle: 'dashed',
+    borderRadius: radius.md,
+    paddingVertical: spacing[6],
+    alignItems: 'center',
+  },
+  logoPreview: {
+    width: 96,
+    height: 96,
+    borderRadius: radius.md,
   },
 });

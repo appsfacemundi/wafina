@@ -24,13 +24,39 @@ const upload = multer({
 /**
  * Registration (spec 13.3) — deliberately NOT gated by requireVerified, since
  * an unverified institution submitting its profile is exactly what this is for.
+ *
+ * RC1 design decision, 2026-08-06: logo becomes a required part of registration
+ * itself (previously only settable afterward via PATCH /institutions/me/logo),
+ * so this moved from a plain JSON body to multipart — same shape as donation
+ * creation (`POST /donations`), which already combines a required photo with
+ * other fields in one request.
  */
 institutionsRouter.post(
   '/institutions',
   requireAuth,
   requireRole('Institution'),
+  upload.single('logo'),
   asyncHandler(async (req, res) => {
-    const institution = await createInstitution(req.user!.userId, req.body);
+    if (!req.file) throw new ValidationError('O logótipo da instituição é obrigatório');
+
+    const logoUrl = await uploadPhoto(
+      req.file.buffer,
+      `${Date.now()}-${req.file.originalname}`,
+      req.file.mimetype,
+    );
+
+    const institution = await createInstitution(req.user!.userId, {
+      Name: req.body.Name,
+      Type: req.body.Type,
+      Location: { lat: Number(req.body.Location_lat), lng: Number(req.body.Location_lng) },
+      Logo: logoUrl,
+      Needs_List: req.body.Needs_List || undefined,
+      Country_ID: req.body.Country_ID,
+      Region_ID: req.body.Region_ID || undefined,
+      Service_Radius_Km: req.body.Service_Radius_Km ? Number(req.body.Service_Radius_Km) : undefined,
+      Coverage_Area: req.body.Coverage_Area || undefined,
+      Address: req.body.Address || undefined,
+    });
     res.status(201).json(institution);
   }),
 );
