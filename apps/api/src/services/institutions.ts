@@ -102,12 +102,21 @@ export async function createInstitution(
   }
 
   const existing = await findRow(SHEET_TABS.institutions, (r) => r.User_ID === userId);
-  if (existing) {
+  // RC1 design decision, 2026-08-06: rejection must allow correcting and
+  // resubmitting (the reject flow's whole point) — found live during Epic 0
+  // verification that this unconditionally blocked ANY existing row,
+  // permanently locking out a rejected institution with no way back in.
+  // A rejected row (not Verified, has a Rejection_Reason) updates in place;
+  // a pending-or-verified row still blocks, since neither of those should
+  // be re-submitted over.
+  const isResubmission =
+    existing && !fromSheetBool(existing.Verified ?? '') && Boolean(existing.Rejection_Reason);
+  if (existing && !isResubmission) {
     throw new ValidationError('Este utilizador já tem um perfil de Instituição');
   }
 
   const row = {
-    Institution_ID: randomUUID(),
+    Institution_ID: existing ? existing.Institution_ID : randomUUID(),
     User_ID: userId,
     Name: input.Name,
     Type: input.Type,
@@ -121,10 +130,17 @@ export async function createInstitution(
     Service_Radius_Km: input.Service_Radius_Km !== undefined ? String(input.Service_Radius_Km) : '',
     Coverage_Area: input.Coverage_Area ?? '',
     Address: input.Address ?? '',
+    // Resubmission counts as newly-registered for queue purposes — it
+    // needs fresh Admin attention now, not to stay buried at its original
+    // registration time.
     Created_At: nowIso(),
   };
 
-  await appendRow(SHEET_TABS.institutions, row);
+  if (isResubmission) {
+    await updateRow(SHEET_TABS.institutions, 'Institution_ID', row.Institution_ID, row);
+  } else {
+    await appendRow(SHEET_TABS.institutions, row);
+  }
   return rowToInstitution(row);
 }
 

@@ -207,6 +207,10 @@ export default function AdminInstitutionsPage() {
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
                     />
+                    {/* Inline, not just the page-top banner (institutions/page.tsx original) —
+                        found live, 2026-08-06: a validation error rendered only at the top of
+                        the page was invisible when this form is deep in a long list. */}
+                    {error && <div className="banner banner-error">{error}</div>}
                     <div style={{ display: 'flex', gap: 8 }}>
                       <Button
                         variant="danger"
