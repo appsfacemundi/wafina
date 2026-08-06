@@ -208,7 +208,7 @@ export function RegisterScreen({ onRegistered }: Props) {
           />
 
           <View style={{ gap: spacing[1] }}>
-            <Text style={styles.label}>Logótipo da instituição</Text>
+            <Text style={styles.label}>Logótipo da instituição (obrigatório)</Text>
             {logo ? (
               <Image source={{ uri: logo.uri }} style={styles.logoPreview} />
             ) : (
