@@ -20,6 +20,49 @@ import { apiFetch, ApiError } from '@/lib/api';
 
 type LocationStatus = 'capturing' | 'captured' | 'failed' | 'geocoding' | 'geocoded';
 
+/** Donate form redesign, 2026-08-07 — a label like "👨‍👩‍👧 Pessoas" splits into an emoji "icon" and its text. */
+function splitEmojiLabel(label: string): { emoji: string; text: string } {
+  const spaceIndex = label.indexOf(' ');
+  if (spaceIndex === -1) return { emoji: '', text: label };
+  return { emoji: label.slice(0, spaceIndex), text: label.slice(spaceIndex + 1) };
+}
+
+const CONDITION_EMOJI: Record<string, string> = {
+  Novo: '✨',
+  Usado: '🕰️',
+  'Bom estado': '✅',
+};
+
+function SectionHeader({ n, title }: { n: number; title: string }) {
+  return (
+    <div className="section-header">
+      <span className="section-badge">{n}</span>
+      <span className="section-title">{title}</span>
+    </div>
+  );
+}
+
+function Chip({
+  emoji,
+  text,
+  selected,
+  onClick,
+  wide,
+}: {
+  emoji: string;
+  text: string;
+  selected: boolean;
+  onClick: () => void;
+  wide?: boolean;
+}) {
+  return (
+    <button type="button" className={['chip', wide ? 'wide' : '', selected ? 'selected' : ''].join(' ')} onClick={onClick}>
+      <span className="chip-emoji">{emoji}</span>
+      <span>{text}</span>
+    </button>
+  );
+}
+
 export default function NewDonationPage() {
   const session = useRequireSession();
   const { firebaseUser } = useAuth();
@@ -27,7 +70,10 @@ export default function NewDonationPage() {
   const { showToast } = useToast();
 
   const [itemType, setItemType] = useState<string>(ITEM_TYPES[0]);
-  const [quantity, setQuantity] = useState('');
+  // Donate form redesign, 2026-08-07 — a blank starting quantity read as an
+  // incomplete/broken stepper; starting at 1 matches the stepper control and
+  // needs one less tap for the overwhelmingly common single-item donation.
+  const [quantity, setQuantity] = useState('1');
   const [condition, setCondition] = useState<string>(CONDITIONS[0]);
   const [recipientCategory, setRecipientCategory] = useState<RecipientCategory>(RECIPIENT_CATEGORIES[0]);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(DELIVERY_METHODS[0]);
@@ -40,6 +86,10 @@ export default function NewDonationPage() {
   const [lng, setLng] = useState<string>('');
   const [address, setAddress] = useState('');
   const [locationError, setLocationError] = useState('');
+  // RC1 pickup-location fix, 2026-08-07 — collapsed by default when GPS
+  // succeeds (keeps the form fast to fill), forced open when GPS failed
+  // since an address is then the only way to get a valid location.
+  const [addressExpanded, setAddressExpanded] = useState(false);
 
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -113,6 +163,11 @@ export default function NewDonationPage() {
     }
   }
 
+  const quantityNumber = Number(quantity) || 0;
+  function adjustQuantity(delta: number) {
+    setQuantity(String(Math.max(1, quantityNumber + delta)));
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
@@ -136,6 +191,7 @@ export default function NewDonationPage() {
       form.append('Recipient_Category', recipientCategory);
       form.append('Delivery_Method', deliveryMethod);
       form.append('City', city);
+      form.append('Address', address);
       form.append('Location_lat', lat);
       form.append('Location_lng', lng);
       form.append('photo', photo);
@@ -155,114 +211,217 @@ export default function NewDonationPage() {
 
   if (!session) return null;
 
+  const recipientChips = RECIPIENT_CATEGORIES.map((c) => ({ value: c, ...splitEmojiLabel(RECIPIENT_CATEGORY_LABEL[c]) }));
+  const deliveryChips = DELIVERY_METHODS.map((m) => ({ value: m, ...splitEmojiLabel(DELIVERY_METHOD_LABEL[m]) }));
+  let sectionN = 0;
+
   return (
     <AppShell>
       <div className="stack" style={{ maxWidth: 480 }}>
         <h1 style={{ fontSize: 24 }}>Doar</h1>
+
+        <div style={{ textAlign: 'center', padding: '0 var(--space-4) var(--space-2)' }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 'var(--radius-full)',
+              background: 'var(--color-cta-soft)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 26,
+              margin: '0 auto var(--space-2)',
+            }}
+          >
+            🎁
+          </div>
+          <p style={{ fontWeight: 700, fontSize: 19 }}>A sua doação transforma vidas</p>
+          <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
+            Preencha os dados abaixo para conectarmos a sua doação a quem mais precisa.
+          </p>
+        </div>
+
         <Card>
           <form onSubmit={onSubmit} className="stack">
-            <Select label="Tipo de item" value={itemType} onChange={(e) => setItemType(e.target.value)}>
-              {ITEM_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </Select>
+            <div>
+              <SectionHeader n={(sectionN += 1)} title="Tipo de item" />
+              <Select label="Tipo de item" hideLabel value={itemType} onChange={(e) => setItemType(e.target.value)}>
+                {ITEM_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
-            <Input
-              label="Quantidade"
-              type="number"
-              min={1}
-              required
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-            />
+            <div>
+              <SectionHeader n={(sectionN += 1)} title="Quantidade" />
+              <div className="stepper-row">
+                <button type="button" className="stepper-btn" onClick={() => adjustQuantity(-1)} aria-label="Diminuir quantidade">
+                  −
+                </button>
+                {/* Real-device feedback, 2026-08-07 — stepper-only forced a click-and-hold for larger quantities; typing the number directly is faster. */}
+                <span className="stepper-value" style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+                  <input
+                    className="stepper-input"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value.replace(/[^0-9]/g, ''))}
+                    onBlur={() => setQuantity(String(Math.max(1, Number(quantity) || 1)))}
+                    inputMode="numeric"
+                    aria-label="Quantidade"
+                  />
+                  <span>{quantityNumber === 1 ? 'peça' : 'peças'}</span>
+                </span>
+                <button type="button" className="stepper-btn" onClick={() => adjustQuantity(1)} aria-label="Aumentar quantidade">
+                  +
+                </button>
+              </div>
+            </div>
 
-            <Select label="Estado" value={condition} onChange={(e) => setCondition(e.target.value)}>
-              {CONDITIONS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </Select>
+            <div>
+              <SectionHeader n={(sectionN += 1)} title="Estado do item" />
+              <div className="chip-row">
+                {CONDITIONS.map((c) => (
+                  <Chip
+                    key={c}
+                    emoji={CONDITION_EMOJI[c] ?? '•'}
+                    text={c}
+                    selected={condition === c}
+                    onClick={() => setCondition(c)}
+                  />
+                ))}
+              </div>
+            </div>
 
-            <Select
-              label="Categoria do destinatário"
-              value={recipientCategory}
-              onChange={(e) => setRecipientCategory(e.target.value as RecipientCategory)}
-            >
-              {RECIPIENT_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {RECIPIENT_CATEGORY_LABEL[c]}
-                </option>
-              ))}
-            </Select>
+            <div>
+              <SectionHeader n={(sectionN += 1)} title="Destinatário" />
+              <div className="chip-row">
+                {recipientChips.map((c) => (
+                  <Chip
+                    key={c.value}
+                    emoji={c.emoji}
+                    text={c.text}
+                    selected={recipientCategory === c.value}
+                    onClick={() => setRecipientCategory(c.value)}
+                  />
+                ))}
+              </div>
+            </div>
 
-            <Select
-              label="Método de entrega"
-              value={deliveryMethod}
-              onChange={(e) => setDeliveryMethod(e.target.value as DeliveryMethod)}
-            >
-              {DELIVERY_METHODS.map((m) => (
-                <option key={m} value={m}>
-                  {DELIVERY_METHOD_LABEL[m]}
-                </option>
-              ))}
-            </Select>
+            <div>
+              <SectionHeader n={(sectionN += 1)} title="Método de entrega" />
+              <div className="chip-row">
+                {deliveryChips.map((m) => (
+                  <Chip
+                    key={m.value}
+                    emoji={m.emoji}
+                    text={m.text}
+                    selected={deliveryMethod === m.value}
+                    onClick={() => setDeliveryMethod(m.value)}
+                    wide
+                  />
+                ))}
+              </div>
+            </div>
 
             {corporateAccount && (
-              <Select
-                label="Doar como"
-                value={isCorporateDonation ? 'corporate' : 'personal'}
-                onChange={(e) => setIsCorporateDonation(e.target.value === 'corporate')}
-              >
-                <option value="personal">Doação Pessoal</option>
-                <option value="corporate">Doação da Empresa ({corporateAccount.Company_Name})</option>
-              </Select>
+              <div>
+                <SectionHeader n={(sectionN += 1)} title="Doar como" />
+                <Select
+                  label="Doar como"
+                  hideLabel
+                  value={isCorporateDonation ? 'corporate' : 'personal'}
+                  onChange={(e) => setIsCorporateDonation(e.target.value === 'corporate')}
+                >
+                  <option value="personal">Doação Pessoal</option>
+                  <option value="corporate">Doação da Empresa ({corporateAccount.Company_Name})</option>
+                </Select>
+              </div>
             )}
 
-            <Input
-              label="Cidade (opcional)"
-              placeholder="Ex: Luanda"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-            />
+            <div>
+              <SectionHeader n={(sectionN += 1)} title="Cidade (opcional)" />
+              <Input label="Cidade" hideLabel placeholder="Ex: Luanda" value={city} onChange={(e) => setCity(e.target.value)} />
+            </div>
 
             <div className="field">
-              <label htmlFor="photo-input">Fotografia da doação</label>
+              <SectionHeader n={(sectionN += 1)} title="Fotografia da doação" />
               {photoPreview ? (
-                <img
-                  src={photoPreview}
-                  alt="Pré-visualização da doação"
-                  style={{ maxWidth: '100%', borderRadius: 'var(--radius-md)' }}
-                />
+                <div className="photo-preview-wrap">
+                  <img
+                    src={photoPreview}
+                    alt="Pré-visualização da doação"
+                    style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 'var(--radius-md)', display: 'block' }}
+                  />
+                  <button
+                    type="button"
+                    className="photo-remove-btn"
+                    onClick={() => {
+                      onPhotoChange(null);
+                      const input = document.getElementById('photo-input') as HTMLInputElement | null;
+                      if (input) input.value = '';
+                    }}
+                    aria-label="Remover fotografia"
+                  >
+                    ✕
+                  </button>
+                </div>
               ) : (
-                <div className="upload-well">Escolha uma fotografia</div>
+                <label htmlFor="photo-input" className="upload-well" style={{ cursor: 'pointer', display: 'block' }}>
+                  📷 Adicionar fotografia
+                  <br />
+                  <span style={{ fontSize: 11.5, color: 'var(--color-text-faint)' }}>PNG, JPG até 8MB</span>
+                </label>
               )}
               <input
                 id="photo-input"
                 type="file"
                 accept="image/*"
+                style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0 }}
                 onChange={(e) => onPhotoChange(e.target.files?.[0] ?? null)}
               />
             </div>
 
             <div className="field">
-              <label>Localização</label>
-              {locationStatus === 'capturing' && (
-                <span className="hint">A obter a sua localização…</span>
-              )}
+              {locationStatus === 'capturing' && <span className="hint">A obter a sua localização…</span>}
               {(locationStatus === 'captured' || locationStatus === 'geocoded') && (
-                <span className="hint">📍 Localização confirmada</span>
+                <div className="location-pill">
+                  <span>📍</span>
+                  <div>
+                    <p className="location-pill-title" style={{ margin: 0 }}>
+                      Localização confirmada
+                    </p>
+                    <p className="location-pill-hint" style={{ margin: 0 }}>
+                      Usada apenas para conectar a doação a instituições próximas — a sua privacidade é respeitada.
+                    </p>
+                  </div>
+                </div>
               )}
               {(locationStatus === 'failed' || locationStatus === 'geocoding') && (
+                <span className="hint">
+                  Não foi possível obter a sua localização automaticamente. Indique a morada de recolha.
+                </span>
+              )}
+              {/*
+                RC1 pickup-location fix, 2026-08-07 — always sent as Address,
+                collapsed by default only when GPS already succeeded. A map
+                pin alone leaves the institution no way to identify the exact
+                spot or override where the browser's GPS placed the donor.
+              */}
+              {!addressExpanded && (locationStatus === 'captured' || locationStatus === 'geocoded') ? (
+                <button type="button" className="address-toggle" onClick={() => setAddressExpanded(true)}>
+                  + Adicionar morada ou referência de recolha (opcional)
+                </button>
+              ) : (
                 <div className="stack" style={{ gap: 8 }}>
-                  <span className="hint">
-                    Não foi possível obter a sua localização automaticamente. Introduza a sua morada.
-                  </span>
                   <Input
-                    label="Morada"
-                    placeholder="Ex: Rua Amílcar Cabral, Luanda"
+                    label={
+                      locationStatus === 'failed' || locationStatus === 'geocoding'
+                        ? 'Morada de recolha'
+                        : 'Morada / referência de recolha (opcional)'
+                    }
+                    placeholder="Ex: Rua Amílcar Cabral 23, apto 4B, portão azul"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                   />
@@ -272,7 +431,11 @@ export default function NewDonationPage() {
                     onClick={onFindAddress}
                     disabled={locationStatus === 'geocoding'}
                   >
-                    {locationStatus === 'geocoding' ? 'A localizar…' : 'Confirmar morada'}
+                    {locationStatus === 'geocoding'
+                      ? 'A localizar…'
+                      : hasValidLocation
+                        ? 'Recolher nesta morada em vez do GPS'
+                        : 'Confirmar morada'}
                   </Button>
                   {locationError && <div className="banner banner-error">{locationError}</div>}
                 </div>
@@ -281,8 +444,8 @@ export default function NewDonationPage() {
 
             {error && <div className="banner banner-error">{error}</div>}
 
-            <Button type="submit" fullWidth disabled={submitting}>
-              {submitting ? 'A submeter…' : 'Confirmar doação'}
+            <Button type="submit" variant="cta" fullWidth disabled={submitting}>
+              {submitting ? 'A submeter…' : '❤️ Confirmar doação'}
             </Button>
           </form>
         </Card>

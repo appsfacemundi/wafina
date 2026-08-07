@@ -57,6 +57,7 @@ donationsRouter.post(
       Delivery_Method: req.body.Delivery_Method,
       Location: { lat: Number(req.body.Location_lat), lng: Number(req.body.Location_lng) },
       City: req.body.City as string | undefined,
+      Address: req.body.Address as string | undefined,
     };
     // Validate everything else before spending a Drive upload on a request that would fail anyway.
     assertValidDonationFields(fields);

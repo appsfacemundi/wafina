@@ -285,8 +285,10 @@ export default function SettingsPage() {
         <Card className="stack">
           <p style={{ fontWeight: 600 }}>Privacidade</p>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
-            Se ativar, a instituição que receber uma doação sua vê o seu nome no cartão da doação.
-            Caso contrário, a doação aparece sem identificação pessoal.
+            Se ativar, a instituição que aceitar uma doação sua vê o seu nome e número de telefone
+            no cartão da doação, para poder combinar a recolha consigo. Caso contrário, a doação
+            aparece sem identificação pessoal — a instituição vê apenas a localização e a morada
+            que indicar.
           </p>
           <Select
             label="Mostrar o meu nome às instituições"

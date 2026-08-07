@@ -44,6 +44,7 @@ function rowToDonation(row: Record<string, string>): Donation {
     Date_Delivered: row.Date_Delivered || null,
     Country_ID: row.Country_ID,
     City: row.City || null,
+    Address: row.Address || null,
     Expected_Collection_Date: row.Expected_Collection_Date || null,
     Expected_Delivery_Date: row.Expected_Delivery_Date || null,
     Corporate_Account_ID: row.Corporate_Account_ID || null,
@@ -104,6 +105,8 @@ export interface CreateDonationInput {
   Location: { lat: number; lng: number };
   /** Free text, optional (e.g. "Luanda") — see the City field comment on the shared Donation type. */
   City?: string;
+  /** Optional — see the Address field comment on the shared Donation type. */
+  Address?: string;
   /** Epic 0.6, 2026-08-06 — required, fixed set. */
   Recipient_Category: RecipientCategory;
   /** Epic 0.6, 2026-08-06 — required, fixed set. */
@@ -178,6 +181,7 @@ export async function createDonation(
     Date_Delivered: '',
     Country_ID: activeCountryId,
     City: input.City?.trim() ?? '',
+    Address: input.Address?.trim() ?? '',
     Expected_Collection_Date: '',
     Expected_Delivery_Date: '',
     Corporate_Account_ID: corporateAccountId ?? '',
@@ -224,7 +228,7 @@ export async function listDonationsByCorporateAccount(corporateAccountId: string
  */
 async function resolveDonorDisplays(
   donorIds: Iterable<string>,
-): Promise<Map<string, { name: string | null; logo: string | null }>> {
+): Promise<Map<string, { name: string | null; logo: string | null; phone: string | null }>> {
   const [userRows, corpRows] = await Promise.all([
     getRows(SHEET_TABS.users),
     getRows(SHEET_TABS.corporateAccounts),
@@ -232,23 +236,30 @@ async function resolveDonorDisplays(
   const userById = new Map(userRows.map((u) => [u.User_ID, u]));
   const corpById = new Map(corpRows.map((c) => [c.Corporate_Account_ID, c]));
 
-  const result = new Map<string, { name: string | null; logo: string | null }>();
+  const result = new Map<string, { name: string | null; logo: string | null; phone: string | null }>();
   for (const donorId of donorIds) {
     const donor = userById.get(donorId);
     if (!donor) {
-      result.set(donorId, { name: null, logo: null });
+      result.set(donorId, { name: null, logo: null, phone: null });
       continue;
     }
+    // RC1 pickup-location fix — Donor_Phone follows the same
+    // Show_Name_To_Institutions gate as the name below, including for
+    // Corporate donors: the company name/logo is institutional (always
+    // shown), but the phone on file is still the individual donor's own,
+    // so it stays gated on their personal consent flag.
+    const phone = donor.Show_Name_To_Institutions === 'TRUE' ? donor.Phone || null : null;
     if (donor.Donor_Subtype === 'Corporate' && donor.Corporate_Account_ID) {
       const corp = corpById.get(donor.Corporate_Account_ID);
       if (corp) {
-        result.set(donorId, { name: corp.Company_Name || null, logo: toProxiedUrl(corp.Logo) });
+        result.set(donorId, { name: corp.Company_Name || null, logo: toProxiedUrl(corp.Logo), phone });
         continue;
       }
     }
     result.set(donorId, {
       name: donor.Show_Name_To_Institutions === 'TRUE' ? donor.Name || null : null,
       logo: null,
+      phone,
     });
   }
   return result;
@@ -259,11 +270,12 @@ async function toInstitutionDonationViews(
 ): Promise<InstitutionDonationView[]> {
   const displays = await resolveDonorDisplays(new Set(rows.map((r) => r.Donor_ID)));
   return rows.map((row) => {
-    const display = displays.get(row.Donor_ID) ?? { name: null, logo: null };
+    const display = displays.get(row.Donor_ID) ?? { name: null, logo: null, phone: null };
     return {
       ...rowToDonation(row),
       Donor_Display_Name: display.name,
       Donor_Display_Logo: display.logo,
+      Donor_Phone: display.phone,
     };
   });
 }
@@ -405,6 +417,7 @@ export async function editDonation(
   if (patch.Photo !== undefined) rowPatch.Photo = patch.Photo;
   if (patch.Location !== undefined) rowPatch.Location = toSheetLatLong(patch.Location);
   if (patch.City !== undefined) rowPatch.City = patch.City?.trim() ?? '';
+  if (patch.Address !== undefined) rowPatch.Address = patch.Address?.trim() ?? '';
 
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, rowPatch);
   const updated = await getDonation(donationId);

@@ -18,6 +18,8 @@ interface SelectProps {
   // pass {label, value} pairs when the displayed text must differ from the
   // value submitted to the API (e.g. translated labels over raw field keys).
   options: readonly string[] | readonly SelectOption[];
+  /** Donate screen redesign, 2026-08-07 — lets a numbered section header stand in for the label instead of showing it twice. The modal sheet still uses `label` as its title. */
+  hideLabel?: boolean;
 }
 
 // Real-device finding, 2026-08-06: @react-native-picker/picker (only
@@ -25,7 +27,7 @@ interface SelectProps {
 // a Fabric IllegalViewOperationException on a real Android phone — every
 // screen using it was unusable. Swapped for a plain Modal + FlatList sheet:
 // no native view manager involved at all, so it can't hit this failure mode.
-export function Select({ label, value, onValueChange, options }: SelectProps) {
+export function Select({ label, value, onValueChange, options, hideLabel }: SelectProps) {
   const [open, setOpen] = useState(false);
 
   const normalized: SelectOption[] = options.map((option) =>
@@ -35,7 +37,7 @@ export function Select({ label, value, onValueChange, options }: SelectProps) {
 
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      {!hideLabel && <Text style={styles.label}>{label}</Text>}
       <Pressable style={styles.trigger} onPress={() => setOpen(true)}>
         <Text style={styles.triggerText} numberOfLines={1}>
           {selected?.label ?? ''}

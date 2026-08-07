@@ -167,6 +167,10 @@ export default function AvailableDonationsPage() {
                       </a>
                     </p>
                   )}
+                  {/* RC1 pickup-location fix, 2026-08-07 — map pin alone left no way to identify the exact spot or reach the donor. */}
+                  {d.Address && (
+                    <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>🏠 {d.Address}</p>
+                  )}
                   {d.Donor_Display_Name && (
                     <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Photo
@@ -175,6 +179,13 @@ export default function AvailableDonationsPage() {
                         style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover' }}
                       />
                       {d.Donor_Display_Name}
+                    </p>
+                  )}
+                  {d.Donor_Phone && (
+                    <p style={{ fontSize: 13.5 }}>
+                      <a href={`tel:${d.Donor_Phone}`} style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
+                        📞 {d.Donor_Phone}
+                      </a>
                     </p>
                   )}
                   <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>

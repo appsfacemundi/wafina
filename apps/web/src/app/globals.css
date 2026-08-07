@@ -299,6 +299,158 @@ p {
   font-size: 13px;
 }
 
+/* ---- Donate form redesign, 2026-08-07 (numbered sections + chip pickers) ---- */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 6px;
+}
+.section-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.section-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.chip {
+  flex: 1 1 31%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface-2);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-2);
+  font-family: var(--font-body), sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-align: center;
+}
+.chip.wide {
+  flex-basis: 47%;
+}
+.chip.selected {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.chip-emoji {
+  font-size: 22px;
+}
+.stepper-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+.stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: #ffffff;
+  border: none;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+.stepper-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  min-width: 90px;
+  justify-content: center;
+}
+.stepper-input {
+  font-family: var(--font-body), sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+  width: 32px;
+  border: none;
+  background: none;
+  padding: 0;
+}
+.stepper-input:focus {
+  outline: none;
+  border-bottom: 1.5px solid var(--color-accent);
+}
+.location-pill {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  background: var(--success-100);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+.location-pill-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.location-pill-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.address-toggle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.photo-preview-wrap {
+  position: relative;
+}
+.photo-remove-btn {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: rgba(15, 23, 42, 0.6);
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
 /* ---- Badge ---- */
 .badge {
   display: inline-flex;

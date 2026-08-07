@@ -113,7 +113,16 @@ export default function AdminNotificationsPage() {
 
         <Card className="stack">
           <p style={{ fontWeight: 700, fontSize: 15 }}>Enviar a um utilizador</p>
-          <Input label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+            Envia uma notificação dentro da aplicação — não é um email. O utilizador vê-a na sua
+            própria conta Wafina, em "Notificações".
+          </p>
+          <Input
+            label="Email do utilizador (para localizar a conta)"
+            hint="Usado apenas para encontrar a conta — a mensagem não é enviada por email."
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
           <Input label="Mensagem" value={singleMessage} onChange={(e) => setSingleMessage(e.target.value)} />
           <Button onClick={onSendSingle} disabled={sendingSingle}>
             {sendingSingle ? 'A enviar…' : 'Enviar'}

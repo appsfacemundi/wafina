@@ -164,11 +164,24 @@ export function AvailableDonationsScreen() {
                   </Pressable>
                 </View>
               )}
+              {/*
+                RC1 pickup-location fix, 2026-08-07 — the map pin alone left
+                no way to identify the exact spot (which door/apartment) or
+                to reach the donor if they couldn't be found there. Address
+                is whatever the donor typed at submission; phone follows the
+                same Show_Name_To_Institutions gate as the donor's name.
+              */}
+              {item.Address && <Text style={styles.meta}>🏠 {item.Address}</Text>}
               {item.Donor_Display_Name && (
                 <View style={styles.donorRow}>
                   <Photo uri={item.Donor_Display_Logo} placeholderIcon="👤" style={styles.donorLogo} />
                   <Text style={styles.donorName}>{item.Donor_Display_Name}</Text>
                 </View>
+              )}
+              {item.Donor_Phone && (
+                <Pressable onPress={() => Linking.openURL(`tel:${item.Donor_Phone}`)}>
+                  <Text style={styles.mapLink}>📞 {item.Donor_Phone}</Text>
+                </Pressable>
               )}
               <Text style={styles.dateLabel}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
               <Button onPress={() => onClaim(item.Donation_ID)} disabled={claimingId === item.Donation_ID} fullWidth>

@@ -182,12 +182,32 @@ export default function AdminDonationsPage() {
                     <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
                       Qtd: {d.Quantity} · Estado: {d.Condition}
                       {d.City ? ` · ${d.City}` : ''}
+                      {' '}
+                      <a
+                        href={`https://www.google.com/maps?q=${d.Location.lat},${d.Location.lng}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: 'var(--color-accent)', fontWeight: 600 }}
+                      >
+                        Ver no mapa
+                      </a>
                     </p>
                     <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
                       {d.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[d.Recipient_Category] : '—'}
                       {' · '}
                       {d.Delivery_Method ? DELIVERY_METHOD_LABEL[d.Delivery_Method] : '—'}
                     </p>
+                    {/* RC1 pickup-location fix, 2026-08-07 — Admin needs the same pickup context as Institution to help resolve logistics issues. */}
+                    {d.Address && (
+                      <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>🏠 {d.Address}</p>
+                    )}
+                    {d.Donor_Phone && (
+                      <p style={{ fontSize: 13.5 }}>
+                        <a href={`tel:${d.Donor_Phone}`} style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
+                          📞 {d.Donor_Phone}
+                        </a>
+                      </p>
+                    )}
                     <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
                       📅 {daysAgoLabel(d.Date_Submitted)}
                     </p>

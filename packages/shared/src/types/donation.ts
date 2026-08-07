@@ -73,6 +73,16 @@ export interface Donation {
    */
   City: string | null;
   /**
+   * RC1 pickup-location fix (2026-08-07) — free text the donor enters
+   * alongside the GPS pin (street/building/unit, landmarks, gate codes,
+   * etc.), or the address they typed to override the pin entirely. Unlike
+   * the geocoding-only address input this replaces, this text is actually
+   * stored and shown to the claiming institution — Location (lat/lng) alone
+   * left institutions with a map pin and no way to identify the exact
+   * pickup spot or contact the donor if they couldn't find it.
+   */
+  Address: string | null;
+  /**
    * RC1 individual-vs-corporate attribution — set only when the donor chose
    * "Corporate Donation" at submission time, always their own linked
    * Corporate_Account_ID (never arbitrary). Null means this specific donation
@@ -90,10 +100,17 @@ export interface Donation {
  * respecting Users.Show_Name_To_Institutions for individual donors and always
  * showing the company name/logo for Corporate donors (institutional identity,
  * not personal, so not gated by that flag).
+ *
+ * RC1 pickup-location fix (2026-08-07) — Donor_Phone is resolved the same
+ * way and gated by the same flag as Donor_Display_Name: an institution that
+ * can't find the pickup spot from Address/Location needs a way to actually
+ * reach the donor, but a donor who opted out of showing their name has
+ * opted out of personal identification generally, phone included.
  */
 export interface InstitutionDonationView extends Donation {
   Donor_Display_Name: string | null;
   Donor_Display_Logo: string | null;
+  Donor_Phone: string | null;
 }
 
 /**

@@ -267,11 +267,18 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                   </Pressable>
                 </View>
               )}
+              {/* RC1 pickup-location fix, 2026-08-07 — see AvailableDonationsScreen for context. */}
+              {item.Address && <Text style={styles.meta}>🏠 {item.Address}</Text>}
               {item.Donor_Display_Name && (
                 <View style={styles.donorRow}>
                   <Photo uri={item.Donor_Display_Logo} placeholderIcon="👤" style={styles.donorLogo} />
                   <Text style={styles.donorName}>{item.Donor_Display_Name}</Text>
                 </View>
+              )}
+              {item.Donor_Phone && (
+                <Pressable onPress={() => Linking.openURL(`tel:${item.Donor_Phone}`)}>
+                  <Text style={styles.mapLink}>📞 {item.Donor_Phone}</Text>
+                </Pressable>
               )}
               <Text style={styles.dateLabel}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
               {(item.Expected_Collection_Date || item.Expected_Delivery_Date) && (

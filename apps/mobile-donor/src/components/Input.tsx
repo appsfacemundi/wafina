@@ -5,12 +5,14 @@ interface InputProps extends TextInputProps {
   label: string;
   hint?: string;
   error?: string;
+  /** Donate screen redesign, 2026-08-07 — lets a numbered section header stand in for the label instead of showing it twice. */
+  hideLabel?: boolean;
 }
 
-export function Input({ label, hint, error, style, ...props }: InputProps) {
+export function Input({ label, hint, error, hideLabel, style, ...props }: InputProps) {
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      {!hideLabel && <Text style={styles.label}>{label}</Text>}
       <TextInput
         style={[styles.input, error && styles.inputError, style]}
         placeholderTextColor={colors.textFaint}
