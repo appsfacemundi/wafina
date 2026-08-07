@@ -1,5 +1,6 @@
 import { Image, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import iconMark from '../../assets/icon-mark.png';
 
 /**
  * JS-rendered splash, shown while fonts load. `expo-splash-screen`'s
@@ -17,7 +18,7 @@ export function SplashView() {
   return (
     <View style={[styles.screen, { backgroundColor: bg }]}>
       <View style={styles.plate}>
-        <Image source={require('../../assets/icon-mark.png')} style={styles.mark} resizeMode="contain" />
+        <Image source={iconMark} style={styles.mark} resizeMode="contain" />
       </View>
       <Text style={[styles.tagline, { bottom: insets.bottom + 32 }]}>DOAR HOJE, TRANSFORMAR AMANHÃ</Text>
     </View>
