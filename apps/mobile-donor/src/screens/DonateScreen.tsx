@@ -5,7 +5,7 @@ import {
   DELIVERY_METHOD_LABEL,
   DELIVERY_METHODS,
   ITEM_TYPES,
-  MEDICATION_DISCLAIMER,
+  MEDICAL_SUPPLY_INFO,
   RECIPIENT_CATEGORIES,
   RECIPIENT_CATEGORY_LABEL,
   type CorporateAccount,
@@ -324,11 +324,11 @@ export function DonateScreen({ navigation }: Props) {
           <View style={{ gap: spacing[2] }}>
             <SectionHeader n={1} title="Tipo de item" />
             <Select label="Tipo de item" hideLabel value={itemType} onValueChange={setItemType} options={ITEM_TYPES} />
-            {/* 'Medicamentos' addition, 2026-08-07 — see MEDICATION_DISCLAIMER's comment in @wafina/shared. */}
-            {itemType === 'Medicamentos' && (
-              <View style={styles.medicationNotice}>
-                <Ionicons name="alert-circle-outline" size={16} color={colors.warning} />
-                <Text style={styles.medicationNoticeText}>{MEDICATION_DISCLAIMER}</Text>
+            {/* 'Material Médico' addition, 2026-08-07 — see MEDICAL_SUPPLY_INFO's comment in @wafina/shared. */}
+            {itemType === 'Material Médico' && (
+              <View style={styles.medicalSupplyNotice}>
+                <Ionicons name="information-circle-outline" size={16} color={colors.info} />
+                <Text style={styles.medicalSupplyNoticeText}>{MEDICAL_SUPPLY_INFO}</Text>
               </View>
             )}
           </View>
@@ -744,15 +744,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.accent,
   },
-  medicationNotice: {
+  medicalSupplyNotice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing[2],
-    backgroundColor: colors.warningSoft,
+    backgroundColor: colors.infoSoft,
     borderRadius: radius.md,
     padding: spacing[3],
   },
-  medicationNoticeText: {
+  medicalSupplyNoticeText: {
     flex: 1,
     fontFamily: 'Manrope-400',
     fontSize: 12,

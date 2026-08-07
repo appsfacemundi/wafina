@@ -11,29 +11,54 @@
  * disclaimer in the Terms & Conditions (donor is responsible for the item
  * being safe/unexpired at transfer).
  *
- * 'Medicamentos', 2026-08-07 (stakeholder-approved Feature Freeze exception,
- * same basis as the food categories above) — pairs with its own donor-facing
- * disclaimer at submission (see MEDICATION_DISCLAIMER in @wafina/shared) and
- * matching Terms & Conditions language: over-the-counter only, unexpired,
- * sealed original packaging. Same "donor responsible, institution inspects
- * and may refuse" liability model as perishables, not a new legal framework.
+ * 'Material Médico', 2026-08-07 (stakeholder-approved Feature Freeze
+ * exception, same basis as the food categories above) — corrected same-day
+ * from an initial 'Medicamentos' (pharmaceuticals) framing: the actual scope
+ * is medical *supplies and equipment* (bandages, wheelchairs, thermometers,
+ * etc. — see MEDICAL_SUPPLY_EXAMPLES), not medicine, which carries much
+ * heavier regulatory baggage (prescriptions, controlled substances) that
+ * doesn't apply here. Pairs with a donor-facing note at submission (see
+ * MEDICAL_SUPPLY_INFO) and a full example list shown in Settings/Definições.
+ *
+ * 'Roupa de bebé', 2026-08-07 — no special handling needed, same as
+ * 'Roupas'/'Sapatos'.
  */
 export const ITEM_TYPES = [
   'Roupas',
+  'Roupa de bebé',
   'Sapatos',
   'Cobertores e roupa de cama',
   'Material escolar',
   'Alimentos frescos',
   'Refeições preparadas',
   'Mercearia/Alimentos não perecíveis',
-  'Medicamentos',
+  'Material Médico',
 ] as const;
 
 /**
- * Shown to the donor at submission whenever Item_Type === 'Medicamentos' —
- * see the ITEM_TYPES comment for why this category exists and what it pairs
- * with. Kept here (not inline in each screen) so mobile and web show
- * identical wording, the same way DELIVERY_METHOD_LABEL etc. are shared.
+ * Shown to the donor at submission whenever Item_Type === 'Material Médico'
+ * — see the ITEM_TYPES comment for why this category exists. Kept here (not
+ * inline in each screen) so mobile and web show identical wording, the same
+ * way DELIVERY_METHOD_LABEL etc. are shared.
  */
-export const MEDICATION_DISCLAIMER =
-  'Apenas medicamentos não sujeitos a receita médica (venda livre), dentro do prazo de validade e na embalagem original selada. A instituição recetora pode recusar qualquer item que considere não seguro.';
+export const MEDICAL_SUPPLY_INFO =
+  'Material médico limpo, funcional e em boas condições de higiene — não medicamentos. Veja exemplos em Definições.';
+
+/**
+ * Full reference list for what counts as 'Material Médico', shown in
+ * Settings/Definições (mobile + web) rather than crammed into the donation
+ * form itself — a donor deciding whether an item qualifies needs this once,
+ * not every time they open the form.
+ */
+export const MEDICAL_SUPPLY_EXAMPLES: readonly { emoji: string; label: string }[] = [
+  { emoji: '🩹', label: 'Ligaduras e pensos' },
+  { emoji: '🦽', label: 'Cadeiras de rodas' },
+  { emoji: '🩼', label: 'Canadianas e andarilhos' },
+  { emoji: '🩺', label: 'Aparelhos de tensão arterial' },
+  { emoji: '🌡️', label: 'Termómetros' },
+  { emoji: '🫁', label: 'Nebulizadores' },
+  { emoji: '🧤', label: 'Luvas e máscaras' },
+  { emoji: '🍼', label: 'Material médico para bebés' },
+  { emoji: '🧪', label: 'Material de teste de diabetes' },
+  { emoji: '🛏️', label: 'Camas hospitalares e equipamento médico' },
+] as const;

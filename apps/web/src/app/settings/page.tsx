@@ -1,6 +1,6 @@
 'use client';
 
-import type { GeoRegion, SwitchPreference } from '@wafina/shared';
+import { MEDICAL_SUPPLY_EXAMPLES, type GeoRegion, type SwitchPreference } from '@wafina/shared';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Card, Input, Select, useToast } from '@wafina/ui';
@@ -280,6 +280,22 @@ export default function SettingsPage() {
               </Button>
             </form>
           )}
+        </Card>
+
+        {/* Donation categories reference, 2026-08-07 — a donor deciding whether an item qualifies as 'Material Médico' needs this once, not every time they open the Donate form (see MEDICAL_SUPPLY_INFO's comment in @wafina/shared). */}
+        <Card className="stack">
+          <p style={{ fontWeight: 600 }}>O que conta como &quot;Material Médico&quot;?</p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
+            Material médico limpo e funcional — nunca medicamentos. Exemplos:
+          </p>
+          <div className="stack" style={{ gap: 8 }}>
+            {MEDICAL_SUPPLY_EXAMPLES.map((item) => (
+              <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 18, width: 24, textAlign: 'center' }}>{item.emoji}</span>
+                <span style={{ fontSize: 13.5 }}>{item.label}</span>
+              </div>
+            ))}
+          </div>
         </Card>
 
         <Card className="stack">

@@ -1,6 +1,6 @@
-import type { GeoRegion, SwitchPreference } from '@wafina/shared';
+import { MEDICAL_SUPPLY_EXAMPLES, type GeoRegion, type SwitchPreference } from '@wafina/shared';
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
@@ -325,6 +325,22 @@ export function SettingsScreen() {
           </Button>
         </Card>
 
+        {/* Donation categories reference, 2026-08-07 — a donor deciding whether an item qualifies as 'Material Médico' needs this once, not every time they open the Donate form (see MEDICAL_SUPPLY_INFO's comment in @wafina/shared). */}
+        <Card style={{ gap: spacing[3] }}>
+          <Text style={styles.cardTitle}>O que conta como "Material Médico"?</Text>
+          <Text style={styles.hint}>
+            Material médico limpo e funcional — nunca medicamentos. Exemplos:
+          </Text>
+          <View style={{ gap: spacing[2] }}>
+            {MEDICAL_SUPPLY_EXAMPLES.map((item) => (
+              <View key={item.label} style={styles.medicalSupplyRow}>
+                <Text style={styles.medicalSupplyEmoji}>{item.emoji}</Text>
+                <Text style={styles.medicalSupplyLabel}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+
         <Card style={{ gap: spacing[3] }}>
           <Text style={styles.cardTitle}>Sobre</Text>
           <Text style={styles.hint}>
@@ -387,5 +403,21 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.success,
+  },
+  medicalSupplyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  medicalSupplyEmoji: {
+    fontSize: 18,
+    width: 24,
+    textAlign: 'center',
+  },
+  medicalSupplyLabel: {
+    fontFamily: 'Manrope-400',
+    fontSize: 13.5,
+    color: colors.text,
+    flex: 1,
   },
 });
