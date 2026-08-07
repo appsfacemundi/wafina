@@ -1,22 +1,22 @@
 'use client';
 
-import { Button } from '@wafina/ui';
+import { Button, Icon, type IconName } from '@wafina/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
-const NAV_ITEMS = [
-  { href: '/home', label: 'Dashboard' },
-  { href: '/institutions', label: 'Instituições' },
-  { href: '/donations', label: 'Doações' },
-  { href: '/success-stories', label: 'Histórias de Impacto' },
-  { href: '/change-requests', label: 'Pedidos de Alteração' },
-  { href: '/users', label: 'Utilizadores' },
-  { href: '/countries', label: 'Países' },
-  { href: '/disputes', label: 'Ocorrências' },
-  { href: '/companies', label: 'Empresas' },
-  { href: '/notifications', label: 'Notificações' },
-  { href: '/reports', label: 'Relatórios' },
+const NAV_ITEMS: { href: string; label: string; icon: IconName }[] = [
+  { href: '/home', label: 'Dashboard', icon: 'home' },
+  { href: '/institutions', label: 'Instituições', icon: 'building' },
+  { href: '/donations', label: 'Doações', icon: 'package' },
+  { href: '/success-stories', label: 'Histórias de Impacto', icon: 'heart' },
+  { href: '/change-requests', label: 'Pedidos de Alteração', icon: 'refresh' },
+  { href: '/users', label: 'Utilizadores', icon: 'users' },
+  { href: '/countries', label: 'Países', icon: 'globe' },
+  { href: '/disputes', label: 'Ocorrências', icon: 'alert-circle' },
+  { href: '/companies', label: 'Empresas', icon: 'briefcase' },
+  { href: '/notifications', label: 'Notificações', icon: 'bell' },
+  { href: '/reports', label: 'Relatórios', icon: 'bar-chart' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -49,6 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               className={`app-nav-link${pathname === item.href ? ' active' : ''}`}
               onClick={() => router.push(item.href)}
             >
+              <Icon name={item.icon} size={16} />
               {item.label}
             </button>
           ))}

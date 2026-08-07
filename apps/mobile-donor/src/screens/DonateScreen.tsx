@@ -448,7 +448,7 @@ export function DonateScreen({ navigation }: Props) {
                   accessibilityLabel="Remover fotografia"
                   hitSlop={8}
                 >
-                  <Ionicons name="close" size={16} color="#ffffff" />
+                  <Ionicons name="close" size={16} color={colors.accentText} />
                 </Pressable>
               </Pressable>
             ) : (

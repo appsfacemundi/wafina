@@ -1,7 +1,7 @@
 'use client';
 
 import type { AdminDashboardStats, GeoRegion } from '@wafina/shared';
-import { Card } from '@wafina/ui';
+import { Card, Icon, type IconName } from '@wafina/ui';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -11,11 +11,13 @@ import { apiFetch } from '@/lib/api';
 /** Real-device finding, 2026-08-04: none of these tiles linked anywhere. */
 function StatCard({
   href,
+  icon,
   value,
   label,
   breakdown,
 }: {
   href: string;
+  icon: IconName;
   value: number | undefined;
   label: string;
   breakdown?: string;
@@ -23,6 +25,9 @@ function StatCard({
   return (
     <Link href={href} style={{ textDecoration: 'none', color: 'inherit' }}>
       <Card className="stack" style={{ cursor: 'pointer' }}>
+        <span className="stat-icon">
+          <Icon name={icon} size={17} />
+        </span>
         <p style={{ fontSize: 28, fontWeight: 700 }}>{value ?? '—'}</p>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{label}</p>
         {breakdown && (
@@ -79,18 +84,19 @@ export default function AdminHomePage() {
         {error && <div className="banner banner-error">{error}</div>}
 
         <div className="stats-grid">
-          <StatCard href="/institutions" value={stats?.pendingInstitutions} label="Instituições pendentes" />
-          <StatCard href="/institutions" value={stats?.verifiedInstitutions} label="Instituições verificadas" />
+          <StatCard href="/institutions" icon="clock" value={stats?.pendingInstitutions} label="Instituições pendentes" />
+          <StatCard href="/institutions" icon="shield-check" value={stats?.verifiedInstitutions} label="Instituições verificadas" />
           <StatCard
             href="/donations"
+            icon="clock"
             value={stats?.pendingDonations}
             label="Doações pendentes"
             breakdown={pendingByCountryLabel}
           />
-          <StatCard href="/donations" value={stats?.inFlightDonations} label="Doações em curso" />
-          <StatCard href="/success-stories" value={stats?.pendingSuccessStories} label="Histórias por rever" />
-          <StatCard href="/change-requests" value={stats?.pendingChangeRequests} label="Pedidos de alteração por rever" />
-          <StatCard href="/disputes" value={stats?.openDisputes} label="Ocorrências abertas" />
+          <StatCard href="/donations" icon="package" value={stats?.inFlightDonations} label="Doações em curso" />
+          <StatCard href="/success-stories" icon="heart" value={stats?.pendingSuccessStories} label="Histórias por rever" />
+          <StatCard href="/change-requests" icon="refresh" value={stats?.pendingChangeRequests} label="Pedidos de alteração por rever" />
+          <StatCard href="/disputes" icon="alert-circle" value={stats?.openDisputes} label="Ocorrências abertas" />
         </div>
       </div>
     </AppShell>

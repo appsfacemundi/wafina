@@ -1,4 +1,6 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { Donation, InstitutionDonationView, Notification, SuccessStory } from '@wafina/shared';
+import type { ComponentProps } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,7 +8,21 @@ import { Card } from '@/components/Card';
 import { useAuth } from '@/context/AuthContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { apiFetch } from '@/lib/api';
-import { colors, fonts, spacing } from '@/theme/tokens';
+import { colors, fonts, radius, spacing } from '@/theme/tokens';
+
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
+
+function StatCard({ icon, value, label }: { icon: IoniconName; value: number | null; label: string }) {
+  return (
+    <Card style={styles.statCard}>
+      <View style={styles.statIconWrap}>
+        <Ionicons name={icon} size={16} color={colors.accent} />
+      </View>
+      <Text style={styles.statValue}>{value ?? '—'}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </Card>
+  );
+}
 
 function todayDateOnly(): string {
   return new Date().toISOString().slice(0, 10);
@@ -76,34 +92,13 @@ export function HomeScreen() {
       </Card>
 
       <View style={styles.statsGrid}>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.available ?? '—'}</Text>
-          <Text style={styles.statLabel}>Doações disponíveis</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.accepted ?? '—'}</Text>
-          <Text style={styles.statLabel}>Aceites</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.collectionsToday ?? '—'}</Text>
-          <Text style={styles.statLabel}>Recolhas hoje</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.deliveriesPending ?? '—'}</Text>
-          <Text style={styles.statLabel}>Entregas pendentes</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.storiesPublished ?? '—'}</Text>
-          <Text style={styles.statLabel}>Histórias publicadas</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.unreadNotifications ?? '—'}</Text>
-          <Text style={styles.statLabel}>Notificações por ler</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{institution?.Total_Items_Received ?? '—'}</Text>
-          <Text style={styles.statLabel}>Itens recebidos (total)</Text>
-        </Card>
+        <StatCard icon="file-tray-outline" value={stats.available} label="Doações disponíveis" />
+        <StatCard icon="checkmark-circle-outline" value={stats.accepted} label="Aceites" />
+        <StatCard icon="car-outline" value={stats.collectionsToday} label="Recolhas hoje" />
+        <StatCard icon="cube-outline" value={stats.deliveriesPending} label="Entregas pendentes" />
+        <StatCard icon="heart-outline" value={stats.storiesPublished} label="Histórias publicadas" />
+        <StatCard icon="notifications-outline" value={stats.unreadNotifications} label="Notificações por ler" />
+        <StatCard icon="gift-outline" value={institution?.Total_Items_Received ?? null} label="Itens recebidos (total)" />
       </View>
     </ScrollView>
   );
@@ -141,6 +136,15 @@ const styles = StyleSheet.create({
   statCard: {
     minWidth: '30%',
     flexGrow: 1,
+  },
+  statIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.full,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[1],
   },
   statValue: {
     fontFamily: 'Manrope-700',

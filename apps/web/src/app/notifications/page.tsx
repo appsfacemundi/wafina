@@ -74,6 +74,7 @@ export default function NotificationsPage() {
           <EmptyState
             title="Sem notificações"
             description="Quando houver novidades sobre as suas doações, aparecem aqui."
+            icon="bell"
           />
         )}
         {notifications && notifications.length > 0 && (

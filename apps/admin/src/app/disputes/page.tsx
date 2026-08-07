@@ -66,7 +66,7 @@ export default function AdminDisputesPage() {
         {error && <div className="banner banner-error">{error}</div>}
         {disputes === null && !error && <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>}
         {disputes?.length === 0 && (
-          <EmptyState title="Sem ocorrências abertas" description="Ocorrências levantadas por instituições aparecem aqui." />
+          <EmptyState title="Sem ocorrências abertas" description="Ocorrências levantadas por instituições aparecem aqui." icon="alert-circle" />
         )}
         {disputes && disputes.length > 0 && (
           <div className="stack">

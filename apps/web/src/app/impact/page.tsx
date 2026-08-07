@@ -48,6 +48,7 @@ export default function ImpactPage() {
           <EmptyState
             title="Ainda sem histórias"
             description="Quando uma instituição partilhar o impacto de uma das suas doações, aparece aqui."
+            icon="heart"
           />
         )}
         {stories && stories.length > 0 && (

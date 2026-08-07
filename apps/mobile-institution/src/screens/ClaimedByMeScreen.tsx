@@ -222,10 +222,11 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
               <EmptyState
                 title="Ainda sem doações aceites"
                 description="As doações que aceitar aparecem aqui."
+                icon="checkmark-circle-outline"
               />
             )}
             {donations && donations.length > 0 && sections?.length === 0 && (
-              <EmptyState title="Sem resultados" description="Nenhuma doação corresponde à pesquisa." />
+              <EmptyState title="Sem resultados" description="Nenhuma doação corresponde à pesquisa." icon="search-outline" />
             )}
           </>
         }

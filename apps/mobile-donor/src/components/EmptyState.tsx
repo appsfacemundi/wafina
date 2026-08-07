@@ -1,16 +1,23 @@
-import type { ReactNode } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import type { ComponentProps, ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
+
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 interface EmptyStateProps {
   title: string;
   description: string;
   action?: ReactNode;
+  icon?: IoniconName;
 }
 
-export function EmptyState({ title, description, action }: EmptyStateProps) {
+export function EmptyState({ title, description, action, icon = 'file-tray-outline' }: EmptyStateProps) {
   return (
     <View style={styles.wrap}>
+      <View style={styles.iconWrap}>
+        <Ionicons name={icon} size={26} color={colors.accent} />
+      </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>
       {action}
@@ -23,6 +30,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing[3],
     paddingVertical: spacing[10],
+  },
+  iconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.full,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[1],
   },
   title: {
     fontFamily: 'Manrope-600',

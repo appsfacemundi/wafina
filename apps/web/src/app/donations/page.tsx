@@ -105,6 +105,7 @@ export default function DonationsPage() {
           <EmptyState
             title="Ainda sem doações"
             description="Quando submeter uma doação, o estado dela aparece aqui."
+            icon="gift"
             action={
               <Button onClick={() => router.push('/donations/new')}>Fazer a primeira doação</Button>
             }

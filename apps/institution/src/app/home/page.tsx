@@ -1,7 +1,7 @@
 'use client';
 
 import type { Donation, InstitutionDonationView, Notification, SuccessStory } from '@wafina/shared';
-import { Card } from '@wafina/ui';
+import { Card, Icon, type IconName } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
@@ -11,6 +11,18 @@ import { apiFetch } from '@/lib/api';
 /** yyyy-mm-dd for "today", compared against Expected_Collection_Date. */
 function todayDateOnly(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function StatCard({ icon, value, label }: { icon: IconName; value: number | null | undefined; label: string }) {
+  return (
+    <Card className="stack">
+      <span className="stat-icon">
+        <Icon name={icon} size={17} />
+      </span>
+      <p style={{ fontSize: 28, fontWeight: 700 }}>{value ?? '—'}</p>
+      <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{label}</p>
+    </Card>
+  );
 }
 
 export default function HomePage() {
@@ -70,34 +82,13 @@ export default function HomePage() {
         </Card>
 
         <div className="stats-grid">
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.available ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Doações disponíveis</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.accepted ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Aceites</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.collectionsToday ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Recolhas hoje</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.deliveriesPending ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Entregas pendentes</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.storiesPublished ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Histórias publicadas</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{stats.unreadNotifications ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Notificações por ler</p>
-          </Card>
-          <Card className="stack">
-            <p style={{ fontSize: 28, fontWeight: 700 }}>{institution?.Total_Items_Received ?? '—'}</p>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Itens recebidos (total)</p>
-          </Card>
+          <StatCard icon="inbox" value={stats.available} label="Doações disponíveis" />
+          <StatCard icon="check-circle" value={stats.accepted} label="Aceites" />
+          <StatCard icon="truck" value={stats.collectionsToday} label="Recolhas hoje" />
+          <StatCard icon="package" value={stats.deliveriesPending} label="Entregas pendentes" />
+          <StatCard icon="heart" value={stats.storiesPublished} label="Histórias publicadas" />
+          <StatCard icon="bell" value={stats.unreadNotifications} label="Notificações por ler" />
+          <StatCard icon="gift" value={institution?.Total_Items_Received} label="Itens recebidos (total)" />
         </div>
       </div>
     </AppShell>

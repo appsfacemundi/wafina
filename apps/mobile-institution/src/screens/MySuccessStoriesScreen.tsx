@@ -81,6 +81,7 @@ export function MySuccessStoriesScreen() {
               <EmptyState
                 title="Sem histórias"
                 description="Publique uma história de impacto a partir de uma doação entregue."
+                icon="heart-outline"
               />
             )}
           </>

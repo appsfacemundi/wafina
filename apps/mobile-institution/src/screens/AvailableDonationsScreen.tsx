@@ -127,10 +127,11 @@ export function AvailableDonationsScreen() {
               <EmptyState
                 title="Sem doações disponíveis"
                 description="Quando houver doações pendentes, aparecem aqui."
+                icon="gift-outline"
               />
             )}
             {donations && donations.length > 0 && filtered?.length === 0 && (
-              <EmptyState title="Sem resultados" description="Nenhuma doação corresponde ao filtro." />
+              <EmptyState title="Sem resultados" description="Nenhuma doação corresponde ao filtro." icon="search-outline" />
             )}
           </>
         }

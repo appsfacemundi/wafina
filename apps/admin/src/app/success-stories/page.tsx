@@ -87,6 +87,7 @@ export default function AdminSuccessStoriesPage() {
           <EmptyState
             title="Sem histórias pendentes"
             description="Quando uma instituição publicar uma história, aparece aqui para revisão."
+            icon="heart"
           />
         )}
         {stories && stories.length > 0 && (

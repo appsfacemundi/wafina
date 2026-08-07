@@ -55,6 +55,7 @@ export function DisputesListScreen() {
               <EmptyState
                 title="Sem ocorrências"
                 description="As ocorrências que comunicar sobre doações aparecem aqui."
+                icon="alert-circle-outline"
               />
             )}
           </>

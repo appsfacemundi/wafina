@@ -6,16 +6,16 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
 import { SwitchCountryPrompt } from '@/components/SwitchCountryPrompt';
-import { Button } from '@wafina/ui';
+import { Button, Icon, type IconName } from '@wafina/ui';
 
-const NAV_ITEMS = [
-  { href: '/home', label: 'Início' },
-  { href: '/donations/new', label: 'Doar' },
-  { href: '/donations', label: 'Minhas Doações' },
-  { href: '/impact', label: 'Histórias de Impacto' },
-  { href: '/institutions', label: 'Instituições' },
-  { href: '/notifications', label: 'Notificações' },
-  { href: '/settings', label: 'Definições' },
+const NAV_ITEMS: { href: string; label: string; icon: IconName }[] = [
+  { href: '/home', label: 'Início', icon: 'home' },
+  { href: '/donations/new', label: 'Doar', icon: 'gift' },
+  { href: '/donations', label: 'Minhas Doações', icon: 'list' },
+  { href: '/impact', label: 'Histórias de Impacto', icon: 'heart' },
+  { href: '/institutions', label: 'Instituições', icon: 'building' },
+  { href: '/notifications', label: 'Notificações', icon: 'bell' },
+  { href: '/settings', label: 'Definições', icon: 'settings' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -58,6 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               className={`app-nav-link${pathname === item.href ? ' active' : ''}`}
               onClick={() => router.push(item.href)}
             >
+              <Icon name={item.icon} size={16} />
               {item.label}
               {item.href === '/notifications' && unreadCount > 0 && (
                 <span className="nav-badge">{unreadCount}</span>

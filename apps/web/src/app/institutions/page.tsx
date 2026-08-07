@@ -60,6 +60,7 @@ export default function InstitutionsPage() {
           <EmptyState
             title="Ainda sem instituições verificadas"
             description="As instituições aprovadas pelo Admin aparecem aqui."
+            icon="building"
           />
         )}
         {institutions && institutions.length > 0 && (

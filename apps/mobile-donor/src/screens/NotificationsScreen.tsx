@@ -83,6 +83,7 @@ export function NotificationsScreen({ navigation }: Props) {
               <EmptyState
                 title="Sem notificações"
                 description="Quando houver novidades sobre as suas doações, aparecem aqui."
+                icon="notifications-outline"
               />
             )}
           </>

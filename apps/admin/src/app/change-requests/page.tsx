@@ -104,6 +104,7 @@ export default function AdminChangeRequestsPage() {
           <EmptyState
             title="Sem pedidos pendentes"
             description="Quando uma instituição pedir para alterar um campo bloqueado, aparece aqui para revisão."
+            icon="refresh"
           />
         )}
         {requests && requests.length > 0 && (

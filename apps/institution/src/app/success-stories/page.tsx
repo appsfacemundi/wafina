@@ -73,6 +73,7 @@ export default function SuccessStoriesPage() {
           <EmptyState
             title="Sem histórias"
             description="Publique uma história de impacto a partir de uma doação entregue."
+            icon="heart"
           />
         )}
         {filtered && filtered.length > 0 && (

@@ -45,6 +45,7 @@ export default function MyDisputesPage() {
           <EmptyState
             title="Sem ocorrências"
             description="As ocorrências que comunicar sobre doações aparecem aqui."
+            icon="alert-circle"
           />
         )}
         {disputes && disputes.length > 0 && (

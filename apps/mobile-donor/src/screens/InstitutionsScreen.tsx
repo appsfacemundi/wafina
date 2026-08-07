@@ -65,6 +65,7 @@ export function InstitutionsScreen() {
               <EmptyState
                 title="Ainda sem instituições verificadas"
                 description="As instituições aprovadas pelo Admin aparecem aqui."
+                icon="business-outline"
               />
             )}
           </>

@@ -94,6 +94,7 @@ export function NotificationsScreen({ navigation }: Props) {
               <EmptyState
                 title="Sem notificações"
                 description="Quando houver novidades, aparecem aqui."
+                icon="notifications-outline"
               />
             )}
           </>

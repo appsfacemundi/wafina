@@ -131,7 +131,7 @@ export default function AdminUsersPage() {
         {error && <div className="banner banner-error">{error}</div>}
         {filtered === null && !error && <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>}
         {filtered?.length === 0 && (
-          <EmptyState title="Sem resultados" description="Nenhum utilizador corresponde à pesquisa." />
+          <EmptyState title="Sem resultados" description="Nenhum utilizador corresponde à pesquisa." icon="users" />
         )}
         {filtered && filtered.length > 0 && (
           <div className="stack">

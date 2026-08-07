@@ -210,7 +210,7 @@ export default function AdminCompaniesPage() {
 
         {companies === null && !error && <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>}
         {companies?.length === 0 && (
-          <EmptyState title="Sem empresas" description="As empresas parceiras aparecem aqui depois de criadas." />
+          <EmptyState title="Sem empresas" description="As empresas parceiras aparecem aqui depois de criadas." icon="briefcase" />
         )}
         {companies && companies.length > 0 && (
           <div className="stack">

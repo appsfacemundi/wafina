@@ -161,7 +161,7 @@ export default function AdminNotificationsPage() {
           <p style={{ fontWeight: 700, fontSize: 15 }}>Histórico de mensagens enviadas</p>
           {sent === null && !error && <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>}
           {sent?.length === 0 && (
-            <EmptyState title="Sem mensagens enviadas" description="Mensagens manuais e anúncios aparecem aqui." />
+            <EmptyState title="Sem mensagens enviadas" description="Mensagens manuais e anúncios aparecem aqui." icon="bell" />
           )}
           {sent && sent.length > 0 && (
             <div className="stack">

@@ -118,6 +118,7 @@ export default function AvailableDonationsPage() {
         {donations?.length === 0 && (
           <EmptyState
             title="Sem doações disponíveis"
+            icon="inbox"
             description={
               countryName
                 ? `Não há doações pendentes em ${countryName} neste momento. Esta lista mostra apenas doações do mesmo país da sua instituição — quando um doador desse país submeter uma doação, aparece aqui.`
@@ -129,6 +130,7 @@ export default function AvailableDonationsPage() {
           <EmptyState
             title="Sem resultados"
             description="Nenhuma doação corresponde ao filtro."
+            icon="package"
           />
         )}
         {filtered && filtered.length > 0 && (

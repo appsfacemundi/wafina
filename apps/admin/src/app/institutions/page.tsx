@@ -169,6 +169,7 @@ export default function AdminInstitutionsPage() {
           <EmptyState
             title="Sem instituições"
             description="Quando uma instituição se registar, aparece aqui."
+            icon="building"
           />
         )}
 

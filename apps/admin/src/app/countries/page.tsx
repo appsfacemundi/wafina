@@ -98,7 +98,7 @@ export default function AdminCountriesPage() {
 
         {countries === null && !error && <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>}
         {countries?.length === 0 && (
-          <EmptyState title="Sem países" description="Adicione o primeiro país acima." />
+          <EmptyState title="Sem países" description="Adicione o primeiro país acima." icon="globe" />
         )}
         {countries && countries.length > 0 && (
           <div className="stack">

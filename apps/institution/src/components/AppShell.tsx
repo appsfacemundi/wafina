@@ -1,18 +1,18 @@
 'use client';
 
-import { Button } from '@wafina/ui';
+import { Button, Icon, type IconName } from '@wafina/ui';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
-const NAV_ITEMS = [
-  { href: '/home', label: 'Início' },
-  { href: '/donations/available', label: 'Doações Disponíveis' },
-  { href: '/donations/claimed', label: 'Doações Aceites' },
-  { href: '/success-stories', label: 'Histórias de Impacto' },
-  { href: '/disputes', label: 'Ocorrências' },
-  { href: '/notifications', label: 'Notificações' },
-  { href: '/settings', label: 'Definições' },
+const NAV_ITEMS: { href: string; label: string; icon: IconName }[] = [
+  { href: '/home', label: 'Início', icon: 'home' },
+  { href: '/donations/available', label: 'Doações Disponíveis', icon: 'inbox' },
+  { href: '/donations/claimed', label: 'Doações Aceites', icon: 'check-circle' },
+  { href: '/success-stories', label: 'Histórias de Impacto', icon: 'heart' },
+  { href: '/disputes', label: 'Ocorrências', icon: 'alert-circle' },
+  { href: '/notifications', label: 'Notificações', icon: 'bell' },
+  { href: '/settings', label: 'Definições', icon: 'settings' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -40,6 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               className={`app-nav-link${pathname === item.href ? ' active' : ''}`}
               onClick={() => router.push(item.href)}
             >
+              <Icon name={item.icon} size={16} />
               {item.label}
             </button>
           ))}

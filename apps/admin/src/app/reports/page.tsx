@@ -360,9 +360,9 @@ export default function AdminReportsPage() {
 
         {rows === null && !error && <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>}
         {rows && rows.length > 0 && processedRows.length === 0 && (
-          <EmptyState title="Sem resultados" description="Nenhum registo corresponde aos filtros aplicados." />
+          <EmptyState title="Sem resultados" description="Nenhum registo corresponde aos filtros aplicados." icon="bar-chart" />
         )}
-        {rows?.length === 0 && <EmptyState title="Sem dados" description="Não há registos para este relatório." />}
+        {rows?.length === 0 && <EmptyState title="Sem dados" description="Não há registos para este relatório." icon="bar-chart" />}
         {processedRows.length > 0 && (
           <Card style={{ padding: 0, overflow: 'auto' }}>
             <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>

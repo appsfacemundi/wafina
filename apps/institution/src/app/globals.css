@@ -368,6 +368,16 @@ p {
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--space-4);
 }
+.stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
 .auth-card {
   width: 100%;
   max-width: 360px;
@@ -479,6 +489,12 @@ p {
   flex: none;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.app-nav-link svg {
+  flex-shrink: 0;
 }
 .app-nav-link:hover {
   background: var(--color-surface-2);

@@ -157,10 +157,10 @@ export default function AdminDonationsPage() {
           <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>
         )}
         {filteredDonations?.length === 0 && donations?.length === 0 && (
-          <EmptyState title="Sem doações" description="Doações aparecem aqui assim que são submetidas por um doador." />
+          <EmptyState title="Sem doações" description="Doações aparecem aqui assim que são submetidas por um doador." icon="package" />
         )}
         {filteredDonations?.length === 0 && donations && donations.length > 0 && (
-          <EmptyState title="Sem doações neste país" description="Experimente outro país, ou limpe o filtro." />
+          <EmptyState title="Sem doações neste país" description="Experimente outro país, ou limpe o filtro." icon="package" />
         )}
         {filteredDonations && filteredDonations.length > 0 && (
           <div className="stack">

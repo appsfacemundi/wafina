@@ -2,7 +2,7 @@
 
 import type { GeoRegion } from '@wafina/shared';
 import { useRouter } from 'next/navigation';
-import { Button, Card } from '@wafina/ui';
+import { Button, Card, Icon } from '@wafina/ui';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
@@ -46,7 +46,10 @@ export default function HomePage() {
           <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
             ID: {session.userId}
           </p>
-          <Button onClick={() => router.push('/donations/new')}>Doar agora</Button>
+          <Button onClick={() => router.push('/donations/new')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="gift" size={16} />
+            Doar agora
+          </Button>
         </Card>
       </div>
     </AppShell>

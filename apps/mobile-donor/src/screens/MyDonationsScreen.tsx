@@ -172,10 +172,11 @@ export function MyDonationsScreen({ route }: Props) {
               <EmptyState
                 title="Ainda sem doações"
                 description="Quando submeter uma doação, o estado dela aparece aqui."
+                icon="gift-outline"
               />
             )}
             {donations && donations.length > 0 && visibleDonations.length === 0 && (
-              <EmptyState title="Sem resultados" description="Nenhuma doação corresponde à pesquisa." />
+              <EmptyState title="Sem resultados" description="Nenhuma doação corresponde à pesquisa." icon="search-outline" />
             )}
           </>
         }

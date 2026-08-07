@@ -123,6 +123,7 @@ export default function ClaimedDonationsPage() {
           <EmptyState
             title="Ainda sem doações aceites"
             description="As doações que aceitar aparecem aqui."
+            icon="check-circle"
           />
         )}
         {sortedDonations && sortedDonations.length > 0 && (
