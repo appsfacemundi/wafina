@@ -9,7 +9,7 @@ export default function TermsPage() {
         <header className="stack" style={{ gap: 'var(--space-2)' }}>
           <h1 style={{ fontSize: 28 }}>Termos e Condições</h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
-            Última atualização: 2 de agosto de 2026
+            Última atualização: 7 de agosto de 2026
           </p>
         </header>
 
@@ -27,8 +27,9 @@ export default function TermsPage() {
           <p>A Wafina é uma plataforma sem fins lucrativos que faz a ponte entre doadores (individuais e
             corporativos) e instituições de solidariedade verificadas, para a doação de bens físicos —
             tanto <strong>perecíveis</strong> (alimentos frescos, refeições preparadas) como{' '}
-            <strong>não perecíveis</strong> (roupa, calçado, material escolar, mercearia, artigos de higiene
-            e outros bens essenciais). A Wafina não processa nem intermedeia qualquer pagamento monetário —
+            <strong>não perecíveis</strong> (roupa, calçado, material escolar, mercearia, artigos de higiene,
+            medicamentos não sujeitos a receita médica e outros bens essenciais). A Wafina não processa nem
+            intermedeia qualquer pagamento monetário —
             limita-se a coordenar o encontro e a logística entre quem doa e quem recebe.</p>
         </section>
 
@@ -42,6 +43,13 @@ export default function TermsPage() {
             recetora é responsável por inspecionar o item perecível no momento da recolha e por recusar
             qualquer item que considere não seguro. A Wafina não assume responsabilidade por quaisquer danos,
             doenças ou prejuízos resultantes do consumo ou uso de um item doado.</p>
+          <p><strong>Para medicamentos</strong>, apenas são permitidos medicamentos não sujeitos a receita
+            médica (venda livre), dentro do prazo de validade e na embalagem original selada — nunca
+            medicamentos sujeitos a receita médica, controlados, ou fora da embalagem original. O doador é o
+            único responsável por garantir que o medicamento cumpre estas condições; a instituição recetora é
+            responsável por inspecionar e recusar qualquer medicamento que considere não seguro. A Wafina não
+            assume responsabilidade por quaisquer danos, doenças ou prejuízos resultantes do uso de um
+            medicamento doado.</p>
         </section>
 
         <section className="stack">
@@ -82,7 +90,7 @@ export default function TermsPage() {
 
         <header className="stack" style={{ gap: 'var(--space-2)' }}>
           <h1 style={{ fontSize: 28 }}>Terms & Conditions</h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>Last updated: August 2, 2026</p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>Last updated: August 7, 2026</p>
         </header>
 
         <p>
@@ -99,7 +107,8 @@ export default function TermsPage() {
           <p>Wafina is a nonprofit platform that connects donors (individual and corporate) with verified
             charitable institutions for the donation of physical goods — both <strong>perishable</strong>{' '}
             (fresh food, prepared meals) and <strong>non-perishable</strong> (clothing, shoes, school
-            supplies, groceries, hygiene items, and other everyday essentials). Wafina does not process or
+            supplies, groceries, hygiene items, over-the-counter medication, and other everyday essentials).
+            Wafina does not process or
             intermediate any monetary payment — it only coordinates the matching and logistics between the
             donor and the recipient.</p>
         </section>
@@ -115,6 +124,12 @@ export default function TermsPage() {
             is responsible for inspecting any perishable item at the time of collection and for refusing any
             item it considers unsafe. Wafina assumes no responsibility for any harm, illness, or loss
             resulting from the consumption or use of a donated item.</p>
+          <p><strong>For medication specifically</strong>, only over-the-counter medication is permitted —
+            unexpired and in its original, sealed packaging — never prescription or controlled medication, or
+            medication outside its original packaging. The donor is solely responsible for ensuring the
+            medication meets these conditions; the receiving institution is responsible for inspecting and
+            refusing any medication it considers unsafe. Wafina assumes no responsibility for any harm,
+            illness, or loss resulting from the use of donated medication.</p>
         </section>
 
         <section className="stack">

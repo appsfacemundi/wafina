@@ -5,6 +5,7 @@ import {
   DELIVERY_METHOD_LABEL,
   DELIVERY_METHODS,
   ITEM_TYPES,
+  MEDICATION_DISCLAIMER,
   RECIPIENT_CATEGORIES,
   RECIPIENT_CATEGORY_LABEL,
   type CorporateAccount,
@@ -253,6 +254,22 @@ export default function NewDonationPage() {
                   </option>
                 ))}
               </Select>
+              {/* 'Medicamentos' addition, 2026-08-07 — see MEDICATION_DISCLAIMER's comment in @wafina/shared. */}
+              {itemType === 'Medicamentos' && (
+                <p
+                  style={{
+                    display: 'flex',
+                    gap: 8,
+                    background: 'var(--warning-100)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: 'var(--space-3)',
+                    fontSize: 12,
+                    marginTop: 8,
+                  }}
+                >
+                  ⚠️ {MEDICATION_DISCLAIMER}
+                </p>
+              )}
             </div>
 
             <div>

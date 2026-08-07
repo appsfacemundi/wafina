@@ -5,6 +5,7 @@ import {
   DELIVERY_METHOD_LABEL,
   DELIVERY_METHODS,
   ITEM_TYPES,
+  MEDICATION_DISCLAIMER,
   RECIPIENT_CATEGORIES,
   RECIPIENT_CATEGORY_LABEL,
   type CorporateAccount,
@@ -323,6 +324,13 @@ export function DonateScreen({ navigation }: Props) {
           <View style={{ gap: spacing[2] }}>
             <SectionHeader n={1} title="Tipo de item" />
             <Select label="Tipo de item" hideLabel value={itemType} onValueChange={setItemType} options={ITEM_TYPES} />
+            {/* 'Medicamentos' addition, 2026-08-07 — see MEDICATION_DISCLAIMER's comment in @wafina/shared. */}
+            {itemType === 'Medicamentos' && (
+              <View style={styles.medicationNotice}>
+                <Ionicons name="alert-circle-outline" size={16} color={colors.warning} />
+                <Text style={styles.medicationNoticeText}>{MEDICATION_DISCLAIMER}</Text>
+              </View>
+            )}
           </View>
 
           <View style={{ gap: spacing[2] }}>
@@ -735,5 +743,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-600',
     fontSize: 13,
     color: colors.accent,
+  },
+  medicationNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[2],
+    backgroundColor: colors.warningSoft,
+    borderRadius: radius.md,
+    padding: spacing[3],
+  },
+  medicationNoticeText: {
+    flex: 1,
+    fontFamily: 'Manrope-400',
+    fontSize: 12,
+    color: colors.text,
   },
 });

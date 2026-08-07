@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { SplashView } from '@/components/SplashView';
@@ -17,7 +17,7 @@ import { SettingsScreen } from '@/screens/SettingsScreen';
 import { SignInScreen } from '@/screens/SignInScreen';
 import { SignUpScreen } from '@/screens/SignUpScreen';
 import { SwitchCountryPrompt } from '@/components/SwitchCountryPrompt';
-import { colors } from '@/theme/tokens';
+import { colors, radius } from '@/theme/tokens';
 
 export type AuthStackParamList = {
   SignIn: undefined;
@@ -78,11 +78,29 @@ function tabLabel(label: string) {
 // width (fixed by having six tabs), but they do make each one instantly
 // recognizable without reading the shrunk label, and the taller bar below
 // gives more forgiving vertical tap room.
+//
+// Navigation step, 2026-08-07 — the active tab now gets a soft pill behind
+// its icon instead of relying on tint color alone to show selection state,
+// matching the numbered-badge/chip visual language introduced elsewhere in
+// this redesign rather than looking like a leftover default tab bar.
 function tabIcon(name: keyof typeof Ionicons.glyphMap) {
   return ({ color, focused }: { color: string; focused: boolean }) => (
-    <Ionicons name={focused ? name : (`${name}-outline` as keyof typeof Ionicons.glyphMap)} size={22} color={color} />
+    <View style={[navStyles.iconWrap, focused && navStyles.iconWrapActive]}>
+      <Ionicons name={focused ? name : (`${name}-outline` as keyof typeof Ionicons.glyphMap)} size={20} color={color} />
+    </View>
   );
 }
+
+const navStyles = StyleSheet.create({
+  iconWrap: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+  },
+  iconWrapActive: {
+    backgroundColor: colors.accentSoft,
+  },
+});
 
 function AppTabs() {
   const insets = useSafeAreaInsets();
@@ -95,7 +113,17 @@ function AppTabs() {
         tabBarInactiveTintColor: colors.textFaint,
         tabBarStyle: {
           backgroundColor: colors.surface,
-          borderTopColor: colors.border,
+          // Navigation step, 2026-08-07 — rounded top corners + a soft
+          // upward shadow read as a deliberately designed surface, rather
+          // than the flat 1px border every default tab bar ships with.
+          borderTopWidth: 0,
+          borderTopLeftRadius: radius.xl,
+          borderTopRightRadius: radius.xl,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.06,
+          shadowRadius: 12,
+          elevation: 12,
           // React Navigation uses a custom `height` as-is — unlike its own
           // default sizing, it does NOT add insets.bottom on top — but
           // still applies insets.bottom as inner padding. A fixed height
