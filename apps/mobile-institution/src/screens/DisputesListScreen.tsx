@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   loading: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
   },
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   errorText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.danger,
   },
@@ -125,12 +125,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   body: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.text,
   },
   hint: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.textMuted,
   },

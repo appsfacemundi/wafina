@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     gap: spacing[1],
   },
   label: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 13,
     color: colors.text,
   },
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
   },
   triggerText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.text,
     flex: 1,
@@ -142,12 +142,12 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   optionText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 15,
     color: colors.text,
   },
   optionTextSelected: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     color: colors.accent,
   },
   optionTextDisabled: {

@@ -19,7 +19,7 @@ export default function TermsPage() {
           aplicações web de Doador, Instituição e Administração. A plataforma é operada por{' '}
           <strong>ZUINDER - PRESTAÇÃO SERVIÇOS COMÉRCIO GERAL, LDA</strong>. Ao criar uma conta ou utilizar
           qualquer aplicação Wafina, concorda com estes termos. Para questões, contacte{' '}
-          <a href="mailto:support@zuinder.com">support@zuinder.com</a>.
+          <a href="mailto:wafina@zuinder.com">wafina@zuinder.com</a>.
         </p>
 
         <section className="stack">
@@ -91,7 +91,7 @@ export default function TermsPage() {
           Admin web applications. The platform is operated by{' '}
           <strong>ZUINDER - PRESTAÇÃO SERVIÇOS COMÉRCIO GERAL, LDA</strong>. By creating an account or using
           any Wafina app, you agree to these terms. For questions, contact{' '}
-          <a href="mailto:support@zuinder.com">support@zuinder.com</a>.
+          <a href="mailto:wafina@zuinder.com">wafina@zuinder.com</a>.
         </p>
 
         <section className="stack">

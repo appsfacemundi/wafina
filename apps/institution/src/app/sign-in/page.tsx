@@ -36,12 +36,24 @@ export default function SignInPage() {
 
   return (
     <main className="screen-center">
+      <div className="auth-brand">
+        <img src="/wafina-icon-mark.png" alt="Wafina" width={104} height={87} />
+        <span
+          className="auth-badge"
+          style={{ backgroundColor: 'var(--success-100)', color: 'var(--success-700)' }}
+        >
+          INSTITUIÇÃO
+        </span>
+        <h1 className="auth-welcome">Bem-vindo(a) à Wafina</h1>
+        <p className="auth-tagline">DOAR HOJE, TRANSFORMAR AMANHÃ</p>
+      </div>
       <Card className="auth-card stack">
-        <h1 style={{ fontSize: 24 }}>Entrar</h1>
         <form onSubmit={onSubmit} className="stack">
           <Input
             label="E-mail"
             type="email"
+            name="email"
+            autoComplete="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -49,6 +61,8 @@ export default function SignInPage() {
           <Input
             label="Palavra-passe"
             type="password"
+            name="password"
+            autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}

@@ -25,12 +25,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[10],
   },
   title: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 16,
     color: colors.text,
   },
   description: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.textMuted,
     textAlign: 'center',

@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   loading: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
   },
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   errorText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.danger,
   },
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
   },
   filterChipText: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 12,
     color: colors.textMuted,
   },
@@ -259,12 +259,12 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   itemType: {
-    fontFamily: 'WorkSans-700',
+    fontFamily: 'Manrope-700',
     fontSize: 16.5,
     color: colors.text,
   },
   meta: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13.5,
     color: colors.textMuted,
   },
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
   },
   mapLink: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 13.5,
     color: colors.accent,
   },
@@ -289,12 +289,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   donorName: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 14,
     color: colors.text,
   },
   dateLabel: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12,
     color: colors.textFaint,
     marginBottom: 4,

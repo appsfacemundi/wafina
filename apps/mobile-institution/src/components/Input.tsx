@@ -27,12 +27,12 @@ const styles = StyleSheet.create({
     gap: spacing[1],
   },
   label: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 13,
     color: colors.text,
   },
   input: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 15,
     color: colors.text,
     backgroundColor: colors.surface,
@@ -46,12 +46,12 @@ const styles = StyleSheet.create({
     borderColor: colors.danger,
   },
   err: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12,
     color: colors.danger,
   },
   hint: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12,
     color: colors.textFaint,
   },

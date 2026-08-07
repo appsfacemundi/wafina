@@ -16,7 +16,7 @@ const styles = StyleSheet.create({
     padding: spacing[3],
   },
   text: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.danger,
   },

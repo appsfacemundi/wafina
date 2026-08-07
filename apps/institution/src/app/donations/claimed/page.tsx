@@ -12,7 +12,7 @@ import {
 } from '@wafina/shared';
 import { Badge, Button, Card, DonationTimeline, EmptyState, Photo, useToast } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
@@ -46,6 +46,21 @@ export default function ClaimedDonationsPage() {
   useEffect(() => {
     load();
   }, [firebaseUser]);
+
+  // Real-device finding, 2026-08-07 — the API already returns this list
+  // newest-claimed-first (listDonationsClaimedByInstitution sorts server-side),
+  // but this page rendered raw API order with no sort of its own to fall
+  // back on. Sorting here too keeps the newest-on-top guarantee even if that
+  // ever changes, matching the Admin donations list's same defensive pattern.
+  const sortedDonations = useMemo(() => {
+    if (!donations) return donations;
+    const parse = (v: string | null) => {
+      if (!v) return 0;
+      const t = Date.parse(v);
+      return Number.isNaN(t) ? 0 : t;
+    };
+    return [...donations].sort((a, b) => parse(b.Date_Claimed) - parse(a.Date_Claimed));
+  }, [donations]);
 
   const SUCCESS_MESSAGE: Record<'schedule-collection' | 'collect' | 'deliver', string> = {
     'schedule-collection': 'Recolha agendada com sucesso!',
@@ -110,9 +125,9 @@ export default function ClaimedDonationsPage() {
             description="As doações que aceitar aparecem aqui."
           />
         )}
-        {donations && donations.length > 0 && (
+        {sortedDonations && sortedDonations.length > 0 && (
           <div className="stack">
-            {donations.map((d) => (
+            {sortedDonations.map((d) => (
               <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
                 <Photo
                   src={d.Photo}

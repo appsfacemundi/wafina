@@ -1,45 +1,52 @@
-/* Design tokens — ported from the approved Wafina Design System (Module 4b). */
+/* Design tokens — Wafina Brand Identity redesign, 2026-08-07 (stakeholder brief). */
 
 :root {
-  --bougainvillea-50: #fbf1f6;
-  --bougainvillea-100: #f5dce9;
-  --bougainvillea-300: #e495c0;
-  --bougainvillea-400: #c23e86;
-  --bougainvillea-500: #ad1a67;
-  --bougainvillea-600: #8f1455;
-  --bougainvillea-700: #710f44;
+  /* Primary Blue — trust, technology, security. General primary actions
+     (login, save, submit) — NOT donation-specific, see --color-cta below. */
+  --blue-50: #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-300: #93c5fd;
+  --blue-500: #0057d9;
+  --blue-600: #0046ad;
+  --blue-700: #003580;
 
-  --palm-50: #eaf6f2;
-  --palm-100: #cbeadf;
-  --palm-300: #6fbba3;
-  --palm-500: #0f6e5c;
-  --palm-600: #0b5949;
-  --palm-700: #084538;
+  /* Energy Coral — action, giving, energy. Donation-specific CTAs only
+     ("Donate Now" / "Doar agora" / "Confirmar doação"), kept distinct from
+     the general primary blue so it stays meaningful where it appears. */
+  --coral-50: #fff1ed;
+  --coral-100: #ffe0d6;
+  --coral-500: #ff5a36;
+  --coral-600: #e6431f;
+  --coral-700: #b83417;
 
-  --dusk-25: #fbf9fa;
-  --dusk-50: #f5f1f3;
-  --dusk-100: #ebe3e7;
-  --dusk-200: #d9ccd3;
-  --dusk-300: #c2aeb8;
-  --dusk-500: #8a7482;
-  --dusk-600: #6b5762;
-  --dusk-700: #4a3b44;
-  --dusk-800: #332830;
-  --dusk-900: #241a20;
-  --dusk-950: #181117;
+  /* Success Green — verified donations, completed deliveries, positive impact. */
+  --success-100: #dcfce7;
+  --success-500: #22c55e;
+  --success-700: #15803d;
 
-  --success-100: #dcf1e7;
-  --success-500: #2a9d6f;
-  --success-700: #1c6e4d;
-  --warning-100: #f6e7d2;
-  --warning-500: #c97a1f;
-  --warning-700: #8f5615;
-  --danger-100: #f6dcdc;
-  --danger-500: #c23b3b;
-  --danger-700: #8a2a2a;
-  --info-100: #dceaf4;
-  --info-500: #2e6fa3;
-  --info-700: #1f4e75;
+  /* Neutral scale, anchored on the brief's Background (#F8FAFC) and Text
+     (#1E293B) values — a standard slate ramp built around those two exact
+     colors rather than the previous warm dusk/plum scale. */
+  --slate-25: #f8fafc;
+  --slate-50: #f1f5f9;
+  --slate-100: #e2e8f0;
+  --slate-200: #cbd5e1;
+  --slate-300: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+
+  --warning-100: #fef3c7;
+  --warning-500: #d97706;
+  --warning-700: #92400e;
+  --danger-100: #fee2e2;
+  --danger-500: #dc2626;
+  --danger-700: #991b1b;
+  --info-100: var(--blue-100);
+  --info-500: var(--blue-500);
+  --info-700: var(--blue-700);
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -51,51 +58,59 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
   --radius-xl: 24px;
   --radius-full: 999px;
 
-  --shadow-xs: 0 1px 2px rgba(36, 26, 32, 0.07);
-  --shadow-sm: 0 2px 8px rgba(36, 26, 32, 0.08);
-  --shadow-md: 0 8px 24px rgba(36, 26, 32, 0.12);
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 2px 10px rgba(15, 23, 42, 0.07);
+  --shadow-md: 0 10px 28px rgba(15, 23, 42, 0.10);
 
   color-scheme: light;
-  --color-bg: var(--dusk-25);
+  --color-bg: var(--slate-25);
   --color-surface: #ffffff;
-  --color-surface-2: var(--dusk-50);
-  --color-border: var(--dusk-200);
-  --color-border-strong: var(--dusk-300);
-  --color-text: var(--dusk-900);
-  --color-text-muted: var(--dusk-600);
-  --color-text-faint: var(--dusk-500);
-  --color-accent: var(--bougainvillea-500);
-  --color-accent-hover: var(--bougainvillea-600);
-  --color-accent-soft: var(--bougainvillea-50);
+  --color-surface-2: var(--slate-50);
+  --color-border: var(--slate-100);
+  --color-border-strong: var(--slate-200);
+  --color-text: var(--slate-800);
+  --color-text-muted: var(--slate-600);
+  --color-text-faint: var(--slate-500);
+  --color-accent: var(--blue-500);
+  --color-accent-hover: var(--blue-600);
+  --color-accent-soft: var(--blue-50);
   --color-accent-text: #ffffff;
-  --color-secondary: var(--palm-500);
-  --color-secondary-hover: var(--palm-600);
+  --color-cta: var(--coral-500);
+  --color-cta-hover: var(--coral-600);
+  --color-cta-soft: var(--coral-50);
+  --color-cta-text: #ffffff;
+  --color-secondary: var(--slate-700);
+  --color-secondary-hover: var(--slate-800);
   --color-elevation-shadow: var(--shadow-sm);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --color-bg: var(--dusk-950);
-    --color-surface: #211720;
-    --color-surface-2: #2a1e29;
-    --color-border: #3a2c37;
-    --color-border-strong: #4d3b48;
-    --color-text: #f3e9ee;
-    --color-text-muted: #c9b3c1;
-    --color-text-faint: #a68fa0;
-    --color-accent: var(--bougainvillea-400);
-    --color-accent-hover: var(--bougainvillea-300);
-    --color-accent-soft: #3a1c2c;
-    --color-accent-text: #ffffff;
-    --color-secondary: var(--palm-300);
-    --color-secondary-hover: #8bcdb5;
+    --color-bg: var(--slate-900);
+    --color-surface: #172033;
+    --color-surface-2: #1e293b;
+    --color-border: #2b3548;
+    --color-border-strong: #3a4559;
+    --color-text: #f1f5f9;
+    --color-text-muted: #b6c0d1;
+    --color-text-faint: #8b95a8;
+    --color-accent: var(--blue-300);
+    --color-accent-hover: #bfdbfe;
+    --color-accent-soft: #1c3559;
+    --color-accent-text: #0f172a;
+    --color-cta: #ff8266;
+    --color-cta-hover: #ffa085;
+    --color-cta-soft: #4a2318;
+    --color-cta-text: #1e293b;
+    --color-secondary: var(--slate-200);
+    --color-secondary-hover: #e2e8f0;
     --color-elevation-shadow: none;
   }
 }
@@ -122,8 +137,9 @@ body {
 h1,
 h2,
 h3 {
-  font-family: var(--font-display), serif;
-  font-weight: 600;
+  font-family: var(--font-body), sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   text-wrap: balance;
   margin: 0;
   color: var(--color-text);
@@ -176,6 +192,17 @@ p {
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--color-accent-hover);
+}
+/* Reserved for donation-specific calls to action ("Donate Now" / "Doar
+   agora") — kept distinct from .btn-primary (blue) so coral stays meaningful
+   as "this is the giving action" rather than a generic second primary color. */
+.btn-cta {
+  background: var(--color-cta);
+  color: var(--color-cta-text);
+  box-shadow: 0 8px 20px rgba(255, 90, 54, 0.28);
+}
+.btn-cta:hover:not(:disabled) {
+  background: var(--color-cta-hover);
 }
 .btn-secondary {
   background: transparent;
@@ -345,6 +372,36 @@ p {
   width: 100%;
   max-width: 360px;
 }
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: var(--space-2);
+}
+.auth-brand img {
+  margin-bottom: var(--space-2);
+}
+.auth-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-2);
+}
+.auth-welcome {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.auth-tagline {
+  font-family: var(--font-tagline), sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-cta);
+}
 
 /* ---- Empty state ---- */
 .empty-state {
@@ -392,7 +449,7 @@ p {
   gap: var(--space-4);
 }
 .app-mark {
-  font-family: var(--font-display), serif;
+  font-family: var(--font-body), sans-serif;
   font-weight: 600;
   font-size: 18px;
   display: inline-flex;
@@ -403,7 +460,7 @@ p {
   width: 9px;
   height: 9px;
   border-radius: var(--radius-full);
-  background: var(--bougainvillea-700);
+  background: var(--color-accent);
 }
 .app-nav {
   display: flex;

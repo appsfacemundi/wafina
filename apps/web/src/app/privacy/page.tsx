@@ -19,7 +19,7 @@ export default function PrivacyPage() {
           as aplicações web de Doador, Instituição e Administração. É operada por{' '}
           <strong>ZUINDER - PRESTAÇÃO SERVIÇOS COMÉRCIO GERAL, LDA</strong>. Para qualquer questão sobre
           esta política ou sobre os seus dados, contacte-nos em{' '}
-          <a href="mailto:support@zuinder.com">support@zuinder.com</a>.
+          <a href="mailto:wafina@zuinder.com">wafina@zuinder.com</a>.
         </p>
 
         <section className="stack">
@@ -63,7 +63,7 @@ export default function PrivacyPage() {
           <h2 style={{ fontSize: 19 }}>4. Retenção e os seus direitos</h2>
           <p>Mantemos os seus dados enquanto a sua conta estiver ativa. Pode solicitar o acesso, a correção ou
             a eliminação dos seus dados a qualquer momento, contactando{' '}
-            <a href="mailto:support@zuinder.com">support@zuinder.com</a>.</p>
+            <a href="mailto:wafina@zuinder.com">wafina@zuinder.com</a>.</p>
         </section>
 
         <section className="stack">
@@ -103,7 +103,7 @@ export default function PrivacyPage() {
           <strong>Wafina Instituição</strong> mobile apps (Android and iOS), and the Donor, Institution, and
           Admin web applications. It is operated by{' '}
           <strong>ZUINDER - PRESTAÇÃO SERVIÇOS COMÉRCIO GERAL, LDA</strong>. For any question about this
-          policy or your data, contact us at <a href="mailto:support@zuinder.com">support@zuinder.com</a>.
+          policy or your data, contact us at <a href="mailto:wafina@zuinder.com">wafina@zuinder.com</a>.
         </p>
 
         <section className="stack">
@@ -145,7 +145,7 @@ export default function PrivacyPage() {
           <h2 style={{ fontSize: 19 }}>4. Retention and your rights</h2>
           <p>We keep your data for as long as your account remains active. You may request access, correction,
             or deletion of your data at any time by contacting{' '}
-            <a href="mailto:support@zuinder.com">support@zuinder.com</a>.</p>
+            <a href="mailto:wafina@zuinder.com">wafina@zuinder.com</a>.</p>
         </section>
 
         <section className="stack">

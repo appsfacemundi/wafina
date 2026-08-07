@@ -39,10 +39,14 @@ export function NotificationsScreen({ navigation }: Props) {
       return;
     }
     if (n.Entity_Type === 'Success_Story') {
-      navigation.navigate('MyDonations', { screen: 'Impact' });
+      navigation.navigate('Impact');
       return;
     }
-    navigation.navigate('MyDonations');
+    // Real-device finding, 2026-08-07 — 'Donation' notifications (claimed,
+    // delivered) always dropped the donor at the top of the list with no
+    // way to tell which item it was about. Passing Entity_ID lets
+    // MyDonationsScreen scroll to and highlight that specific donation.
+    navigation.navigate('MyDonations', n.Entity_Type === 'Donation' ? { donationId: n.Entity_ID } : undefined);
   }
 
   async function onOpen(n: Notification) {
@@ -116,7 +120,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   loading: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
   },
@@ -127,7 +131,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   errorText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.danger,
   },
@@ -147,7 +151,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   message: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
   },
   time: {

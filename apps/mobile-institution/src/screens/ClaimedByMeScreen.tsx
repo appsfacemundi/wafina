@@ -13,7 +13,7 @@ import {
 } from '@wafina/shared';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
@@ -31,10 +31,12 @@ import { colors, fonts, spacing } from '@/theme/tokens';
 
 type Props = NativeStackScreenProps<ClaimedByMeStackParamList, 'ClaimedByMeList'>;
 
-export function ClaimedByMeScreen({ navigation }: Props) {
+export function ClaimedByMeScreen({ navigation, route }: Props) {
   const { firebaseUser } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
+  const highlightId = route.params?.donationId;
+  const listRef = useRef<SectionList<InstitutionDonationView>>(null);
   const [donations, setDonations] = useState<InstitutionDonationView[] | null>(null);
   const [storiesByDonation, setStoriesByDonation] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
@@ -101,6 +103,27 @@ export function ClaimedByMeScreen({ navigation }: Props) {
     ];
   }, [donations, search, deliveryFilter]);
 
+  // Real-device finding, 2026-08-07 — deep-linking here from a donation
+  // notification always landed at the top of the list with no indication of
+  // which item it was about. Scroll to it once it's in the loaded sections;
+  // SectionList has no onScrollToIndexFailed retry like FlatList, so this
+  // just waits long enough for the first layout pass to have happened.
+  useEffect(() => {
+    if (!highlightId || !sections) return;
+    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+      const itemIndex = sections[sectionIndex].data.findIndex((d) => d.Donation_ID === highlightId);
+      if (itemIndex === -1) continue;
+      const timer = setTimeout(() => {
+        try {
+          listRef.current?.scrollToLocation({ sectionIndex, itemIndex, animated: true, viewOffset: 20 });
+        } catch {
+          // Not measured yet — harmless, list is still usable without the scroll.
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId, sections]);
+
   const SUCCESS_MESSAGE: Record<'schedule-collection' | 'collect' | 'deliver', string> = {
     'schedule-collection': 'Recolha agendada com sucesso!',
     collect: 'Doação marcada como recolhida!',
@@ -153,6 +176,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
   return (
     <View style={styles.screen}>
       <SectionList
+        ref={listRef}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
@@ -215,7 +239,7 @@ export function ClaimedByMeScreen({ navigation }: Props) {
           ) : null
         }
         renderItem={({ item }) => (
-          <Card style={styles.card}>
+          <Card style={[styles.card, item.Donation_ID === highlightId && styles.highlightedCard]}>
             <Photo uri={item.Photo} style={styles.photo} />
             <View style={styles.cardBody}>
               <View style={styles.rowBetween}>
@@ -344,7 +368,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   loading: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
   },
@@ -355,7 +379,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   errorText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.danger,
   },
@@ -377,7 +401,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
   },
   filterChipText: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 12,
     color: colors.textMuted,
   },
@@ -389,6 +413,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     gap: 0,
     marginBottom: spacing[3],
+  },
+  highlightedCard: {
+    borderColor: colors.accent,
+    borderWidth: 2,
   },
   photo: {
     width: '100%',
@@ -403,7 +431,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[1],
   },
   sectionHeaderText: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 12,
     letterSpacing: 0.4,
     textTransform: 'uppercase',
@@ -423,17 +451,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   itemType: {
-    fontFamily: 'WorkSans-700',
+    fontFamily: 'Manrope-700',
     fontSize: 16.5,
     color: colors.text,
   },
   meta: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13.5,
     color: colors.textMuted,
   },
   storyPublished: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 12,
     color: colors.success,
     alignSelf: 'center',
@@ -444,7 +472,7 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
   },
   mapLink: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 13.5,
     color: colors.accent,
   },
@@ -459,12 +487,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   donorName: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 14,
     color: colors.text,
   },
   dateLabel: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12,
     color: colors.textFaint,
   },

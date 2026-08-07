@@ -305,17 +305,17 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   subtitle: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13.5,
     color: colors.textMuted,
   },
   label: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 13,
     color: colors.text,
   },
   hint: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12,
     color: colors.textFaint,
   },

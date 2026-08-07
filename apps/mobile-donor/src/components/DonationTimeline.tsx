@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accentSoft,
   },
   label: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12.5,
     color: colors.textFaint,
   },
@@ -69,15 +69,15 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   labelCurrent: {
-    fontFamily: 'WorkSans-700',
+    fontFamily: 'Manrope-700',
   },
   date: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 11.5,
     color: colors.textFaint,
   },
   deliveryMethod: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12.5,
     color: colors.textMuted,
     marginTop: 4,

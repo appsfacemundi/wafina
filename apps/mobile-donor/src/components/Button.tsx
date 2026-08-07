@@ -2,12 +2,14 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { colors, radius, spacing } from '@/theme/tokens';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Variant = 'primary' | 'cta' | 'secondary' | 'ghost' | 'danger';
+type Size = 'default' | 'large';
 
 interface ButtonProps {
   children: ReactNode;
   onPress: () => void;
   variant?: Variant;
+  size?: Size;
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
@@ -17,6 +19,7 @@ export function Button({
   children,
   onPress,
   variant = 'primary',
+  size = 'default',
   disabled,
   loading,
   fullWidth,
@@ -32,6 +35,7 @@ export function Button({
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       style={({ pressed }) => [
         styles.base,
+        size === 'large' && styles.baseLarge,
         variantStyles[variant],
         fullWidth && styles.fullWidth,
         isDisabled && styles.disabled,
@@ -39,9 +43,11 @@ export function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? colors.accentText : colors.accent} />
+        <ActivityIndicator color={variant === 'primary' || variant === 'cta' ? colors.accentText : colors.accent} />
       ) : (
-        <Text style={[styles.text, textVariantStyles[variant]]}>{children}</Text>
+        <Text style={[styles.text, size === 'large' && styles.textLarge, textVariantStyles[variant]]}>
+          {children}
+        </Text>
       )}
     </Pressable>
   );
@@ -56,6 +62,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  baseLarge: {
+    paddingVertical: spacing[4],
+    minHeight: 60,
+    borderRadius: radius.md,
+  },
   fullWidth: {
     width: '100%',
   },
@@ -66,13 +77,21 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   text: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 15,
+  },
+  textLarge: {
+    fontFamily: 'Manrope-800',
+    fontSize: 17,
+    letterSpacing: 0.2,
   },
 });
 
 const variantStyles = StyleSheet.create({
   primary: { backgroundColor: colors.accent },
+  // Donation-specific CTAs only ("Doar agora") — kept distinct from primary
+  // (blue, general actions) so coral stays meaningful as the giving action.
+  cta: { backgroundColor: colors.cta },
   secondary: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   ghost: { backgroundColor: 'transparent' },
   danger: { backgroundColor: colors.danger },
@@ -80,6 +99,7 @@ const variantStyles = StyleSheet.create({
 
 const textVariantStyles = StyleSheet.create({
   primary: { color: colors.accentText },
+  cta: { color: colors.ctaText },
   secondary: { color: colors.text },
   ghost: { color: colors.accent },
   danger: { color: colors.accentText },

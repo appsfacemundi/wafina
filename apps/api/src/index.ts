@@ -43,6 +43,22 @@ app.use(healthRouter);
 // coupling read-only, publicly-cacheable image loads to the same budget as authenticated JSON calls
 // would exhaust real users' quota just from rendering a page (found 2026-08-06, image-proxy fix).
 app.use(photosRouter);
+// Real-device finding, 2026-08-07 — Express's default ETag support (on by
+// default, no Cache-Control set) is enough for browsers to serve a genuinely
+// stale cached response on a later request for the exact same URL — caught
+// twice: Admin's donations list showing an old (pre-fix) photo URL, and
+// Institution's Available Donations list showing a freshly-created
+// donation's Recipient_Category/Delivery_Method as unset when the API
+// itself returned the correct values (verified via a direct, uncached
+// curl). Every JSON route below is per-request dynamic data — never safe to
+// let a browser reuse an old response for — so it gets `no-store`
+// unconditionally. Photos are the deliberate exception: they're immutable
+// once uploaded (a Drive file ID never changes content), so `photosRouter`
+// above keeps whatever caching behavior it already has.
+app.use((_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 app.use(generalLimiter);
 app.use(authRouter);
 app.use(geoRegionsRouter);

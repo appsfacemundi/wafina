@@ -124,12 +124,12 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   name: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 15,
     color: colors.text,
   },
   email: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
   },
@@ -143,12 +143,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   statValue: {
-    fontFamily: 'WorkSans-700',
+    fontFamily: 'Manrope-700',
     fontSize: 28,
     color: colors.text,
   },
   statLabel: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12,
     color: colors.textMuted,
   },

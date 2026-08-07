@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
+import { SplashView } from '@/components/SplashView';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { AvailableDonationsScreen } from '@/screens/AvailableDonationsScreen';
 import { ClaimedByMeScreen } from '@/screens/ClaimedByMeScreen';
@@ -41,7 +42,10 @@ export type DisputesStackParamList = {
 };
 
 export type ClaimedByMeStackParamList = {
-  ClaimedByMeList: undefined;
+  // Real-device finding, 2026-08-07 — a "donation claimed/estimate changed"
+  // notification always landed on the generic top of this list, never the
+  // specific donation it was about. donationId lets it deep-link to one.
+  ClaimedByMeList: { donationId?: string } | undefined;
   /** publicCode is the only donation identifier ever shown on screen — donationId is API-only. */
   NewSuccessStory: { donationId: string; publicCode: string };
   MySuccessStories: undefined;
@@ -51,7 +55,10 @@ export type AppTabParamList = {
   Home: undefined;
   AvailableDonations: undefined;
   ClaimedByMe:
-    | { screen?: keyof ClaimedByMeStackParamList; params?: ClaimedByMeStackParamList['NewSuccessStory'] }
+    | {
+        screen?: keyof ClaimedByMeStackParamList;
+        params?: ClaimedByMeStackParamList['NewSuccessStory'] | ClaimedByMeStackParamList['ClaimedByMeList'];
+      }
     | undefined;
   Disputes: { screen?: keyof DisputesStackParamList; params?: DisputesStackParamList['NewDispute'] } | undefined;
   Notifications: undefined;
@@ -68,7 +75,7 @@ const AppTab = createBottomTabNavigator<AppTabParamList>();
 function tabLabel(label: string) {
   return ({ color }: { color: string }) => (
     <Text
-      style={{ fontFamily: 'WorkSans-600', fontSize: 10.5, color, textAlign: 'center' }}
+      style={{ fontFamily: 'Manrope-600', fontSize: 10.5, color, textAlign: 'center' }}
       numberOfLines={1}
       adjustsFontSizeToFit
       minimumFontScale={0.8}
@@ -113,10 +120,12 @@ export function RootNavigator() {
   const { institution, loading: institutionLoading, refetch: refetchInstitution } = useOwnInstitution();
   const insets = useSafeAreaInsets();
 
-  // Nothing renders while Firebase resolves the initial auth state, or (once
-  // signed in) while we're finding out whether an institution profile exists
-  // yet — avoids a flash of the wrong screen for an already-registered user.
-  if (authLoading) return null;
+  // Real-device finding, 2026-08-07 — both of these used to render nothing,
+  // which showed as a jarring blank white flash between the branded
+  // SplashView (App.tsx) finishing and the sign-in/next screen appearing.
+  // Keeping SplashView on screen through both gaps makes the transition
+  // continuous instead of a splash, a white flash, then the real screen.
+  if (authLoading) return <SplashView />;
 
   return (
     <NavigationContainer>
@@ -125,7 +134,9 @@ export function RootNavigator() {
           <AuthStack.Screen name="SignIn" component={SignInScreen} />
           <AuthStack.Screen name="SignUp" component={SignUpScreen} />
         </AuthStack.Navigator>
-      ) : institutionLoading ? null : !institution ? (
+      ) : institutionLoading ? (
+        <SplashView />
+      ) : !institution ? (
         <OnboardingStack.Navigator screenOptions={{ headerShown: false }}>
           <OnboardingStack.Screen name="Register">
             {() => <RegisterScreen onRegistered={refetchInstitution} />}
@@ -157,7 +168,7 @@ export function RootNavigator() {
               paddingBottom: insets.bottom + 6,
             },
             tabBarItemStyle: { paddingVertical: 2 },
-            tabBarLabelStyle: { fontFamily: 'WorkSans-600', fontSize: 10 },
+            tabBarLabelStyle: { fontFamily: 'Manrope-600', fontSize: 10 },
           }}
         >
           <AppTab.Screen

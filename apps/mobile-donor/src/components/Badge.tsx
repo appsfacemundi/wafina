@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
   },
   text: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 12,
   },
 });

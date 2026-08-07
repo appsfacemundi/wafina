@@ -121,7 +121,15 @@ export function SettingsScreen() {
     ]);
   }
 
-  const logoLocked = institution?.Locked_Fields.includes('Logo') ?? false;
+  // Real-device finding, 2026-08-07 — registration requires a Logo
+  // (`createInstitution` throws if `!input.Logo`, apps/api/src/services/institutions.ts),
+  // so a real institution can never be verified/locked without one already
+  // set. Gating on `institution?.Logo` too means an institution that somehow
+  // ended up locked with no logo anyway (e.g. force-verified test data,
+  // bypassing registration) still gets the upload button instead of being
+  // stuck behind a "locked" message for an asset that was never actually
+  // there to lock.
+  const logoLocked = (institution?.Locked_Fields.includes('Logo') ?? false) && Boolean(institution?.Logo);
 
   function onPressSignOut() {
     Alert.alert('Sair', 'Tem a certeza que quer sair?', [
@@ -253,6 +261,28 @@ export function SettingsScreen() {
           </Button>
         </Card>
 
+        <Card style={{ gap: spacing[3] }}>
+          <Text style={styles.cardTitle}>Sobre</Text>
+          <Text style={styles.hint}>
+            A Wafina é desenvolvida e operada por <Text style={styles.hintBold}>ZUINDER</Text>.
+          </Text>
+          <Button variant="secondary" onPress={() => Linking.openURL('https://www.zuinder.com')}>
+            www.zuinder.com
+          </Button>
+          <Button
+            variant="secondary"
+            onPress={() => Linking.openURL('https://wafina-donor-web.onrender.com/privacy')}
+          >
+            Política de Privacidade
+          </Button>
+          <Button
+            variant="secondary"
+            onPress={() => Linking.openURL('https://wafina-donor-web.onrender.com/terms')}
+          >
+            Termos de Utilização
+          </Button>
+        </Card>
+
         <Button variant="secondary" onPress={onPressSignOut}>
           Sair
         </Button>
@@ -276,27 +306,31 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   cardTitle: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 15,
     color: colors.text,
   },
   name: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 16,
     color: colors.text,
   },
   hint: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.textMuted,
   },
+  hintBold: {
+    fontFamily: 'Manrope-700',
+    color: colors.text,
+  },
   label: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 13,
     color: colors.text,
   },
   textarea: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 15,
     color: colors.text,
     backgroundColor: colors.surface,
@@ -307,7 +341,7 @@ const styles = StyleSheet.create({
     minHeight: 100,
   },
   successText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.success,
   },
@@ -322,7 +356,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoPlaceholderText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 9.5,
     color: colors.textFaint,
     textAlign: 'center',

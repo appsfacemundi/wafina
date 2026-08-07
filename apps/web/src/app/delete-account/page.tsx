@@ -13,8 +13,8 @@ export default function DeleteAccountPage() {
         <p>
           Para solicitar a eliminação da sua conta Wafina (Doador ou Instituição) e de todos os dados
           associados — perfil, histórico de doações, fotografias e mensagens — envie um e-mail para{' '}
-          <a href="mailto:support@zuinder.com?subject=Pedido%20de%20elimina%C3%A7%C3%A3o%20de%20conta">
-            support@zuinder.com
+          <a href="mailto:wafina@zuinder.com?subject=Pedido%20de%20elimina%C3%A7%C3%A3o%20de%20conta">
+            wafina@zuinder.com
           </a>{' '}
           a partir do endereço de e-mail associado à sua conta, com o assunto "Pedido de eliminação de
           conta".
@@ -47,8 +47,8 @@ export default function DeleteAccountPage() {
         <p>
           To request deletion of your Wafina account (Donor or Institution) and all associated data —
           profile, donation history, photos, and messages — email{' '}
-          <a href="mailto:support@zuinder.com?subject=Account%20deletion%20request">
-            support@zuinder.com
+          <a href="mailto:wafina@zuinder.com?subject=Account%20deletion%20request">
+            wafina@zuinder.com
           </a>{' '}
           from the email address associated with your account, with the subject "Account deletion
           request".

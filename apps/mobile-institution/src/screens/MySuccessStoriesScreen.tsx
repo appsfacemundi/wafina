@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
   },
   filterChipText: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 12,
     color: colors.textMuted,
   },
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     color: colors.accentText,
   },
   loading: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
   },
@@ -175,22 +175,22 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   storyTitle: {
-    fontFamily: 'WorkSans-700',
+    fontFamily: 'Manrope-700',
     fontSize: 16.5,
     color: colors.text,
   },
   description: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13.5,
     color: colors.textMuted,
   },
   rejectionReason: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.danger,
   },
   dateLabel: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12,
     color: colors.textFaint,
   },

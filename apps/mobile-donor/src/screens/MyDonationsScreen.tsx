@@ -1,5 +1,7 @@
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import {
   DELIVERY_METHOD_LABEL,
+  daysAgoLabel,
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   DONATION_STATUSES,
@@ -9,10 +11,9 @@ import {
   type Donation,
   type SuccessStory,
 } from '@wafina/shared';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
@@ -21,14 +22,16 @@ import { EmptyState } from '@/components/EmptyState';
 import { Input } from '@/components/Input';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
-import type { MyDonationsStackParamList } from '@/navigation/RootNavigator';
+import type { AppTabParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
-type Props = NativeStackScreenProps<MyDonationsStackParamList, 'MyDonationsList'>;
+type Props = BottomTabScreenProps<AppTabParamList, 'MyDonations'>;
 
-export function MyDonationsScreen({ navigation }: Props) {
+export function MyDonationsScreen({ route }: Props) {
   const { firebaseUser, session } = useAuth();
   const insets = useSafeAreaInsets();
+  const highlightId = route.params?.donationId;
+  const listRef = useRef<FlatList<Donation>>(null);
   const [donations, setDonations] = useState<Donation[] | null>(null);
   const [storiesByDonation, setStoriesByDonation] = useState<Map<string, SuccessStory>>(new Map());
   const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
@@ -100,17 +103,39 @@ export function MyDonationsScreen({ navigation }: Props) {
     return result;
   }, [donations, search]);
 
+  // Real-device finding, 2026-08-07 — deep-linking here from a donation
+  // notification always landed at the top of the list with no indication
+  // of which item the notification was about. Scroll to it once it's in
+  // the (already-loaded) visible list; retry once via onScrollToIndexFailed
+  // since rows aren't measured yet on the very first render pass.
+  useEffect(() => {
+    if (!highlightId || visibleDonations.length === 0) return;
+    const index = visibleDonations.findIndex((d) => d.Donation_ID === highlightId);
+    if (index === -1) return;
+    const timer = setTimeout(() => {
+      try {
+        listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.2 });
+      } catch {
+        // Not measured yet — onScrollToIndexFailed below handles the retry.
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [highlightId, visibleDonations]);
+
   return (
     <View style={styles.screen}>
       <FlatList
+        ref={listRef}
+        onScrollToIndexFailed={(info) => {
+          setTimeout(() => {
+            listRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.2 });
+          }, 300);
+        }}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
             <View style={styles.headerRow}>
               <Text style={styles.title}>Minhas Doações</Text>
-              <Pressable onPress={() => navigation.navigate('Impact')}>
-                <Text style={styles.impactLink}>Histórias de Impacto</Text>
-              </Pressable>
             </View>
             {stats && (
               <View style={styles.statsGrid}>
@@ -159,7 +184,12 @@ export function MyDonationsScreen({ navigation }: Props) {
         renderItem={({ item }) => {
           const story = storiesByDonation.get(item.Donation_ID);
           return (
-            <Card style={{ marginBottom: spacing[3], gap: spacing[3] }}>
+            <Card
+              style={[
+                { marginBottom: spacing[3], gap: spacing[3] },
+                item.Donation_ID === highlightId && styles.highlightedCard,
+              ]}
+            >
               {item.Photo && <Image source={{ uri: item.Photo }} style={styles.itemPhoto} />}
               <View style={styles.donationRow}>
                 <View style={{ flex: 1 }}>
@@ -180,6 +210,7 @@ export function MyDonationsScreen({ navigation }: Props) {
                 {' · '}
                 {item.Delivery_Method ? DELIVERY_METHOD_LABEL[item.Delivery_Method] : '—'}
               </Text>
+              <Text style={styles.donationId}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
               {(item.Expected_Collection_Date || item.Expected_Delivery_Date) && (
                 <Text style={styles.donationId}>
                   {item.Expected_Collection_Date && `Recolha estimada: ${formatDateLabel(item.Expected_Collection_Date)}`}
@@ -228,11 +259,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing[4],
   },
-  impactLink: {
-    fontFamily: 'WorkSans-600',
-    fontSize: 13.5,
-    color: colors.accent,
-  },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -244,17 +270,17 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   statValue: {
-    fontFamily: 'WorkSans-700',
+    fontFamily: 'Manrope-700',
     fontSize: 24,
     color: colors.text,
   },
   statLabel: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12,
     color: colors.textMuted,
   },
   loading: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
   },
@@ -265,7 +291,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   errorText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.danger,
   },
@@ -273,6 +299,10 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 140,
     borderRadius: radius.md,
+  },
+  highlightedCard: {
+    borderColor: colors.accent,
+    borderWidth: 2,
   },
   donationRow: {
     flexDirection: 'row',
@@ -292,24 +322,24 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   storyLabel: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 10.5,
     letterSpacing: 0.4,
     textTransform: 'uppercase',
     color: colors.success,
   },
   storyTitle: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 13.5,
     color: colors.text,
   },
   storyDescription: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12.5,
     color: colors.textMuted,
   },
   itemType: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 15,
     color: colors.text,
   },

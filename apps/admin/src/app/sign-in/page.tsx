@@ -69,15 +69,20 @@ function SignInForm() {
 
   return (
     <main className="screen-center">
-      <div className="stack" style={{ textAlign: 'center', maxWidth: 360 }}>
-        <h1 style={{ fontSize: 28 }}>Wafina Admin</h1>
-        <p style={{ color: 'var(--color-text-muted)' }}>Acesso reservado à administração.</p>
+      <div className="auth-brand" style={{ maxWidth: 360 }}>
+        <img src="/wafina-icon-mark.png" alt="Wafina" width={92} height={77} />
+        <h1 className="auth-welcome" style={{ fontSize: 24 }}>Wafina Admin</h1>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5, marginTop: 4 }}>
+          Acesso reservado à administração.
+        </p>
       </div>
       <Card className="auth-card stack">
         <form onSubmit={onSubmit} className="stack">
           <Input
             label="E-mail"
             type="email"
+            name="email"
+            autoComplete="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -85,6 +90,8 @@ function SignInForm() {
           <Input
             label="Palavra-passe"
             type="password"
+            name="password"
+            autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}

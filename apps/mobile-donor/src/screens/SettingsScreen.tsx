@@ -1,6 +1,6 @@
 import type { GeoRegion, SwitchPreference } from '@wafina/shared';
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
@@ -323,6 +323,28 @@ export function SettingsScreen() {
           </Button>
         </Card>
 
+        <Card style={{ gap: spacing[3] }}>
+          <Text style={styles.cardTitle}>Sobre</Text>
+          <Text style={styles.hint}>
+            A Wafina é desenvolvida e operada por <Text style={styles.hintBold}>ZUINDER</Text>.
+          </Text>
+          <Button variant="secondary" onPress={() => Linking.openURL('https://www.zuinder.com')}>
+            www.zuinder.com
+          </Button>
+          <Button
+            variant="secondary"
+            onPress={() => Linking.openURL('https://wafina-donor-web.onrender.com/privacy')}
+          >
+            Política de Privacidade
+          </Button>
+          <Button
+            variant="secondary"
+            onPress={() => Linking.openURL('https://wafina-donor-web.onrender.com/terms')}
+          >
+            Termos de Utilização
+          </Button>
+        </Card>
+
         <Button variant="ghost" onPress={onPressSignOut}>
           Sair
         </Button>
@@ -346,17 +368,21 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   cardTitle: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 15,
     color: colors.text,
   },
   hint: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13.5,
     color: colors.textMuted,
   },
+  hintBold: {
+    fontFamily: 'Manrope-700',
+    color: colors.text,
+  },
   successText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.success,
   },

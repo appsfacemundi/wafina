@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerSoft,
   },
   text: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 13.5,
     color: colors.success,
   },

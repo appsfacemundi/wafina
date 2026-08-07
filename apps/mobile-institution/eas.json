@@ -6,6 +6,9 @@
   "build": {
     "production": {
       "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://wafina-api-rd0q.onrender.com",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAxNgxYb2GrwW2F9kKfzQok_OLA9pooWhM",

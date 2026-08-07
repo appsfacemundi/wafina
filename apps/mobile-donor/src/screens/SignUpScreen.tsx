@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
-import appIcon from '../../assets/icon.png';
+import logoMark from '../../assets/icon-mark.png';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -39,14 +39,11 @@ export function SignUpScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.center}>
+        <View style={styles.brand}>
+          <Image source={logoMark} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.title}>Criar conta</Text>
+        </View>
         <Card style={styles.card}>
-          <View style={styles.brand}>
-            <Image source={appIcon} style={styles.logo} />
-            <View>
-              <Text style={styles.appName}>Wafina Doador</Text>
-              <Text style={styles.title}>Criar conta</Text>
-            </View>
-          </View>
           <Input label="E-mail" keyboardType="email-address" value={email} onChangeText={setEmail} />
           <Input
             label="Palavra-passe"
@@ -77,28 +74,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: spacing[6],
+    gap: spacing[8],
   },
   card: {
     width: '100%',
   },
   brand: {
-    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[3],
   },
   logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-  },
-  appName: {
-    fontFamily: 'WorkSans-700',
-    fontSize: 13,
-    color: colors.textMuted,
+    width: 96,
+    height: 96,
   },
   title: {
     fontFamily: fonts.display,
-    fontSize: 24,
+    fontSize: 22,
     color: colors.text,
   },
 });

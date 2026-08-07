@@ -1,4 +1,5 @@
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   CONDITIONS,
   DELIVERY_METHOD_LABEL,
@@ -23,11 +24,11 @@ import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { ApiError, apiFetch, uploadFile } from '@/lib/api';
-import type { AppTabParamList } from '@/navigation/RootNavigator';
+import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 type LocationStatus = 'capturing' | 'captured' | 'failed' | 'geocoding' | 'geocoded';
-type Props = BottomTabScreenProps<AppTabParamList, 'Donate'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Donate'>;
 
 export function DonateScreen({ navigation }: Props) {
   const { firebaseUser, session } = useAuth();
@@ -182,7 +183,7 @@ export function DonateScreen({ navigation }: Props) {
       // above is easy to miss, and nothing on this screen changes to confirm
       // it. Navigating to the list where the new donation now appears is the
       // clearest possible confirmation.
-      navigation.navigate('MyDonations');
+      navigation.navigate('Tabs', { screen: 'MyDonations' });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível submeter a doação.');
     } finally {
@@ -193,7 +194,22 @@ export function DonateScreen({ navigation }: Props) {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
-        <Text style={styles.title}>Doar</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Doar</Text>
+          {/* Navigation audit, 2026-08-07 — now that this screen is a modal
+              reached from Home's "Doar agora" button (not a tab), it needs an
+              explicit way back for anyone who opens it and changes their
+              mind; the OS back gesture/button alone isn't discoverable
+              enough on Android. */}
+          <Pressable
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Fechar"
+            hitSlop={12}
+          >
+            <Ionicons name="close" size={26} color={colors.textMuted} />
+          </Pressable>
+        </View>
         <Card style={{ gap: spacing[4] }}>
           <Select label="Tipo de item" value={itemType} onValueChange={setItemType} options={ITEM_TYPES} />
           <Input
@@ -266,7 +282,7 @@ export function DonateScreen({ navigation }: Props) {
 
           {error ? <ErrorBanner message={error} /> : null}
 
-          <Button onPress={onSubmit} loading={submitting} fullWidth>
+          <Button variant="cta" onPress={onSubmit} loading={submitting} fullWidth>
             Confirmar doação
           </Button>
         </Card>
@@ -285,18 +301,23 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[12],
     gap: spacing[4],
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   title: {
     fontFamily: fonts.display,
     fontSize: 24,
     color: colors.text,
   },
   label: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 13,
     color: colors.text,
   },
   hint: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12,
     color: colors.textFaint,
   },
@@ -309,7 +330,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   uploadText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.textMuted,
   },

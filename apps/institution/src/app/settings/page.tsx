@@ -79,7 +79,15 @@ export default function SettingsPage() {
     }
   }
 
-  const logoLocked = institution?.Locked_Fields.includes('Logo') ?? false;
+  // Real-device finding, 2026-08-07 — registration requires a Logo
+  // (`createInstitution` throws if `!input.Logo`, apps/api/src/services/institutions.ts),
+  // so a real institution can never be verified/locked without one already
+  // set. Gating on `institution?.Logo` too means an institution that somehow
+  // ended up locked with no logo anyway (e.g. force-verified test data,
+  // bypassing registration) still gets the upload button instead of being
+  // stuck behind a "locked" message for an asset that was never actually
+  // there to lock. Same fix as mobile-institution's SettingsScreen.
+  const logoLocked = (institution?.Locked_Fields.includes('Logo') ?? false) && Boolean(institution?.Logo);
 
   if (!session || loading) return null;
 

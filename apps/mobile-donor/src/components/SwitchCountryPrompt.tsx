@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   body: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
   },

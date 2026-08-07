@@ -104,12 +104,12 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   subtitle: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13.5,
     color: colors.textMuted,
   },
   hint: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.textFaint,
   },

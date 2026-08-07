@@ -3,6 +3,7 @@
 import {
   DELIVERY_METHOD_LABEL,
   DELIVERY_METHODS,
+  daysAgoLabel,
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   RECIPIENT_CATEGORY_LABEL,
@@ -70,12 +71,32 @@ export default function AdminDonationsPage() {
     let result = donations;
     if (countryFilter) result = result.filter((d) => d.Country_ID === countryFilter);
     if (deliveryFilter) result = result.filter((d) => d.Delivery_Method === deliveryFilter);
-    return result;
+    // Real-device finding, 2026-08-07 — the API already returns this list
+    // newest-submitted-first (listAllDonationsForAdmin sorts server-side),
+    // but this page never re-sorted after filtering, so it relied entirely
+    // on that order surviving the filters above untouched. Sorting
+    // defensively here keeps the newest-on-top guarantee explicit.
+    const parse = (v: string) => {
+      if (!v) return 0;
+      const t = Date.parse(v);
+      return Number.isNaN(t) ? 0 : t;
+    };
+    return [...result].sort((a, b) => parse(b.Date_Submitted) - parse(a.Date_Submitted));
   }, [donations, countryFilter, deliveryFilter]);
 
   async function onSave(donationId: string) {
     const draft = drafts[donationId];
     if (!draft) return;
+    // Real-device finding, 2026-08-07 — the PATCH below sends `undefined` for
+    // an empty field, which the API treats as "leave this field alone" (see
+    // setExpectedDates's `dates.X !== undefined` checks in services/donations.ts)
+    // — never as "clear it". So saving with both dates empty was always a
+    // silent no-op that still showed a success toast, misleading whoever
+    // clicked it into thinking something changed.
+    if (!draft.collection && !draft.delivery) {
+      setError('Introduza pelo menos uma data antes de guardar.');
+      return;
+    }
     setError('');
     setSavingId(donationId);
     try {
@@ -167,6 +188,9 @@ export default function AdminDonationsPage() {
                       {' · '}
                       {d.Delivery_Method ? DELIVERY_METHOD_LABEL[d.Delivery_Method] : '—'}
                     </p>
+                    <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
+                      📅 {daysAgoLabel(d.Date_Submitted)}
+                    </p>
                     {d.Claimed_By_Institution_Name && (
                       <p style={{ fontSize: 14.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Photo
@@ -219,7 +243,13 @@ export default function AdminDonationsPage() {
                     />
                   </div>
                   {d.Status !== 'Delivered' && (
-                    <Button onClick={() => onSave(d.Donation_ID)} disabled={savingId === d.Donation_ID}>
+                    <Button
+                      onClick={() => onSave(d.Donation_ID)}
+                      disabled={
+                        savingId === d.Donation_ID ||
+                        (!drafts[d.Donation_ID]?.collection && !drafts[d.Donation_ID]?.delivery)
+                      }
+                    >
                       {savingId === d.Donation_ID ? 'A guardar…' : 'Guardar estimativas'}
                     </Button>
                   )}

@@ -2,6 +2,7 @@
 
 import {
   DELIVERY_METHOD_LABEL,
+  daysAgoLabel,
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
   formatDateLabel,
@@ -10,7 +11,7 @@ import {
   type Donation,
   type SuccessStory,
 } from '@wafina/shared';
-import { Badge, Button, Card, DonationTimeline, EmptyState } from '@wafina/ui';
+import { Badge, Button, Card, DonationTimeline, EmptyState, Photo } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -115,8 +116,12 @@ export default function DonationsPage() {
               const story = storiesByDonation.get(d.Donation_ID);
               return (
                 <Card key={d.Donation_ID} className="stack">
-                  <div className="donation-row">
-                    <div>
+                  <div className="donation-row" style={{ gap: 12 }}>
+                    <Photo
+                      src={d.Photo}
+                      style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                    />
+                    <div style={{ flex: 1 }}>
                       <p style={{ fontWeight: 600 }}>{d.Item_Type}</p>
                       <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
                         {d.Public_Donation_Code} · Qtd {d.Quantity}
@@ -135,6 +140,9 @@ export default function DonationsPage() {
                     {d.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[d.Recipient_Category] : '—'}
                     {' · '}
                     {d.Delivery_Method ? DELIVERY_METHOD_LABEL[d.Delivery_Method] : '—'}
+                  </p>
+                  <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
+                    📅 {daysAgoLabel(d.Date_Submitted)}
                   </p>
                   {(d.Expected_Collection_Date || d.Expected_Delivery_Date) && (
                     <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>

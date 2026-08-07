@@ -87,12 +87,12 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
   },
   label: {
-    fontFamily: 'WorkSans-600',
+    fontFamily: 'Manrope-600',
     fontSize: 13,
     color: colors.text,
   },
   textarea: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 15,
     color: colors.text,
     backgroundColor: colors.surface,

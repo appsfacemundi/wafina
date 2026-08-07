@@ -46,6 +46,15 @@ export function NotificationsScreen({ navigation }: Props) {
         navigation.navigate('ClaimedByMe', { screen: 'MySuccessStories' });
         return;
       case 'Donation':
+        // Real-device finding, 2026-08-07 — this always dropped the
+        // institution at the top of the list with no indication of which
+        // donation the notification was about; Entity_ID lets
+        // ClaimedByMeScreen scroll to and highlight it specifically.
+        navigation.navigate('ClaimedByMe', {
+          screen: 'ClaimedByMeList',
+          params: { donationId: n.Entity_ID },
+        });
+        return;
       default:
         navigation.navigate('ClaimedByMe');
     }
@@ -122,7 +131,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   loading: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
   },
@@ -133,7 +142,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   errorText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.danger,
   },
@@ -153,7 +162,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   message: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
   },
   time: {

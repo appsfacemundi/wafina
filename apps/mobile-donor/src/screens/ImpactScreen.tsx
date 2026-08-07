@@ -1,12 +1,38 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { formatDateTimeLabel, type SuccessStory } from '@wafina/shared';
 import { useEffect, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
 import { colors, fonts, spacing } from '@/theme/tokens';
+
+// UX follow-up, 2026-08-07 — donors want to share a story to social media
+// directly from its card. `Share.share()` opens the OS's native share sheet
+// (WhatsApp, Instagram, X, etc. all register as targets there already) — no
+// per-story public URL exists yet (only a general, non-deep-linkable
+// `/impact` page on Donor Web), so this shares the story text itself rather
+// than a link to it.
+//
+// RC1 note, 2026-08-07 — a version that downloaded the photo locally and
+// shared it via `expo-sharing` (so the image itself, not just text, reached
+// WhatsApp/Instagram) was tried and reverted: `expo-sharing` is a native
+// module, and Expo Go on the test device couldn't resolve it even after a
+// full reinstall/cache-clear cycle — resolving that needs an actual native
+// rebuild, untestable through Expo Go. Reverted to unblock RC1; revisit
+// once a real production/dev-client build exists to verify against.
+async function onShareStory(story: SuccessStory) {
+  try {
+    await Share.share({
+      title: `Wafina — ${story.Title}`,
+      message: `${story.Title}\n\n${story.Description}\n\n— partilhado via Wafina`,
+    });
+  } catch {
+    // Non-critical — the share sheet was likely just dismissed by the user.
+  }
+}
 
 /**
  * Institution App Polish QA review (2026-07-31) — a dedicated Impact section
@@ -61,7 +87,17 @@ export function ImpactScreen() {
           <Card style={styles.card}>
             <Image source={{ uri: item.Image }} style={styles.photo} />
             <View style={styles.cardBody}>
-              <Text style={styles.storyTitle}>{item.Title}</Text>
+              <View style={styles.cardHeaderRow}>
+                <Text style={[styles.storyTitle, { flex: 1 }]}>{item.Title}</Text>
+                <Pressable
+                  onPress={() => onShareStory(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Partilhar história"
+                  hitSlop={10}
+                >
+                  <Ionicons name="share-social-outline" size={20} color={colors.textMuted} />
+                </Pressable>
+              </View>
               <Text style={styles.description}>{item.Description}</Text>
               <Text style={styles.dateLabel}>Publicada em {formatDateTimeLabel(item.Date_Published)}</Text>
             </View>
@@ -87,13 +123,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing[2],
   },
   subtitle: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13.5,
     color: colors.textMuted,
     marginBottom: spacing[4],
   },
   loading: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
   },
@@ -104,7 +140,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   errorText: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 13,
     color: colors.danger,
   },
@@ -122,18 +158,23 @@ const styles = StyleSheet.create({
     padding: spacing[4],
     gap: 6,
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[2],
+  },
   storyTitle: {
-    fontFamily: 'WorkSans-700',
+    fontFamily: 'Manrope-700',
     fontSize: 17,
     color: colors.text,
   },
   description: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
   },
   dateLabel: {
-    fontFamily: 'WorkSans-400',
+    fontFamily: 'Manrope-400',
     fontSize: 12,
     color: colors.textFaint,
   },

@@ -1,21 +1,19 @@
 import localFont from 'next/font/local';
 
-export const fraunces = localFont({
+export const manrope = localFont({
   src: [
-    { path: './fraunces-600.ttf', weight: '600', style: 'normal' },
-    { path: './fraunces-italic-400.ttf', weight: '400', style: 'italic' },
+    { path: './manrope-400.ttf', weight: '400', style: 'normal' },
+    { path: './manrope-600.ttf', weight: '600', style: 'normal' },
+    { path: './manrope-700.ttf', weight: '700', style: 'normal' },
+    { path: './manrope-800.ttf', weight: '800', style: 'normal' },
   ],
-  variable: '--font-display',
+  variable: '--font-body',
   display: 'swap',
 });
 
-export const workSans = localFont({
-  src: [
-    { path: './worksans-400.ttf', weight: '400', style: 'normal' },
-    { path: './worksans-600.ttf', weight: '600', style: 'normal' },
-    { path: './worksans-700.ttf', weight: '700', style: 'normal' },
-  ],
-  variable: '--font-body',
+export const plusJakartaSans = localFont({
+  src: [{ path: './plusjakartasans-600.ttf', weight: '600', style: 'normal' }],
+  variable: '--font-tagline',
   display: 'swap',
 });
 

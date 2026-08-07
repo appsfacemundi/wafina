@@ -34,6 +34,21 @@
       "eas": {
         "projectId": "0a4405fe-c166-4226-9b7d-f11abd9ed01c"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-mark.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#0057D9",
+          "dark": {
+            "image": "./assets/splash-mark.png",
+            "backgroundColor": "#0F172A"
+          }
+        }
+      ]
+    ]
   }
 }
