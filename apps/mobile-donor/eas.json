@@ -33,5 +33,12 @@
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:355399125922:web:1f922f394d585d6d0a00fb"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6799295890"
+      }
+    }
   }
 }
