@@ -1,6 +1,6 @@
 'use client';
 
-import { MEDICAL_SUPPLY_EXAMPLES, type GeoRegion, type SwitchPreference } from '@wafina/shared';
+import { MEDICAL_SUPPLY_EXAMPLES, type GeoRegion, type ImpactFeedVisibility, type SwitchPreference } from '@wafina/shared';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Card, Input, Select, useToast } from '@wafina/ui';
@@ -55,6 +55,7 @@ export default function SettingsPage() {
   const [switchingCountry, setSwitchingCountry] = useState(false);
 
   const [savingNamePref, setSavingNamePref] = useState(false);
+  const [savingFeedPref, setSavingFeedPref] = useState(false);
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -152,6 +153,20 @@ export default function SettingsPage() {
       // Non-critical — the toggle simply reverts to its saved value on next load if this fails.
     } finally {
       setSavingNamePref(false);
+    }
+  }
+
+  async function onChangeImpactFeedVisibility(visibility: ImpactFeedVisibility) {
+    setSavingFeedPref(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/users/me/impact-feed-visibility', { method: 'PATCH', idToken, body: { visibility } });
+      await refreshSession();
+      showToast('Preferência do feed de impacto atualizada.');
+    } catch {
+      // Non-critical — the toggle simply reverts to its saved value on next load if this fails.
+    } finally {
+      setSavingFeedPref(false);
     }
   }
 
@@ -314,6 +329,24 @@ export default function SettingsPage() {
           >
             <option value="no">Não mostrar</option>
             <option value="yes">Mostrar o meu nome</option>
+          </Select>
+        </Card>
+
+        <Card className="stack">
+          <p style={{ fontWeight: 600 }}>Feed de Impacto</p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
+            Privado mostra apenas histórias sobre as suas próprias doações. Público mostra também
+            histórias aprovadas sobre doações de outras pessoas, para ver o impacto de toda a
+            comunidade Wafina.
+          </p>
+          <Select
+            label="Visibilidade do feed"
+            value={session.impactFeedVisibility ?? 'Private'}
+            onChange={(e) => onChangeImpactFeedVisibility(e.target.value as ImpactFeedVisibility)}
+            disabled={savingFeedPref}
+          >
+            <option value="Private">Privado — só as minhas doações</option>
+            <option value="Public">Público — toda a comunidade</option>
           </Select>
         </Card>
 

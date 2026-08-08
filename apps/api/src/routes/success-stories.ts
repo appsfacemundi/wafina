@@ -6,6 +6,7 @@ import { requireAuth, requireRole, requireVerified } from '../middleware/auth';
 import { getInstitutionByUserId } from '../services/institutions';
 import {
   createSuccessStory,
+  listPublicSuccessStories,
   listSuccessStoriesByDonor,
   listSuccessStoriesByInstitution,
 } from '../services/success-stories';
@@ -66,12 +67,22 @@ successStoriesRouter.get(
   }),
 );
 
-/** Donor-facing — stories about the donor's own donations only, not a public feed. */
+/**
+ * Donor-facing — the pool depends on the donor's own Impact_Feed_Visibility
+ * setting (Users.me/impact-feed-visibility): Private (default) is stories
+ * about their own donations only; Public is every Admin-approved story
+ * platform-wide. The client always calls this same endpoint either way —
+ * which pool it gets is decided server-side, not by the caller.
+ */
 successStoriesRouter.get(
   '/donor/success-stories',
   requireAuth,
   requireRole('Donor'),
   asyncHandler(async (req, res) => {
-    res.json(await listSuccessStoriesByDonor(req.user!.userId));
+    res.json(
+      req.user!.impactFeedVisibility === 'Public'
+        ? await listPublicSuccessStories()
+        : await listSuccessStoriesByDonor(req.user!.userId),
+    );
   }),
 );

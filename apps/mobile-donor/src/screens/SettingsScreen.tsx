@@ -1,4 +1,4 @@
-import { MEDICAL_SUPPLY_EXAMPLES, type GeoRegion, type SwitchPreference } from '@wafina/shared';
+import { MEDICAL_SUPPLY_EXAMPLES, type GeoRegion, type ImpactFeedVisibility, type SwitchPreference } from '@wafina/shared';
 import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,6 +50,7 @@ export function SettingsScreen() {
   const [savingPreference, setSavingPreference] = useState(false);
 
   const [savingNamePref, setSavingNamePref] = useState(false);
+  const [savingFeedPref, setSavingFeedPref] = useState(false);
 
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -147,6 +148,19 @@ export function SettingsScreen() {
       // Non-critical — the toggle simply reverts to its saved value on next load if this fails.
     } finally {
       setSavingNamePref(false);
+    }
+  }
+
+  async function onChangeImpactFeedVisibility(visibility: ImpactFeedVisibility) {
+    setSavingFeedPref(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/users/me/impact-feed-visibility', { method: 'PATCH', idToken, body: { visibility } });
+      await refreshSession();
+    } catch {
+      // Non-critical — the toggle simply reverts to its saved value on next load if this fails.
+    } finally {
+      setSavingFeedPref(false);
     }
   }
 
@@ -291,6 +305,25 @@ export function SettingsScreen() {
             ]}
           />
           {savingNamePref && <Text style={styles.hint}>A guardar…</Text>}
+        </Card>
+
+        <Card style={{ gap: spacing[3] }}>
+          <Text style={styles.cardTitle}>Feed de Impacto</Text>
+          <Text style={styles.hint}>
+            Privado mostra apenas histórias sobre as suas próprias doações. Público mostra também
+            histórias aprovadas sobre doações de outras pessoas, para ver o impacto de toda a
+            comunidade Wafina.
+          </Text>
+          <Select
+            label="Visibilidade do feed"
+            value={session?.impactFeedVisibility ?? 'Private'}
+            onValueChange={(v) => onChangeImpactFeedVisibility(v as ImpactFeedVisibility)}
+            options={[
+              { label: 'Privado — só as minhas doações', value: 'Private' },
+              { label: 'Público — toda a comunidade', value: 'Public' },
+            ]}
+          />
+          {savingFeedPref && <Text style={styles.hint}>A guardar…</Text>}
         </Card>
 
         {__DEV__ && (

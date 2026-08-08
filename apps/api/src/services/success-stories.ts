@@ -123,6 +123,21 @@ export async function listSuccessStoriesByDonor(donorId: string): Promise<Succes
     .sort(byPublishedDesc);
 }
 
+/**
+ * Launch-readiness module, 2026-08-08 — backs a donor's "Public" Impact feed
+ * setting (Users.Impact_Feed_Visibility). Every Approved story platform-wide,
+ * not scoped to one donor — the approval gate itself (Status === 'Approved')
+ * is what makes this safe to show broadly, same gate listSuccessStoriesByDonor
+ * already relies on above.
+ */
+export async function listPublicSuccessStories(): Promise<SuccessStory[]> {
+  const rows = await getRows(SHEET_TABS.successStories);
+  return rows
+    .filter((row) => row.Status === 'Approved')
+    .map(rowToSuccessStory)
+    .sort(byPublishedDesc);
+}
+
 /** Admin Web App Parity Phase C — Reports, every story regardless of status. */
 export async function listAllSuccessStories(): Promise<SuccessStory[]> {
   const rows = await getRows(SHEET_TABS.successStories);

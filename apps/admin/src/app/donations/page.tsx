@@ -32,9 +32,12 @@ export default function AdminDonationsPage() {
   const [countries, setCountries] = useState<GeoRegion[]>([]);
   const [countryFilter, setCountryFilter] = useState('');
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | ''>('');
+  const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { collection: string; delivery: string }>>({});
+  const [photoSavingId, setPhotoSavingId] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   async function load() {
     if (!firebaseUser) return;
@@ -71,6 +74,14 @@ export default function AdminDonationsPage() {
     let result = donations;
     if (countryFilter) result = result.filter((d) => d.Country_ID === countryFilter);
     if (deliveryFilter) result = result.filter((d) => d.Delivery_Method === deliveryFilter);
+    const q = search.trim().toLowerCase();
+    if (q) {
+      result = result.filter((d) =>
+        [d.Donor_Display_Name, d.Public_Donation_Code, d.Item_Type, d.Claimed_By_Institution_Name, d.City]
+          .filter(Boolean)
+          .some((field) => field!.toLowerCase().includes(q)),
+      );
+    }
     // Real-device finding, 2026-08-07 — the API already returns this list
     // newest-submitted-first (listAllDonationsForAdmin sorts server-side),
     // but this page never re-sorted after filtering, so it relied entirely
@@ -82,7 +93,38 @@ export default function AdminDonationsPage() {
       return Number.isNaN(t) ? 0 : t;
     };
     return [...result].sort((a, b) => parse(b.Date_Submitted) - parse(a.Date_Submitted));
-  }, [donations, countryFilter, deliveryFilter]);
+  }, [donations, countryFilter, deliveryFilter, search]);
+
+  /**
+   * Admin UX fix, 2026-08-07 — a flat newest-first list buried delivered
+   * (done, no action needed) donations among ones still needing attention,
+   * and gave Admin no quick way to focus on just one stage. Grouped into
+   * collapsible sections instead, ordered Aceites (already claimed, actively
+   * moving) -> Pendentes (needs a claim) -> Entregue (done, reference only)
+   * per stakeholder direction — each group still newest-first internally.
+   */
+  const donationGroups = useMemo(() => {
+    if (!filteredDonations) return [];
+    return [
+      {
+        key: 'accepted',
+        title: 'Aceites',
+        items: filteredDonations.filter(
+          (d) => d.Status === 'Claimed' || d.Status === 'Collection_Scheduled' || d.Status === 'Collected',
+        ),
+      },
+      {
+        key: 'pending',
+        title: 'Pendentes',
+        items: filteredDonations.filter((d) => d.Status === 'Pending'),
+      },
+      {
+        key: 'delivered',
+        title: 'Entregue',
+        items: filteredDonations.filter((d) => d.Status === 'Delivered'),
+      },
+    ];
+  }, [filteredDonations]);
 
   async function onSave(donationId: string) {
     const draft = drafts[donationId];
@@ -118,6 +160,155 @@ export default function AdminDonationsPage() {
     }
   }
 
+  async function onChangePhoto(donationId: string, file: File) {
+    setError('');
+    setPhotoSavingId(donationId);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      const form = new FormData();
+      form.append('photo', file);
+      await apiFetch(`/admin/donations/${donationId}/photo`, { method: 'PATCH', idToken, body: form });
+      await load();
+      showToast('Fotografia atualizada com sucesso.');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível atualizar a fotografia.');
+    } finally {
+      setPhotoSavingId(null);
+    }
+  }
+
+  function renderDonationCard(d: AdminDonationView) {
+    return (
+      <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', gap: 12, padding: 'var(--space-4)' }}>
+          <div className="stack" style={{ gap: 4, flexShrink: 0 }}>
+            <Photo src={d.Photo} style={{ width: 96, height: 96, borderRadius: 8, objectFit: 'cover' }} />
+            <label
+              style={{
+                fontSize: 11.5,
+                fontWeight: 600,
+                textAlign: 'center',
+                color: 'var(--color-accent)',
+                cursor: photoSavingId === d.Donation_ID ? 'default' : 'pointer',
+                opacity: photoSavingId === d.Donation_ID ? 0.6 : 1,
+              }}
+            >
+              {photoSavingId === d.Donation_ID ? 'A enviar…' : 'Alterar foto'}
+              <input
+                type="file"
+                accept="image/*"
+                disabled={photoSavingId === d.Donation_ID}
+                style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) onChangePhoto(d.Donation_ID, file);
+                }}
+              />
+            </label>
+          </div>
+          <div className="stack" style={{ gap: 4, flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+              <p style={{ fontWeight: 700, fontSize: 16 }}>{d.Item_Type}</p>
+              <Badge tone={DONATION_STATUS_TONE[d.Status]}>{DONATION_STATUS_LABEL[d.Status]}</Badge>
+            </div>
+            <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
+              {d.Public_Donation_Code}
+            </p>
+            <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
+              Qtd: {d.Quantity} · Estado: {d.Condition}
+              {d.City ? ` · ${d.City}` : ''}
+              {' '}
+              <a
+                href={`https://www.google.com/maps?q=${d.Location.lat},${d.Location.lng}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: 'var(--color-accent)', fontWeight: 600 }}
+              >
+                Ver no mapa
+              </a>
+            </p>
+            <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
+              {d.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[d.Recipient_Category] : '—'}
+              {' · '}
+              {d.Delivery_Method ? DELIVERY_METHOD_LABEL[d.Delivery_Method] : '—'}
+            </p>
+            {/* RC1 pickup-location fix, 2026-08-07 — Admin needs the same pickup context as Institution to help resolve logistics issues. */}
+            {d.Address && <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>🏠 {d.Address}</p>}
+            {d.Donor_Phone && (
+              <p style={{ fontSize: 13.5 }}>
+                <a href={`tel:${d.Donor_Phone}`} style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
+                  📞 {d.Donor_Phone}
+                </a>
+              </p>
+            )}
+            <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>📅 {daysAgoLabel(d.Date_Submitted)}</p>
+            {d.Claimed_By_Institution_Name && (
+              <p style={{ fontSize: 14.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Photo
+                  src={d.Claimed_By_Institution_Logo}
+                  placeholderIcon="🏢"
+                  style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover' }}
+                />
+                {d.Claimed_By_Institution_Name}
+              </p>
+            )}
+          </div>
+        </div>
+        <div
+          className="stack"
+          style={{
+            padding: 'var(--space-4)',
+            borderTop: '1px solid var(--color-border)',
+            background: 'var(--color-surface-muted, transparent)',
+          }}
+        >
+          {d.Status === 'Delivered' && (
+            <p style={{ fontSize: 12.5, color: 'var(--color-text-faint)' }}>
+              Doação já entregue — as datas ficam por referência e não podem ser alteradas.
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <Input
+              label="Data estimada de recolha"
+              type="date"
+              disabled={d.Status === 'Delivered'}
+              value={drafts[d.Donation_ID]?.collection ?? ''}
+              onChange={(e) =>
+                setDrafts((prev) => ({
+                  ...prev,
+                  [d.Donation_ID]: { ...prev[d.Donation_ID], collection: e.target.value, delivery: prev[d.Donation_ID]?.delivery ?? '' },
+                }))
+              }
+            />
+            <Input
+              label="Data estimada de entrega"
+              type="date"
+              disabled={d.Status === 'Delivered'}
+              value={drafts[d.Donation_ID]?.delivery ?? ''}
+              onChange={(e) =>
+                setDrafts((prev) => ({
+                  ...prev,
+                  [d.Donation_ID]: { ...prev[d.Donation_ID], delivery: e.target.value, collection: prev[d.Donation_ID]?.collection ?? '' },
+                }))
+              }
+            />
+          </div>
+          {d.Status !== 'Delivered' && (
+            <Button
+              onClick={() => onSave(d.Donation_ID)}
+              disabled={
+                savingId === d.Donation_ID || (!drafts[d.Donation_ID]?.collection && !drafts[d.Donation_ID]?.delivery)
+              }
+            >
+              {savingId === d.Donation_ID ? 'A guardar…' : 'Guardar estimativas'}
+            </Button>
+          )}
+        </div>
+      </Card>
+    );
+  }
+
   if (!session) return null;
 
   return (
@@ -130,7 +321,14 @@ export default function AdminDonationsPage() {
         </p>
         {error && <div className="banner banner-error">{error}</div>}
         {donations && donations.length > 0 && (
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <Input
+              label="Pesquisar"
+              placeholder="Nome do doador, código, item, instituição…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ minWidth: 240 }}
+            />
             <Select label="Filtrar por país" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
               <option value="">Todos os países</option>
               {countries.map((c) => (
@@ -163,119 +361,38 @@ export default function AdminDonationsPage() {
           <EmptyState title="Sem doações neste país" description="Experimente outro país, ou limpe o filtro." icon="package" />
         )}
         {filteredDonations && filteredDonations.length > 0 && (
-          <div className="stack">
-            {filteredDonations.map((d) => (
-              <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
-                <div style={{ display: 'flex', gap: 12, padding: 'var(--space-4)' }}>
-                  <Photo
-                    src={d.Photo}
-                    style={{ width: 96, height: 96, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
-                  />
-                  <div className="stack" style={{ gap: 4, flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                      <p style={{ fontWeight: 700, fontSize: 16 }}>{d.Item_Type}</p>
-                      <Badge tone={DONATION_STATUS_TONE[d.Status]}>{DONATION_STATUS_LABEL[d.Status]}</Badge>
-                    </div>
-                    <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
-                      {d.Public_Donation_Code}
-                    </p>
-                    <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
-                      Qtd: {d.Quantity} · Estado: {d.Condition}
-                      {d.City ? ` · ${d.City}` : ''}
-                      {' '}
-                      <a
-                        href={`https://www.google.com/maps?q=${d.Location.lat},${d.Location.lng}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ color: 'var(--color-accent)', fontWeight: 600 }}
-                      >
-                        Ver no mapa
-                      </a>
-                    </p>
-                    <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
-                      {d.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[d.Recipient_Category] : '—'}
-                      {' · '}
-                      {d.Delivery_Method ? DELIVERY_METHOD_LABEL[d.Delivery_Method] : '—'}
-                    </p>
-                    {/* RC1 pickup-location fix, 2026-08-07 — Admin needs the same pickup context as Institution to help resolve logistics issues. */}
-                    {d.Address && (
-                      <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>🏠 {d.Address}</p>
-                    )}
-                    {d.Donor_Phone && (
-                      <p style={{ fontSize: 13.5 }}>
-                        <a href={`tel:${d.Donor_Phone}`} style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
-                          📞 {d.Donor_Phone}
-                        </a>
-                      </p>
-                    )}
-                    <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
-                      📅 {daysAgoLabel(d.Date_Submitted)}
-                    </p>
-                    {d.Claimed_By_Institution_Name && (
-                      <p style={{ fontSize: 14.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <Photo
-                          src={d.Claimed_By_Institution_Logo}
-                          placeholderIcon="🏢"
-                          style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover' }}
-                        />
-                        {d.Claimed_By_Institution_Name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div
-                  className="stack"
-                  style={{
-                    padding: 'var(--space-4)',
-                    borderTop: '1px solid var(--color-border)',
-                    background: 'var(--color-surface-muted, transparent)',
-                  }}
-                >
-                  {d.Status === 'Delivered' && (
-                    <p style={{ fontSize: 12.5, color: 'var(--color-text-faint)' }}>
-                      Doação já entregue — as datas ficam por referência e não podem ser alteradas.
-                    </p>
-                  )}
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <Input
-                      label="Data estimada de recolha"
-                      type="date"
-                      disabled={d.Status === 'Delivered'}
-                      value={drafts[d.Donation_ID]?.collection ?? ''}
-                      onChange={(e) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [d.Donation_ID]: { ...prev[d.Donation_ID], collection: e.target.value, delivery: prev[d.Donation_ID]?.delivery ?? '' },
-                        }))
-                      }
-                    />
-                    <Input
-                      label="Data estimada de entrega"
-                      type="date"
-                      disabled={d.Status === 'Delivered'}
-                      value={drafts[d.Donation_ID]?.delivery ?? ''}
-                      onChange={(e) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [d.Donation_ID]: { ...prev[d.Donation_ID], delivery: e.target.value, collection: prev[d.Donation_ID]?.collection ?? '' },
-                        }))
-                      }
-                    />
-                  </div>
-                  {d.Status !== 'Delivered' && (
-                    <Button
-                      onClick={() => onSave(d.Donation_ID)}
-                      disabled={
-                        savingId === d.Donation_ID ||
-                        (!drafts[d.Donation_ID]?.collection && !drafts[d.Donation_ID]?.delivery)
-                      }
+          <div className="stack" style={{ gap: 'var(--space-4)' }}>
+            {donationGroups
+              .filter((group) => group.items.length > 0)
+              .map((group) => {
+                const collapsed = collapsedGroups[group.key] ?? false;
+                return (
+                  <div key={group.key} className="stack" style={{ gap: 'var(--space-3)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setCollapsedGroups((prev) => ({ ...prev, [group.key]: !collapsed }))}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 8,
+                        padding: '10px 14px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
                     >
-                      {savingId === d.Donation_ID ? 'A guardar…' : 'Guardar estimativas'}
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            ))}
+                      <span style={{ fontSize: 12, color: 'var(--color-text-faint)', transform: collapsed ? 'rotate(-90deg)' : 'none' }}>
+                        ▾
+                      </span>
+                      <h2 style={{ fontSize: 15, fontWeight: 700 }}>{group.title}</h2>
+                      <span style={{ fontSize: 13, color: 'var(--color-text-faint)' }}>({group.items.length})</span>
+                    </button>
+                    {!collapsed && <div className="stack">{group.items.map((d) => renderDonationCard(d))}</div>}
+                  </div>
+                );
+              })}
           </div>
         )}
       </div>

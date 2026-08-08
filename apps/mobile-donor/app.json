@@ -14,7 +14,8 @@
       "bundleIdentifier": "com.zuinder.wafina.doador",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "A Wafina usa a sua localização para registar onde a doação pode ser recolhida.",
-        "NSPhotoLibraryUsageDescription": "A Wafina precisa de acesso às suas fotografias para anexar uma imagem da doação."
+        "NSPhotoLibraryUsageDescription": "A Wafina precisa de acesso às suas fotografias para anexar uma imagem da doação.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

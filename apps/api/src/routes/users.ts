@@ -1,8 +1,14 @@
-import { SWITCH_PREFERENCES } from '@wafina/shared';
+import { IMPACT_FEED_VISIBILITIES, SWITCH_PREFERENCES } from '@wafina/shared';
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth } from '../middleware/auth';
-import { updateActiveCountry, updateShowNameToInstitutions, updateSwitchPreference, updateUserName } from '../services/users';
+import {
+  updateActiveCountry,
+  updateImpactFeedVisibility,
+  updateShowNameToInstitutions,
+  updateSwitchPreference,
+  updateUserName,
+} from '../services/users';
 import { ValidationError } from '../services/validation-error';
 
 export const usersRouter = Router();
@@ -49,6 +55,20 @@ usersRouter.patch(
     if (typeof show !== 'boolean') throw new ValidationError('show must be a boolean');
     await updateShowNameToInstitutions(req.user!.userId, show);
     res.json({ showNameToInstitutions: show });
+  }),
+);
+
+/** Launch-readiness module — Private (own donations only) vs Public (every approved story) Impact feed. */
+usersRouter.patch(
+  '/users/me/impact-feed-visibility',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const visibility = req.body?.visibility as string | undefined;
+    if (!visibility || !IMPACT_FEED_VISIBILITIES.includes(visibility as (typeof IMPACT_FEED_VISIBILITIES)[number])) {
+      throw new ValidationError(`visibility must be one of: ${IMPACT_FEED_VISIBILITIES.join(', ')}`);
+    }
+    await updateImpactFeedVisibility(req.user!.userId, visibility as (typeof IMPACT_FEED_VISIBILITIES)[number]);
+    res.json({ impactFeedVisibility: visibility });
   }),
 );
 

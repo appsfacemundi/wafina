@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   AuthenticatedUser,
   DonorSubtype,
+  ImpactFeedVisibility,
   RegistrableRole,
   Role,
   SwitchPreference,
@@ -29,6 +30,7 @@ export interface UserRow {
   Active_Country_ID: string;
   Switch_Preference: string;
   Show_Name_To_Institutions: string;
+  Impact_Feed_Visibility: string;
   Status: string;
 }
 
@@ -80,6 +82,7 @@ export async function createUser(email: string, role: RegistrableRole): Promise<
     Active_Country_ID: '',
     Switch_Preference: 'Always_Ask',
     Show_Name_To_Institutions: toSheetBool(false),
+    Impact_Feed_Visibility: 'Private',
     Status: 'Active',
   };
 
@@ -158,6 +161,11 @@ export async function updateSwitchPreference(userId: string, preference: SwitchP
 /** Institution UX module — "Donor Name (if donor allows)" on donation cards. Opt-in, defaults FALSE. */
 export async function updateShowNameToInstitutions(userId: string, show: boolean): Promise<void> {
   await updateRow(SHEET_TABS.users, 'User_ID', userId, { Show_Name_To_Institutions: toSheetBool(show) });
+}
+
+/** Launch-readiness module — which pool of Success Stories the donor's Impact feed draws from. Defaults Private. */
+export async function updateImpactFeedVisibility(userId: string, visibility: ImpactFeedVisibility): Promise<void> {
+  await updateRow(SHEET_TABS.users, 'User_ID', userId, { Impact_Feed_Visibility: visibility });
 }
 
 /**
@@ -281,5 +289,6 @@ export function toAuthenticatedUser(uid: string, row: UserRow): AuthenticatedUse
     activeCountryId: row.Active_Country_ID || null,
     switchPreference: (row.Switch_Preference as SwitchPreference) || null,
     showNameToInstitutions: row.Show_Name_To_Institutions === 'TRUE',
+    impactFeedVisibility: (row.Impact_Feed_Visibility as ImpactFeedVisibility) || 'Private',
   };
 }

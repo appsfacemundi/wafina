@@ -1,4 +1,5 @@
 import type { DonorSubtype } from '../enums/donor-subtype';
+import type { ImpactFeedVisibility } from '../enums/impact-feed-visibility';
 import type { Role } from '../enums/role';
 import type { SwitchPreference } from '../enums/switch-preference';
 
@@ -24,4 +25,6 @@ export interface AuthenticatedUser {
   switchPreference: SwitchPreference | null;
   /** "Donor Name (if donor allows)" on donation cards — irrelevant/ignored for Corporate donors. */
   showNameToInstitutions: boolean;
+  /** Which pool of Success Stories the donor's Impact feed draws from — see enums/impact-feed-visibility.ts. */
+  impactFeedVisibility: ImpactFeedVisibility;
 }

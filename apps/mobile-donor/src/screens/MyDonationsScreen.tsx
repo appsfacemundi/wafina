@@ -77,7 +77,7 @@ export function MyDonationsScreen({ route }: Props) {
     if (!donations) return null;
     return {
       total: donations.length,
-      quantity: donations.reduce((sum, d) => sum + d.Quantity, 0),
+      quantity: donations.reduce((sum, d) => sum + (Number.isSafeInteger(d.Quantity) ? d.Quantity : 0), 0),
       pending: donations.filter((d) => d.Status === 'Pending').length,
       claimed: donations.filter((d) => d.Status === 'Claimed').length,
       delivered: donations.filter((d) => d.Status === 'Delivered').length,

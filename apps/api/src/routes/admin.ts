@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { REGISTRABLE_ROLES, type RegistrableRole } from '@wafina/shared';
+import { uploadPhoto } from '../config/drive';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { getAdminDashboardStats } from '../services/admin-stats';
@@ -15,7 +17,7 @@ import {
   suspendCorporateAccount,
   updateCorporateAccount,
 } from '../services/corporate-accounts';
-import { listAllDonationsForAdmin } from '../services/donations';
+import { adminReplaceDonationPhoto, listAllDonationsForAdmin } from '../services/donations';
 import { listAllOpenDisputes, resolveDispute } from '../services/disputes';
 import { createCountry, listAllCountries, setCountryActive } from '../services/geo-regions';
 import {
@@ -38,6 +40,14 @@ import {
 } from '../services/success-stories';
 import { findUserByEmail, listAllUsers, reactivateUser, setUserRole, suspendUser } from '../services/users';
 import { ValidationError } from '../services/validation-error';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    cb(null, file.mimetype.startsWith('image/'));
+  },
+});
 
 const REPORT_TYPES = ['donations', 'institutions', 'companies', 'users', 'countries', 'success-stories'] as const;
 type ReportType = (typeof REPORT_TYPES)[number];
@@ -139,6 +149,27 @@ adminRouter.get(
   requireRole('Admin'),
   asyncHandler(async (_req, res) => {
     res.json(await listAllDonationsForAdmin());
+  }),
+);
+
+/**
+ * Launch-readiness module, 2026-08-07 — photo moderation. A donor's photo
+ * can be unclear, wrong, or inappropriate; before now nothing let Admin fix
+ * it short of editing Sheets directly.
+ */
+adminRouter.patch(
+  '/admin/donations/:id/photo',
+  requireAuth,
+  requireRole('Admin'),
+  upload.single('photo'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new ValidationError('A fotografia é obrigatória');
+    const photoUrl = await uploadPhoto(
+      req.file.buffer,
+      `${Date.now()}-${req.file.originalname}`,
+      req.file.mimetype,
+    );
+    res.json(await adminReplaceDonationPhoto(req.params.id, photoUrl));
   }),
 );
 

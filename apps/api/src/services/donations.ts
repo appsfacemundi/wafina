@@ -90,9 +90,19 @@ function assertValidLocation(location: { lat: number; lng: number }): void {
  * legitimately donating, say, 20,000 school notebooks should never be
  * blocked by the platform). Only genuine constraints remain: a donation
  * quantity must be a real, positive whole number.
+ *
+ * Real-device finding, 2026-08-07 — the mobile/web quantity field has no
+ * upper bound on typed input, and a stray keystroke produced a donation with
+ * Quantity ~1.1e23. Number.isInteger() doesn't catch this (large-enough
+ * floats have no fractional part), so this isn't a business cap making a
+ * comeback — it's a data-integrity ceiling generous enough to never affect a
+ * real donation (100x the old, already-too-strict 10,000 cap) while
+ * rejecting obvious garbage.
  */
+const MAX_PLAUSIBLE_QUANTITY = 1_000_000;
+
 function assertValidQuantity(quantity: number): void {
-  if (!Number.isInteger(quantity) || quantity <= 0) {
+  if (!Number.isInteger(quantity) || quantity <= 0 || quantity > MAX_PLAUSIBLE_QUANTITY) {
     throw new ValidationError('A quantidade deve ser um número inteiro positivo');
   }
 }
@@ -420,6 +430,22 @@ export async function editDonation(
   if (patch.Address !== undefined) rowPatch.Address = patch.Address?.trim() ?? '';
 
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, rowPatch);
+  const updated = await getDonation(donationId);
+  if (!updated) throw new Error('Donation vanished after update');
+  return updated;
+}
+
+/**
+ * Launch-readiness module, 2026-08-07 — Admin-side photo moderation. Unlike
+ * the donor's own editDonation above, this isn't restricted to the donor who
+ * submitted it or to Pending status: a bad/unclear photo can be spotted at
+ * any point in a donation's lifecycle, and only Admin can act on it.
+ */
+export async function adminReplaceDonationPhoto(donationId: string, photoUrl: string): Promise<Donation> {
+  const existing = await getDonation(donationId);
+  if (!existing) throw new ValidationError('Doação não encontrada');
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, { Photo: photoUrl });
   const updated = await getDonation(donationId);
   if (!updated) throw new Error('Donation vanished after update');
   return updated;

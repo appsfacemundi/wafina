@@ -15,6 +15,24 @@ let client: sheets_v4.Sheets | null = null;
 const MAX_ATTEMPTS = 4;
 const BASE_DELAY_MS = 500; // 500, 1000, 2000 between the 4 attempts
 
+/**
+ * Reliability fix, 2026-08-07 — every "list X" service call re-reads its
+ * whole tab from Sheets, and a single Admin page load fans out several of
+ * these in parallel (donations, users, countries, stats...). Under repeated
+ * fast reloads that burns through Sheets' per-minute quota well before the
+ * retry/backoff above gets a chance to help, surfacing as user-facing 503s.
+ * A short TTL cache in front of getRows absorbs that burst — real writes
+ * still land immediately (updateRow/appendRow evict the tab they touch), so
+ * the only staleness a caller can ever see is "up to CACHE_TTL_MS old", never
+ * "missed my own write."
+ */
+const CACHE_TTL_MS = 20_000;
+const rowsCache = new Map<string, { data: Record<string, string>[]; expiresAt: number }>();
+
+function invalidateTab(tab: string): void {
+  rowsCache.delete(tab);
+}
+
 /** True for a Google Sheets per-minute read/write quota error (429 / RESOURCE_EXHAUSTED). */
 function isRateLimitError(err: unknown): boolean {
   const e = err as { code?: number | string; status?: number; response?: { status?: number } };
@@ -97,8 +115,11 @@ async function getHeader(tab: string): Promise<string[]> {
   return trimHeader((data.values?.[0] as string[] | undefined) ?? []);
 }
 
-/** Reads a whole tab as row objects keyed by its header row. */
+/** Reads a whole tab as row objects keyed by its header row. Served from a short TTL cache when fresh. */
 export async function getRows(tab: string): Promise<Record<string, string>[]> {
+  const cached = rowsCache.get(tab);
+  if (cached && cached.expiresAt > Date.now()) return [...cached.data];
+
   const sheets = getClient();
   const { data } = await withRetry(() =>
     sheets.spreadsheets.values.get({
@@ -111,7 +132,9 @@ export async function getRows(tab: string): Promise<Record<string, string>[]> {
   if (!rawHeader) return [];
   const header = trimHeader(rawHeader);
 
-  return rows.map((row) => Object.fromEntries(header.map((key, i) => [key, row[i] ?? ''])));
+  const parsed = rows.map((row) => Object.fromEntries(header.map((key, i) => [key, row[i] ?? ''])));
+  rowsCache.set(tab, { data: parsed, expiresAt: Date.now() + CACHE_TTL_MS });
+  return [...parsed];
 }
 
 /** Appends one row, mapping fields onto the tab's existing header column order. */
@@ -129,6 +152,7 @@ export async function appendRow(tab: string, row: Record<string, string>): Promi
       requestBody: { values },
     }),
   );
+  invalidateTab(tab);
 }
 
 /** Returns the first row matching `predicate`, or null. */
@@ -199,4 +223,5 @@ export async function updateRow(
       requestBody: { values: [merged] },
     }),
   );
+  invalidateTab(tab);
 }

@@ -350,9 +350,10 @@ export function DonateScreen({ navigation }: Props) {
                 <TextInput
                   style={styles.stepperInput}
                   value={quantity}
-                  onChangeText={(v) => setQuantity(v.replace(/[^0-9]/g, ''))}
+                  onChangeText={(v) => setQuantity(v.replace(/[^0-9]/g, '').slice(0, 6))}
                   onBlur={() => setQuantity(String(Math.max(1, Number(quantity) || 1)))}
                   keyboardType="number-pad"
+                  maxLength={6}
                   accessibilityLabel="Quantidade"
                 />
                 <Text style={styles.stepperUnit}>{quantityNumber === 1 ? 'peça' : 'peças'}</Text>
@@ -509,7 +510,7 @@ export function DonateScreen({ navigation }: Props) {
 
           {error ? <ErrorBanner message={error} /> : null}
 
-          <Button variant="cta" size="large" onPress={onSubmit} loading={submitting} fullWidth>
+          <Button variant="primary" size="large" onPress={onSubmit} loading={submitting} fullWidth>
             ❤️ Confirmar doação
           </Button>
         </Card>

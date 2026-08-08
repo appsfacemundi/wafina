@@ -283,9 +283,10 @@ export default function NewDonationPage() {
                   <input
                     className="stepper-input"
                     value={quantity}
-                    onChange={(e) => setQuantity(e.target.value.replace(/[^0-9]/g, ''))}
+                    onChange={(e) => setQuantity(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
                     onBlur={() => setQuantity(String(Math.max(1, Number(quantity) || 1)))}
                     inputMode="numeric"
+                    maxLength={6}
                     aria-label="Quantidade"
                   />
                   <span>{quantityNumber === 1 ? 'peça' : 'peças'}</span>
@@ -461,7 +462,7 @@ export default function NewDonationPage() {
 
             {error && <div className="banner banner-error">{error}</div>}
 
-            <Button type="submit" variant="cta" fullWidth disabled={submitting}>
+            <Button type="submit" variant="primary" fullWidth disabled={submitting}>
               {submitting ? 'A submeter…' : '❤️ Confirmar doação'}
             </Button>
           </form>
