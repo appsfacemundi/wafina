@@ -7,6 +7,7 @@ import type {
   DonationStatus,
   InstitutionDonationView,
   RecipientCategory,
+  SuccessStoryStatus,
 } from '@wafina/shared';
 import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
@@ -279,6 +280,21 @@ async function resolveDonorDisplays(
   return result;
 }
 
+/**
+ * Bug fix, 2026-08-08 — the Admin Donations page was labeling any donation
+ * with a Success_Stories row as "✓ Já publicado no Feed de Impacto", even
+ * when that story's Status was still Pending (an institution submitted it,
+ * but Admin hasn't approved it via the separate moderation queue yet — see
+ * approveSuccessStory in success-stories.ts). A Pending story isn't visible
+ * to any donor, so the label was actively misleading. Exposes the real
+ * status instead of a plain boolean so the UI can tell the two apart.
+ */
+function buildStoryStatusByDonationId(
+  successStoryRows: Record<string, string>[],
+): Map<string, SuccessStoryStatus> {
+  return new Map(successStoryRows.map((r) => [r.Donation_ID, r.Status as SuccessStoryStatus]));
+}
+
 async function toInstitutionDonationViews(
   rows: Record<string, string>[],
 ): Promise<InstitutionDonationView[]> {
@@ -356,17 +372,19 @@ export async function listInFlightDonationsForAdmin(): Promise<AdminDonationView
   const institutionRows = await getRows(SHEET_TABS.institutions);
   const institutionById = new Map(institutionRows.map((r) => [r.Institution_ID, r]));
   const successStoryRows = await getRows(SHEET_TABS.successStories);
-  const donationIdsWithStory = new Set(successStoryRows.map((r) => r.Donation_ID));
+  const storyStatusByDonationId = buildStoryStatusByDonationId(successStoryRows);
 
   return views.map((view) => {
     const institution = view.Claimed_By_Institution_ID
       ? institutionById.get(view.Claimed_By_Institution_ID)
       : undefined;
+    const storyStatus = storyStatusByDonationId.get(view.Donation_ID) ?? null;
     return {
       ...view,
       Claimed_By_Institution_Name: institution?.Name || null,
       Claimed_By_Institution_Logo: toProxiedUrl(institution?.Logo),
-      Has_Success_Story: donationIdsWithStory.has(view.Donation_ID),
+      Has_Success_Story: storyStatus !== null,
+      Success_Story_Status: storyStatus,
     };
   });
 }
@@ -394,17 +412,19 @@ export async function listAllDonationsForAdmin(): Promise<AdminDonationView[]> {
   const institutionRows = await getRows(SHEET_TABS.institutions);
   const institutionById = new Map(institutionRows.map((r) => [r.Institution_ID, r]));
   const successStoryRows = await getRows(SHEET_TABS.successStories);
-  const donationIdsWithStory = new Set(successStoryRows.map((r) => r.Donation_ID));
+  const storyStatusByDonationId = buildStoryStatusByDonationId(successStoryRows);
 
   return views.map((view) => {
     const institution = view.Claimed_By_Institution_ID
       ? institutionById.get(view.Claimed_By_Institution_ID)
       : undefined;
+    const storyStatus = storyStatusByDonationId.get(view.Donation_ID) ?? null;
     return {
       ...view,
       Claimed_By_Institution_Name: institution?.Name || null,
       Claimed_By_Institution_Logo: toProxiedUrl(institution?.Logo),
-      Has_Success_Story: donationIdsWithStory.has(view.Donation_ID),
+      Has_Success_Story: storyStatus !== null,
+      Success_Story_Status: storyStatus,
     };
   });
 }

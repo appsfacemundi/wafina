@@ -340,9 +340,18 @@ export default function AdminDonationsPage() {
           )}
           {d.Status === 'Delivered' && (
             <div className="stack" style={{ gap: 8 }}>
-              {d.Has_Success_Story ? (
+              {d.Success_Story_Status === 'Approved' ? (
                 <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-success-700, #15803d)' }}>
                   ✓ Já publicado no Feed de Impacto
+                </p>
+              ) : d.Success_Story_Status === 'Pending' ? (
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-warning-700, #b45309)' }}>
+                  ⏳ Aguarda aprovação — história enviada pela instituição, ainda não visível ao doador. Reveja em
+                  Histórias de Impacto.
+                </p>
+              ) : d.Success_Story_Status === 'Rejected' ? (
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-danger-700, #b91c1c)' }}>
+                  ✗ A história anterior desta doação foi rejeitada.
                 </p>
               ) : storyFormId !== d.Donation_ID ? (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

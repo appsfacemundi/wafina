@@ -1,6 +1,7 @@
 import type { DeliveryMethod } from '../enums/delivery-method';
 import type { DonationStatus } from '../enums/donation-status';
 import type { RecipientCategory } from '../enums/recipient-category';
+import type { SuccessStoryStatus } from '../enums/success-story-status';
 import type { GeoPoint } from './geo-point';
 
 export interface Donation {
@@ -122,6 +123,14 @@ export interface InstitutionDonationView extends Donation {
 export interface AdminDonationView extends InstitutionDonationView {
   Claimed_By_Institution_Name: string | null;
   Claimed_By_Institution_Logo: string | null;
-  /** Whether a Success Story already exists for this donation — gates the "Enviar para a Feed" action. */
+  /**
+   * Bug fix, 2026-08-08 — whether a Success Story row exists at all for this
+   * donation, regardless of status. Gates the "Enviar para a Feed"/"Carregar
+   * do PC" actions (the API's own duplicate check blocks a second story
+   * either way), but on its own it is NOT the same as "already published" —
+   * see Success_Story_Status for that.
+   */
   Has_Success_Story: boolean;
+  /** Null when Has_Success_Story is false. 'Pending' means an institution submitted one and it's awaiting Admin's separate moderation approval — it is NOT yet visible to any donor. */
+  Success_Story_Status: SuccessStoryStatus | null;
 }

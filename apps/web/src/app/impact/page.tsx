@@ -13,12 +13,36 @@ import { apiFetch, ApiError } from '@/lib/api';
  * only available on secure contexts/some browsers, so this always falls back
  * to a clipboard copy — either way the user gets guaranteed visible feedback
  * via a toast, matching the pattern already used for the "Seja Parceiro" CTA.
+ *
+ * Follow-up, 2026-08-08 — the first version only ever shared text, never the
+ * photo itself. The Web Share API (Level 2) supports sharing actual files via
+ * `navigator.share({ files })`, gated by `navigator.canShare` support — fetch
+ * the image (same API origin as everything else, already covered by the
+ * existing CORS policy) and share it as a real file when supported, falling
+ * back to text-only share, then to clipboard, so the click always does
+ * something even on a browser with no file-sharing support at all.
  */
 async function shareStory(story: SuccessStory, showToast: (message: string) => void) {
   const text = `${story.Title}\n\n${story.Description}\n\n— partilhado via Wafina`;
+  const title = `Wafina — ${story.Title}`;
+
   if (typeof navigator !== 'undefined' && navigator.share) {
+    let file: File | null = null;
     try {
-      await navigator.share({ title: `Wafina — ${story.Title}`, text });
+      const res = await fetch(story.Image);
+      const blob = await res.blob();
+      file = new File([blob], 'wafina-historia.jpg', { type: blob.type || 'image/jpeg' });
+    } catch {
+      // Image fetch failed (offline, CORS on a non-default origin, etc.) —
+      // fall through and still try a text-only share below.
+    }
+
+    try {
+      if (file && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title, text, files: [file] });
+      } else {
+        await navigator.share({ title, text });
+      }
       return;
     } catch (err) {
       // AbortError means the user closed the share sheet themselves — respect
