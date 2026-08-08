@@ -1,0 +1,31 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "signOut": "Sair",
+    "loading": "A carregar…",
+    "search": "Pesquisar"
+  },
+  "nav": {
+    "home": "Início",
+    "availableDonations": "Doações Disponíveis",
+    "claimedDonations": "Doações Aceites",
+    "impactStories": "Histórias de Impacto",
+    "disputes": "Ocorrências",
+    "notifications": "Notificações",
+    "settings": "Definições"
+  },
+  "auth": {
+    "badge": "INSTITUIÇÃO",
+    "welcome": "Bem-vindo(a) à Wafina",
+    "tagline": "DOAR HOJE, TRANSFORMAR AMANHÃ",
+    "email": "E-mail",
+    "password": "Palavra-passe",
+    "signIn": "Entrar",
+    "signingIn": "A entrar…",
+    "noAccount": "Ainda não tem conta? Registar instituição"
+  },
+  "language": {
+    "choose": "Idioma"
+  }
+}

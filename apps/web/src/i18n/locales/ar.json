@@ -1,0 +1,63 @@
+{
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "signOut": "تسجيل الخروج",
+    "loading": "جارٍ التحميل…",
+    "search": "بحث"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "donate": "تبرع",
+    "myDonations": "تبرعاتي",
+    "impactStories": "قصص الأثر",
+    "institutions": "المؤسسات",
+    "notifications": "الإشعارات",
+    "settings": "الإعدادات"
+  },
+  "auth": {
+    "badge": "متبرع",
+    "welcome": "مرحبًا بك في وافينا",
+    "tagline": "تبرع اليوم، غيّر الغد",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "signIn": "تسجيل الدخول",
+    "signingIn": "جارٍ تسجيل الدخول…",
+    "noAccount": "ليس لديك حساب؟ أنشئ حسابًا",
+    "createAccount": "إنشاء حساب",
+    "creatingAccount": "جارٍ إنشاء الحساب…",
+    "passwordHint": "6 أحرف على الأقل.",
+    "alreadyHaveAccount": "لديك حساب بالفعل؟ سجّل الدخول"
+  },
+  "home": {
+    "greeting": "مرحبًا",
+    "thankYou": "شكرًا لكونك جزءًا من وافينا.",
+    "activeCountry": "الدولة النشطة",
+    "donateNow": "تبرع الآن",
+    "donateNowSubtitle": "ساعد شخصًا في أقل من دقيقتين.",
+    "donateNowCta": "تبرع الآن ←",
+    "yourImpact": "أثرك",
+    "viewAll": "عرض الكل",
+    "donationsMade": "التبرعات المقدمة",
+    "institutionsSupported": "المؤسسات المدعومة",
+    "itemsDonated": "الأغراض المتبرع بها",
+    "quickActions": "إجراءات سريعة",
+    "latestStories": "أحدث القصص",
+    "viewAllStories": "عرض الكل",
+    "ourPartners": "شركاؤنا",
+    "partnersTagline": "معًا، نحوّل الكرم إلى أثر حقيقي.",
+    "becomePartner": "كن شريكًا لوافينا",
+    "becomePartnerText": "انضم إلى المؤسسات التي تساعد في ربط التبرعات بالأشخاص والمجتمعات المحتاجة.",
+    "becomePartnerCta": "كن شريكًا ←",
+    "quickDonate": "تبرع",
+    "quickImpact": "الأثر",
+    "quickInstitutions": "المؤسسات",
+    "quickMine": "تبرعاتي",
+    "visitWebsite": "زيارة الموقع ←",
+    "close": "إغلاق",
+    "thanks": "شكرًا لك."
+  },
+  "language": {
+    "choose": "اللغة"
+  }
+}

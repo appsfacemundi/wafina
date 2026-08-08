@@ -1,0 +1,31 @@
+{
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "signOut": "تسجيل الخروج",
+    "loading": "جارٍ التحميل…",
+    "search": "بحث"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "availableDonations": "التبرعات المتاحة",
+    "claimedDonations": "التبرعات المقبولة",
+    "impactStories": "قصص الأثر",
+    "disputes": "النزاعات",
+    "notifications": "الإشعارات",
+    "settings": "الإعدادات"
+  },
+  "auth": {
+    "badge": "مؤسسة",
+    "welcome": "مرحبًا بك في وافينا",
+    "tagline": "تبرع اليوم، غيّر الغد",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "signIn": "تسجيل الدخول",
+    "signingIn": "جارٍ تسجيل الدخول…",
+    "noAccount": "ليس لديك حساب؟ سجّل مؤسستك"
+  },
+  "language": {
+    "choose": "اللغة"
+  }
+}

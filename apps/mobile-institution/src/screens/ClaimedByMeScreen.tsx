@@ -11,6 +11,7 @@ import {
   type InstitutionDonationView,
   type SuccessStory,
 } from '@wafina/shared';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -27,7 +28,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { apiFetch, ApiError } from '@/lib/api';
 import type { ClaimedByMeStackParamList } from '@/navigation/RootNavigator';
-import { colors, fonts, spacing } from '@/theme/tokens';
+import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 type Props = NativeStackScreenProps<ClaimedByMeStackParamList, 'ClaimedByMeList'>;
 
@@ -43,6 +44,9 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
   const [actingId, setActingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | 'all'>('all');
+  // Bug fix, 2026-08-08 — sections had static, always-expanded headers with no
+  // fold/expand at all, unlike the equivalent Admin/Institution-web lists.
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   async function load() {
     if (!firebaseUser) return;
@@ -98,10 +102,21 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
     const active = visible.filter((d) => d.Status !== 'Delivered').sort(byStage);
     const delivered = visible.filter((d) => d.Status === 'Delivered').sort(byStage);
     return [
-      ...(active.length ? [{ title: null, data: active }] : []),
-      ...(delivered.length ? [{ title: 'Entregues', data: delivered }] : []),
+      ...(active.length
+        ? [{ key: 'active', title: 'Em Curso', count: active.length, data: collapsedSections.active ? [] : active }]
+        : []),
+      ...(delivered.length
+        ? [
+            {
+              key: 'delivered',
+              title: 'Entregues',
+              count: delivered.length,
+              data: collapsedSections.delivered ? [] : delivered,
+            },
+          ]
+        : []),
     ];
-  }, [donations, search, deliveryFilter]);
+  }, [donations, search, deliveryFilter, collapsedSections]);
 
   // Real-device finding, 2026-08-07 — deep-linking here from a donation
   // notification always landed at the top of the list with no indication of
@@ -232,13 +247,29 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
         }
         sections={sections ?? []}
         keyExtractor={(item) => item.Donation_ID}
-        renderSectionHeader={({ section }) =>
-          section.title ? (
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionHeaderText}>{section.title}</Text>
-            </View>
-          ) : null
-        }
+        renderSectionHeader={({ section }) => {
+          const key = section.key ?? '';
+          const collapsed = !!collapsedSections[key];
+          return (
+            <Pressable
+              onPress={() => setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }))}
+              style={[styles.sectionHeader, !collapsed && styles.sectionHeaderExpanded]}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: !collapsed }}
+            >
+              <Ionicons
+                name="chevron-down"
+                size={14}
+                color={collapsed ? colors.textFaint : colors.accent}
+                style={{ transform: [{ rotate: collapsed ? '-90deg' : '0deg' }] }}
+              />
+              <Text style={[styles.sectionHeaderText, !collapsed && styles.sectionHeaderTextExpanded]}>
+                {section.title}
+              </Text>
+              <Text style={styles.sectionHeaderCount}>({section.count})</Text>
+            </Pressable>
+          );
+        }}
         renderItem={({ item }) => (
           <Card style={[styles.card, item.Donation_ID === highlightId && styles.highlightedCard]}>
             <Photo uri={item.Photo} style={styles.photo} />
@@ -435,14 +466,35 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sectionHeader: {
-    paddingTop: spacing[2],
-    paddingBottom: spacing[1],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginTop: spacing[2],
+    marginBottom: spacing[3],
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sectionHeaderExpanded: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
   },
   sectionHeaderText: {
     fontFamily: 'Manrope-600',
     fontSize: 12,
     letterSpacing: 0.4,
     textTransform: 'uppercase',
+    color: colors.textFaint,
+  },
+  sectionHeaderTextExpanded: {
+    color: colors.accent,
+  },
+  sectionHeaderCount: {
+    fontFamily: 'Manrope-600',
+    fontSize: 12,
     color: colors.textFaint,
   },
   rowBetween: {

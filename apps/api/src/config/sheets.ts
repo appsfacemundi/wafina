@@ -29,8 +29,24 @@ const BASE_DELAY_MS = 500; // 500, 1000, 2000 between the 4 attempts
 const CACHE_TTL_MS = 20_000;
 const rowsCache = new Map<string, { data: Record<string, string>[]; expiresAt: number }>();
 
+/**
+ * Real-device finding, 2026-08-08 — a write (e.g. toggling a Partner's
+ * Active flag) can complete, invalidate the cache, and return to the client
+ * while an unrelated, slower getRows() call for the same tab — started
+ * *before* the write — is still waiting on its own Sheets API round trip.
+ * When that slow read finally lands, it would re-populate the cache with the
+ * pre-write snapshot, and the client's very next read-after-write (its
+ * reload right after the toggle) would then hit that resurrected stale
+ * entry instead of fetching fresh — showing the old value even though the
+ * write already succeeded. This generation counter closes that: a read only
+ * commits its result to the cache if no write invalidated the tab while that
+ * read was in flight.
+ */
+const tabGeneration = new Map<string, number>();
+
 function invalidateTab(tab: string): void {
   rowsCache.delete(tab);
+  tabGeneration.set(tab, (tabGeneration.get(tab) ?? 0) + 1);
 }
 
 /** True for a Google Sheets per-minute read/write quota error (429 / RESOURCE_EXHAUSTED). */
@@ -120,6 +136,7 @@ export async function getRows(tab: string): Promise<Record<string, string>[]> {
   const cached = rowsCache.get(tab);
   if (cached && cached.expiresAt > Date.now()) return [...cached.data];
 
+  const generationAtStart = tabGeneration.get(tab) ?? 0;
   const sheets = getClient();
   const { data } = await withRetry(() =>
     sheets.spreadsheets.values.get({
@@ -133,7 +150,11 @@ export async function getRows(tab: string): Promise<Record<string, string>[]> {
   const header = trimHeader(rawHeader);
 
   const parsed = rows.map((row) => Object.fromEntries(header.map((key, i) => [key, row[i] ?? ''])));
-  rowsCache.set(tab, { data: parsed, expiresAt: Date.now() + CACHE_TTL_MS });
+  // Only cache if no write invalidated this tab while the read above was in
+  // flight — see tabGeneration's doc comment for why that matters.
+  if ((tabGeneration.get(tab) ?? 0) === generationAtStart) {
+    rowsCache.set(tab, { data: parsed, expiresAt: Date.now() + CACHE_TTL_MS });
+  }
   return [...parsed];
 }
 
@@ -179,6 +200,17 @@ function columnLetter(count: number): string {
 /**
  * Finds the row whose `keyColumn` equals `keyValue` and overwrites only the
  * columns present in `patch`, leaving the rest of the row untouched.
+ *
+ * Performance fix, 2026-08-08 (real-device finding: saves taking 5-8s) — this
+ * used to re-fetch the entire tab fresh on every single call just to locate
+ * one row, on top of the write itself: two full sequential Sheets API round
+ * trips per save. The lookup now goes through getRows' cache instead. This
+ * is safe specifically because nothing in this codebase ever deletes or
+ * reorders rows — appendRow only ever adds at the end — so a row's position
+ * in a cached snapshot always matches its real position in the sheet. Worst
+ * case on a stale cache is a row appended in the last few seconds not being
+ * found yet (clean "not found" error, never a wrong-row overwrite); the
+ * targeted write itself still always hits the live sheet, never the cache.
  */
 export async function updateRow(
   tab: string,
@@ -187,31 +219,19 @@ export async function updateRow(
   patch: Record<string, string>,
 ): Promise<void> {
   const sheets = getClient();
-  const { data } = await withRetry(() =>
-    sheets.spreadsheets.values.get({
-      spreadsheetId: env.googleSheets.spreadsheetId!,
-      range: tab,
-    }),
-  );
+  const [rows, header] = await Promise.all([getRows(tab), getHeader(tab)]);
 
-  const [rawHeader, ...rows] = (data.values as string[][] | undefined) ?? [];
-  if (!rawHeader) {
-    throw new Error(`Cannot update "${tab}": sheet has no header row`);
-  }
-  const header = trimHeader(rawHeader);
-
-  const keyIndex = header.indexOf(keyColumn);
-  if (keyIndex === -1) {
+  if (!header.includes(keyColumn)) {
     throw new Error(`Column "${keyColumn}" not found in "${tab}" header`);
   }
 
-  const rowIndex = rows.findIndex((row) => row[keyIndex] === keyValue);
+  const rowIndex = rows.findIndex((row) => row[keyColumn] === keyValue);
   if (rowIndex === -1) {
     throw new Error(`No row in "${tab}" where ${keyColumn}=${keyValue}`);
   }
 
   const existingRow = rows[rowIndex];
-  const merged = header.map((key, i) => patch[key] ?? existingRow[i] ?? '');
+  const merged = header.map((key) => patch[key] ?? existingRow[key] ?? '');
 
   // +2: 1-based Sheets rows, plus the header row itself.
   const targetRow = rowIndex + 2;

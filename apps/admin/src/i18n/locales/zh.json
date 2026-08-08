@@ -1,0 +1,42 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "signOut": "退出登录",
+    "loading": "加载中…",
+    "search": "搜索",
+    "confirmSignOut": "确定要退出登录吗？"
+  },
+  "nav": {
+    "dashboard": "仪表板",
+    "institutions": "机构",
+    "donations": "捐赠",
+    "impactStories": "影响故事",
+    "changeRequests": "变更请求",
+    "users": "用户",
+    "countries": "国家",
+    "disputes": "争议",
+    "companies": "企业",
+    "notifications": "通知",
+    "partners": "合作伙伴",
+    "insights": "地理仪表板",
+    "reports": "报告"
+  },
+  "auth": {
+    "title": "Wafina 管理后台",
+    "subtitle": "仅限管理员访问。",
+    "email": "电子邮箱",
+    "password": "密码",
+    "signIn": "登录",
+    "signingIn": "登录中…",
+    "notAdminError": "此账户没有管理员权限。",
+    "forgotPassword": "忘记密码？",
+    "sendingReset": "发送中…",
+    "enterEmailForReset": "请输入您的电子邮箱以找回密码。",
+    "resetSent": "我们已发送包含重置密码说明的电子邮件。",
+    "resetSentGeneric": "如果此邮箱存在账户，我们已发送找回邮件。"
+  },
+  "language": {
+    "choose": "语言"
+  }
+}

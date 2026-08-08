@@ -21,6 +21,7 @@ export function SplashView() {
         <Image source={iconMark} style={styles.mark} resizeMode="contain" />
       </View>
       <Text style={[styles.tagline, { bottom: insets.bottom + 32 }]}>DOAR HOJE, TRANSFORMAR AMANHÃ</Text>
+      <Text style={[styles.credit, { bottom: insets.bottom + 12 }]}>BY ZUINDER</Text>
     </View>
   );
 }
@@ -58,5 +59,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     letterSpacing: 0.6,
     opacity: 0.92,
+  },
+  credit: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    color: '#ffffff',
+    fontFamily: 'PlusJakartaSans-600',
+    fontSize: 10,
+    letterSpacing: 1,
+    opacity: 0.55,
   },
 });

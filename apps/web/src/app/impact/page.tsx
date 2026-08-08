@@ -1,11 +1,39 @@
 'use client';
 
 import { formatDateTimeLabel, type SuccessStory } from '@wafina/shared';
-import { Card, EmptyState } from '@wafina/ui';
+import { Card, EmptyState, Icon, useToast } from '@wafina/ui';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
+
+/**
+ * Bug fix, 2026-08-08 — Web had no sharing affordance at all on Impact
+ * stories (mobile has one via the native share sheet). `navigator.share` is
+ * only available on secure contexts/some browsers, so this always falls back
+ * to a clipboard copy — either way the user gets guaranteed visible feedback
+ * via a toast, matching the pattern already used for the "Seja Parceiro" CTA.
+ */
+async function shareStory(story: SuccessStory, showToast: (message: string) => void) {
+  const text = `${story.Title}\n\n${story.Description}\n\n— partilhado via Wafina`;
+  if (typeof navigator !== 'undefined' && navigator.share) {
+    try {
+      await navigator.share({ title: `Wafina — ${story.Title}`, text });
+      return;
+    } catch (err) {
+      // AbortError means the user closed the share sheet themselves — respect
+      // that silently. Anything else is a real failure, fall through to the
+      // clipboard-copy fallback below so the click still does something.
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Texto da história copiado — cole onde quiser partilhar.');
+  } catch {
+    showToast('Não foi possível partilhar automaticamente. Copie o texto manualmente.');
+  }
+}
 
 /**
  * Institution App Polish QA review (2026-07-31) — a dedicated Impact section
@@ -16,6 +44,7 @@ import { apiFetch, ApiError } from '@/lib/api';
 export default function ImpactPage() {
   const session = useRequireSession();
   const { firebaseUser } = useAuth();
+  const { showToast } = useToast();
   const [stories, setStories] = useState<SuccessStory[] | null>(null);
   const [error, setError] = useState('');
 
@@ -61,7 +90,29 @@ export default function ImpactPage() {
                   style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }}
                 />
                 <div className="stack" style={{ padding: 'var(--space-4)', gap: 6 }}>
-                  <p style={{ fontWeight: 700, fontSize: 18 }}>{story.Title}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <p style={{ fontWeight: 700, fontSize: 18 }}>{story.Title}</p>
+                    <button
+                      type="button"
+                      onClick={() => shareStory(story, showToast)}
+                      aria-label="Partilhar história"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 4,
+                        color: 'var(--color-text-muted)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Icon name="share" size={18} />
+                    </button>
+                  </div>
+                  {(story.Institution_Name || story.Item_Type) && (
+                    <p style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--color-accent)' }}>
+                      {[story.Item_Type, story.Institution_Name].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
                   <p style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>{story.Description}</p>
                   <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
                     Publicada em {formatDateTimeLabel(story.Date_Published)}

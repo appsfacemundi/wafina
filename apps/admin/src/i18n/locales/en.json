@@ -1,0 +1,42 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "signOut": "Sign Out",
+    "loading": "Loading…",
+    "search": "Search",
+    "confirmSignOut": "Are you sure you want to sign out?"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "institutions": "Institutions",
+    "donations": "Donations",
+    "impactStories": "Impact Stories",
+    "changeRequests": "Change Requests",
+    "users": "Users",
+    "countries": "Countries",
+    "disputes": "Disputes",
+    "companies": "Companies",
+    "notifications": "Notifications",
+    "partners": "Partners",
+    "insights": "Geographic Dashboard",
+    "reports": "Reports"
+  },
+  "auth": {
+    "title": "Wafina Admin",
+    "subtitle": "Access restricted to administrators.",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign In",
+    "signingIn": "Signing in…",
+    "notAdminError": "This account doesn't have administrator access.",
+    "forgotPassword": "Forgot your password?",
+    "sendingReset": "Sending…",
+    "enterEmailForReset": "Enter your email to recover your password.",
+    "resetSent": "We've sent an email with instructions to reset your password.",
+    "resetSentGeneric": "If an account exists with this email, a recovery email has been sent."
+  },
+  "language": {
+    "choose": "Language"
+  }
+}

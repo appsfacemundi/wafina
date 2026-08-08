@@ -122,4 +122,6 @@ export interface InstitutionDonationView extends Donation {
 export interface AdminDonationView extends InstitutionDonationView {
   Claimed_By_Institution_Name: string | null;
   Claimed_By_Institution_Logo: string | null;
+  /** Whether a Success Story already exists for this donation — gates the "Enviar para a Feed" action. */
+  Has_Success_Story: boolean;
 }

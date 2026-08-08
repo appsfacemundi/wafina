@@ -1,0 +1,63 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "signOut": "Déconnexion",
+    "loading": "Chargement…",
+    "search": "Rechercher"
+  },
+  "nav": {
+    "home": "Accueil",
+    "donate": "Faire un don",
+    "myDonations": "Mes dons",
+    "impactStories": "Histoires d'impact",
+    "institutions": "Institutions",
+    "notifications": "Notifications",
+    "settings": "Paramètres"
+  },
+  "auth": {
+    "badge": "DONATEUR",
+    "welcome": "Bienvenue sur Wafina",
+    "tagline": "DONNER AUJOURD'HUI, TRANSFORMER DEMAIN",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "signIn": "Se connecter",
+    "signingIn": "Connexion…",
+    "noAccount": "Pas encore de compte ? Créer un compte",
+    "createAccount": "Créer un compte",
+    "creatingAccount": "Création du compte…",
+    "passwordHint": "Minimum 6 caractères.",
+    "alreadyHaveAccount": "Vous avez déjà un compte ? Se connecter"
+  },
+  "home": {
+    "greeting": "Bonjour",
+    "thankYou": "Merci de faire partie de Wafina.",
+    "activeCountry": "Pays actif",
+    "donateNow": "Faire un don",
+    "donateNowSubtitle": "Aidez quelqu'un en moins de 2 minutes.",
+    "donateNowCta": "Faire un don →",
+    "yourImpact": "Votre impact",
+    "viewAll": "Tout voir",
+    "donationsMade": "Dons effectués",
+    "institutionsSupported": "Institutions soutenues",
+    "itemsDonated": "Articles donnés",
+    "quickActions": "Actions rapides",
+    "latestStories": "Dernières histoires",
+    "viewAllStories": "Tout voir",
+    "ourPartners": "Nos Partenaires",
+    "partnersTagline": "Ensemble, nous transformons la générosité en impact réel.",
+    "becomePartner": "Devenez Partenaire Wafina",
+    "becomePartnerText": "Rejoignez les organisations qui aident à connecter les dons aux personnes et communautés dans le besoin.",
+    "becomePartnerCta": "Devenir Partenaire →",
+    "quickDonate": "Donner",
+    "quickImpact": "Impact",
+    "quickInstitutions": "Institutions",
+    "quickMine": "Les miens",
+    "visitWebsite": "Visiter le site →",
+    "close": "Fermer",
+    "thanks": "Merci."
+  },
+  "language": {
+    "choose": "Langue"
+  }
+}

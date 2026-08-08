@@ -3,13 +3,16 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { Donation, GeoRegion, Notification, SuccessStory } from '@wafina/shared';
+import type { Donation, GeoRegion, Notification, Partner, SuccessStory } from '@wafina/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/Card';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { Photo } from '@/components/Photo';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { apiFetch } from '@/lib/api';
 import type { AppTabParamList, RootStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
@@ -35,12 +38,16 @@ type Props = CompositeScreenProps<
  * — nothing new on the backend, just surfaced here too.
  */
 export function HomeScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { session, firebaseUser } = useAuth();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const [activeCountryName, setActiveCountryName] = useState<string | null>(null);
   const [donations, setDonations] = useState<Donation[] | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [latestStory, setLatestStory] = useState<SuccessStory | null>(null);
+  const [partners, setPartners] = useState<Partner[] | null>(null);
+  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
 
   useEffect(() => {
     if (!firebaseUser || !session?.activeCountryId) return;
@@ -65,14 +72,16 @@ export function HomeScreen({ navigation }: Props) {
       (async () => {
         try {
           const idToken = await firebaseUser.getIdToken();
-          const [donationList, notifications, stories] = await Promise.all([
+          const [donationList, notifications, stories, partnerList] = await Promise.all([
             apiFetch<Donation[]>('/donations/mine', { idToken }),
             apiFetch<Notification[]>('/notifications', { idToken }),
             apiFetch<SuccessStory[]>('/donor/success-stories', { idToken }),
+            apiFetch<Partner[]>('/partners', { idToken }),
           ]);
           setDonations(donationList);
           setUnreadCount(notifications.filter((n) => n.Status !== 'Read').length);
           setLatestStory(stories[0] ?? null);
+          setPartners(partnerList);
         } catch {
           // Non-critical — Home's summary sections just stay empty if this fails.
         }
@@ -98,10 +107,10 @@ export function HomeScreen({ navigation }: Props) {
     bg: string;
     onPress: () => void;
   }[] = [
-    { key: 'donate', label: 'Doar', icon: 'gift', color: colors.cta, bg: colors.ctaSoft, onPress: () => navigation.navigate('Donate') },
-    { key: 'impact', label: 'Impacto', icon: 'heart', color: colors.danger, bg: colors.dangerSoft, onPress: () => navigation.navigate('Impact') },
-    { key: 'institutions', label: 'Instituições', icon: 'business', color: colors.success, bg: colors.successSoft, onPress: () => navigation.navigate('Institutions') },
-    { key: 'mine', label: 'As Minhas', icon: 'person', color: colors.accent, bg: colors.accentSoft, onPress: () => navigation.navigate('MyDonations') },
+    { key: 'donate', label: t('home.quickDonate'), icon: 'gift', color: colors.cta, bg: colors.ctaSoft, onPress: () => navigation.navigate('Donate') },
+    { key: 'impact', label: t('nav.impact'), icon: 'heart', color: colors.danger, bg: colors.dangerSoft, onPress: () => navigation.navigate('Impact') },
+    { key: 'institutions', label: t('nav.institutions'), icon: 'business', color: colors.success, bg: colors.successSoft, onPress: () => navigation.navigate('Institutions') },
+    { key: 'mine', label: t('nav.myDonations'), icon: 'person', color: colors.accent, bg: colors.accentSoft, onPress: () => navigation.navigate('MyDonations') },
   ];
 
   return (
@@ -112,13 +121,14 @@ export function HomeScreen({ navigation }: Props) {
       >
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Olá{session?.name ? `, ${session.name}` : ''} 👋</Text>
-            <Text style={styles.subtitle}>Obrigado por fazer parte da Wafina.</Text>
+            <Text style={styles.title}>{t('home.greeting')}{session?.name ? `, ${session.name}` : ''} 👋</Text>
+            <Text style={styles.subtitle}>{t('home.thankYou')}</Text>
           </View>
+          <LanguageSwitcher />
           <Pressable
             onPress={() => navigation.navigate('Notifications')}
             accessibilityRole="button"
-            accessibilityLabel="Notificações"
+            accessibilityLabel={t('nav.notifications')}
             hitSlop={10}
             style={styles.bellWrap}
           >
@@ -139,7 +149,7 @@ export function HomeScreen({ navigation }: Props) {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.countryName}>{activeCountryName}</Text>
-                <Text style={styles.countrySubtitle}>País ativo</Text>
+                <Text style={styles.countrySubtitle}>{t('home.activeCountry')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
             </Card>
@@ -150,24 +160,24 @@ export function HomeScreen({ navigation }: Props) {
           <View style={styles.ctaCardTop}>
             <Text style={styles.ctaCardEmoji}>🎁</Text>
             <View style={styles.ctaCardTextWrap}>
-              <Text style={styles.ctaCardTitle}>Doar Agora</Text>
-              <Text style={styles.ctaCardSubtitle}>Ajude alguém em menos de 2 minutos.</Text>
+              <Text style={styles.ctaCardTitle}>{t('home.donateNow')}</Text>
+              <Text style={styles.ctaCardSubtitle}>{t('home.donateNowSubtitle')}</Text>
             </View>
           </View>
           <Pressable
             onPress={() => navigation.navigate('Donate')}
             accessibilityRole="button"
-            accessibilityLabel="Doar agora"
+            accessibilityLabel={t('home.donateNow')}
             style={({ pressed }) => [styles.ctaCardBtn, pressed && styles.ctaCardBtnPressed]}
           >
-            <Text style={styles.ctaCardBtnText}>Doar agora →</Text>
+            <Text style={styles.ctaCardBtnText}>{t('home.donateNowCta')}</Text>
           </Pressable>
         </View>
 
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>O seu impacto</Text>
+          <Text style={styles.sectionTitle}>{t('home.yourImpact')}</Text>
           <Pressable onPress={() => navigation.navigate('MyDonations')} accessibilityRole="button">
-            <Text style={styles.sectionLink}>Ver tudo</Text>
+            <Text style={styles.sectionLink}>{t('home.viewAll')}</Text>
           </Pressable>
         </View>
         {stats && (
@@ -177,26 +187,26 @@ export function HomeScreen({ navigation }: Props) {
                 <Ionicons name="heart" size={18} color={colors.cta} />
               </View>
               <Text style={styles.statValue}>{stats.total}</Text>
-              <Text style={styles.statLabel}>Doações{'\n'}realizadas</Text>
+              <Text style={styles.statLabel}>{t('home.donationsMade')}</Text>
             </View>
             <View style={styles.statCard}>
               <View style={[styles.statIconWrap, { backgroundColor: colors.successSoft }]}>
                 <Ionicons name="business" size={18} color={colors.success} />
               </View>
               <Text style={styles.statValue}>{stats.institutions}</Text>
-              <Text style={styles.statLabel}>Instituições{'\n'}apoiadas</Text>
+              <Text style={styles.statLabel}>{t('home.institutionsSupported')}</Text>
             </View>
             <View style={styles.statCard}>
               <View style={[styles.statIconWrap, { backgroundColor: colors.warningSoft }]}>
                 <Ionicons name="cube" size={18} color={colors.warning} />
               </View>
               <Text style={styles.statValue}>{stats.quantity}</Text>
-              <Text style={styles.statLabel}>Itens{'\n'}doados</Text>
+              <Text style={styles.statLabel}>{t('home.itemsDonated')}</Text>
             </View>
           </View>
         )}
 
-        <Text style={[styles.sectionTitle, { marginBottom: spacing[3] }]}>Ações rápidas</Text>
+        <Text style={[styles.sectionTitle, { marginBottom: spacing[3] }]}>{t('home.quickActions')}</Text>
         <View style={styles.quickActionsRow}>
           {quickActions.map((action) => (
             <Pressable key={action.key} onPress={action.onPress} accessibilityRole="button" style={styles.quickAction}>
@@ -209,9 +219,9 @@ export function HomeScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Últimas histórias</Text>
+          <Text style={styles.sectionTitle}>{t('home.latestStories')}</Text>
           <Pressable onPress={() => navigation.navigate('Impact')} accessibilityRole="button">
-            <Text style={styles.sectionLink}>Ver todas</Text>
+            <Text style={styles.sectionLink}>{t('home.viewAllStories')}</Text>
           </Pressable>
         </View>
         {latestStory && (
@@ -222,12 +232,87 @@ export function HomeScreen({ navigation }: Props) {
                 <Text style={styles.storyTitle} numberOfLines={2}>
                   {latestStory.Title}
                 </Text>
-                <Text style={styles.storyMeta}>❤️ Obrigado.</Text>
+                {(latestStory.Institution_Name || latestStory.Item_Type) && (
+                  <Text style={styles.storyDetails} numberOfLines={1}>
+                    {[latestStory.Item_Type, latestStory.Institution_Name].filter(Boolean).join(' · ')}
+                  </Text>
+                )}
+                <Text style={styles.storyMeta} numberOfLines={2}>
+                  ❤️ {latestStory.Description}
+                </Text>
               </View>
             </Card>
           </Pressable>
         )}
+
+        {partners && partners.length > 0 && (
+          <>
+            <View style={{ marginTop: spacing[2] }}>
+              <Text style={styles.sectionTitle}>{t('home.ourPartners')}</Text>
+              <Text style={styles.subtitle}>{t('home.partnersTagline')}</Text>
+            </View>
+            <View style={styles.partnersGrid}>
+              {partners.map((p) => (
+                <Pressable
+                  key={p.Partner_ID}
+                  onPress={() => setSelectedPartner(p)}
+                  accessibilityRole="button"
+                  accessibilityLabel={p.Name}
+                  style={styles.partnerTile}
+                >
+                  <Photo uri={p.Logo} style={styles.partnerLogo} placeholderIcon="🤝" />
+                </Pressable>
+              ))}
+            </View>
+            <Card style={styles.becomePartnerCard}>
+              <Text style={styles.becomePartnerTitle}>{t('home.becomePartner')}</Text>
+              <Text style={styles.becomePartnerText}>
+                {t('home.becomePartnerText')}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  // Real-device finding, 2026-08-08 — Linking.openURL rejects
+                  // silently (no crash, no visible feedback) on a device with
+                  // no mail app configured. Surfacing the address directly is
+                  // the only fallback that doesn't need a new native module.
+                  Linking.openURL('mailto:wafina@zuinder.com?subject=Parceria%20com%20a%20Wafina').catch(() =>
+                    showToast(t('home.noMailApp', { email: 'wafina@zuinder.com' })),
+                  );
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.sectionLink}>{t('home.becomePartnerCta')}</Text>
+              </Pressable>
+            </Card>
+          </>
+        )}
       </ScrollView>
+
+      <Modal visible={selectedPartner !== null} transparent animationType="fade" onRequestClose={() => setSelectedPartner(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setSelectedPartner(null)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            {selectedPartner && (
+              <>
+                <Photo uri={selectedPartner.Logo} style={styles.modalLogo} placeholderIcon="🤝" />
+                <Text style={styles.modalTitle}>{selectedPartner.Name}</Text>
+                <Text style={styles.modalDescription}>{selectedPartner.Description}</Text>
+                {selectedPartner.Website && (
+                  <Pressable onPress={() => Linking.openURL(selectedPartner.Website!)} accessibilityRole="button">
+                    <Text style={styles.sectionLink}>{t('home.visitWebsite')}</Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={() => setSelectedPartner(null)}
+                  accessibilityRole="button"
+                  style={styles.modalCloseBtn}
+                >
+                  <Text style={styles.modalCloseText}>{t('home.close')}</Text>
+                </Pressable>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -442,6 +527,83 @@ const styles = StyleSheet.create({
   storyMeta: {
     fontFamily: 'Manrope-400',
     fontSize: 13,
+    color: colors.textMuted,
+  },
+  storyDetails: {
+    fontFamily: 'Manrope-600',
+    fontSize: 12,
+    color: colors.accent,
+  },
+  partnersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[3],
+  },
+  partnerTile: {
+    width: '31%',
+    height: 64,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing[2],
+  },
+  partnerLogo: {
+    width: '100%',
+    height: '100%',
+  },
+  becomePartnerCard: {
+    gap: spacing[2],
+    alignItems: 'flex-start',
+  },
+  becomePartnerTitle: {
+    fontFamily: 'Manrope-700',
+    fontSize: 15,
+    color: colors.text,
+  },
+  becomePartnerText: {
+    fontFamily: 'Manrope-400',
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing[6],
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing[6],
+    gap: spacing[3],
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'flex-start',
+  },
+  modalLogo: {
+    width: 96,
+    height: 56,
+  },
+  modalTitle: {
+    fontFamily: fonts.display,
+    fontSize: 18,
+    color: colors.text,
+  },
+  modalDescription: {
+    fontFamily: 'Manrope-400',
+    fontSize: 14,
+    color: colors.textMuted,
+  },
+  modalCloseBtn: {
+    marginTop: spacing[2],
+  },
+  modalCloseText: {
+    fontFamily: 'Manrope-600',
+    fontSize: 13.5,
     color: colors.textMuted,
   },
 });

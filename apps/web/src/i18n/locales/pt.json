@@ -1,0 +1,63 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "signOut": "Sair",
+    "loading": "A carregar…",
+    "search": "Pesquisar"
+  },
+  "nav": {
+    "home": "Início",
+    "donate": "Doar",
+    "myDonations": "Minhas Doações",
+    "impactStories": "Histórias de Impacto",
+    "institutions": "Instituições",
+    "notifications": "Notificações",
+    "settings": "Definições"
+  },
+  "auth": {
+    "badge": "DOADOR",
+    "welcome": "Bem-vindo(a) à Wafina",
+    "tagline": "DOAR HOJE, TRANSFORMAR AMANHÃ",
+    "email": "E-mail",
+    "password": "Palavra-passe",
+    "signIn": "Entrar",
+    "signingIn": "A entrar…",
+    "noAccount": "Ainda não tem conta? Criar conta",
+    "createAccount": "Criar conta",
+    "creatingAccount": "A criar conta…",
+    "passwordHint": "Mínimo de 6 caracteres.",
+    "alreadyHaveAccount": "Já tem conta? Entrar"
+  },
+  "home": {
+    "greeting": "Olá",
+    "thankYou": "Obrigado por fazer parte da Wafina.",
+    "activeCountry": "País ativo",
+    "donateNow": "Doar Agora",
+    "donateNowSubtitle": "Ajude alguém em menos de 2 minutos.",
+    "donateNowCta": "Doar agora →",
+    "yourImpact": "O seu impacto",
+    "viewAll": "Ver tudo",
+    "donationsMade": "Doações realizadas",
+    "institutionsSupported": "Instituições apoiadas",
+    "itemsDonated": "Itens doados",
+    "quickActions": "Ações rápidas",
+    "latestStories": "Últimas histórias",
+    "viewAllStories": "Ver todas",
+    "ourPartners": "Os Nossos Parceiros",
+    "partnersTagline": "Juntos, transformamos generosidade em impacto real.",
+    "becomePartner": "Torne-se Parceiro Wafina",
+    "becomePartnerText": "Junte-se às organizações que ajudam a ligar doações a pessoas e comunidades que precisam.",
+    "becomePartnerCta": "Seja Parceiro →",
+    "quickDonate": "Doar",
+    "quickImpact": "Impacto",
+    "quickInstitutions": "Instituições",
+    "quickMine": "As Minhas",
+    "visitWebsite": "Visitar website →",
+    "close": "Fechar",
+    "thanks": "Obrigado."
+  },
+  "language": {
+    "choose": "Idioma"
+  }
+}

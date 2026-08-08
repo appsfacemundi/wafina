@@ -56,6 +56,7 @@ export default function SettingsPage() {
 
   const [savingNamePref, setSavingNamePref] = useState(false);
   const [savingFeedPref, setSavingFeedPref] = useState(false);
+  const [savingEmailPref, setSavingEmailPref] = useState(false);
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -167,6 +168,20 @@ export default function SettingsPage() {
       // Non-critical — the toggle simply reverts to its saved value on next load if this fails.
     } finally {
       setSavingFeedPref(false);
+    }
+  }
+
+  async function onChangeEmailNotifications(enabled: boolean) {
+    setSavingEmailPref(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/users/me/email-notifications', { method: 'PATCH', idToken, body: { enabled } });
+      await refreshSession();
+      showToast('Preferência de notificações atualizada.');
+    } catch {
+      // Non-critical — the toggle simply reverts to its saved value on next load if this fails.
+    } finally {
+      setSavingEmailPref(false);
     }
   }
 
@@ -347,6 +362,24 @@ export default function SettingsPage() {
           >
             <option value="Private">Privado — só as minhas doações</option>
             <option value="Public">Público — toda a comunidade</option>
+          </Select>
+        </Card>
+
+        <Card className="stack">
+          <p style={{ fontWeight: 600 }}>Notificações</p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
+            A notificação na app está sempre ativa. Pode também escolher receber um email
+            personalizado sempre que uma história de impacto sobre uma das suas doações for
+            publicada.
+          </p>
+          <Select
+            label="Notificações por email"
+            value={session.emailNotificationsEnabled ? 'yes' : 'no'}
+            onChange={(e) => onChangeEmailNotifications(e.target.value === 'yes')}
+            disabled={savingEmailPref}
+          >
+            <option value="yes">Receber por email</option>
+            <option value="no">Não receber por email</option>
           </Select>
         </Card>
 

@@ -2,10 +2,13 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState, type FormEvent } from 'react';
-import { Button, Card, Input } from '@wafina/ui';
+import { Button, Card, Input, LanguageSwitcher } from '@wafina/ui';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
 import { friendlyAuthError } from '@/lib/auth-errors';
 import { ApiError } from '@/lib/api';
+import { setLanguage } from '@/i18n';
+import { SUPPORTED_LANGUAGES } from '@/i18n/languages';
 
 export default function SignInPage() {
   return (
@@ -16,14 +19,13 @@ export default function SignInPage() {
 }
 
 function SignInForm() {
+  const { t, i18n } = useTranslation();
   const { signIn, sessionError, resetPassword } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(
-    searchParams.get('error') === 'not-admin' ? 'Esta conta não tem acesso de administrador.' : '',
-  );
+  const [error, setError] = useState(searchParams.get('error') === 'not-admin' ? t('auth.notAdminError') : '');
   const [submitting, setSubmitting] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
   const [resetting, setResetting] = useState(false);
@@ -53,15 +55,15 @@ function SignInForm() {
     setError('');
     setResetMessage('');
     if (!email.trim()) {
-      setError('Introduza o seu e-mail para recuperar a palavra-passe.');
+      setError(t('auth.enterEmailForReset'));
       return;
     }
     setResetting(true);
     try {
       await resetPassword(email.trim());
-      setResetMessage('Enviámos um e-mail com instruções para redefinir a sua palavra-passe.');
+      setResetMessage(t('auth.resetSent'));
     } catch {
-      setResetMessage('Se existir uma conta com este e-mail, foi enviado um e-mail de recuperação.');
+      setResetMessage(t('auth.resetSentGeneric'));
     } finally {
       setResetting(false);
     }
@@ -69,17 +71,25 @@ function SignInForm() {
 
   return (
     <main className="screen-center">
+      <div style={{ position: 'absolute', top: 16, insetInlineEnd: 16 }}>
+        <LanguageSwitcher
+          languages={SUPPORTED_LANGUAGES}
+          value={i18n.language}
+          onChange={setLanguage}
+          label={t('language.choose')}
+        />
+      </div>
       <div className="auth-brand" style={{ maxWidth: 360 }}>
         <img src="/wafina-icon-mark.png" alt="Wafina" width={92} height={77} />
-        <h1 className="auth-welcome" style={{ fontSize: 24 }}>Wafina Admin</h1>
+        <h1 className="auth-welcome" style={{ fontSize: 24 }}>{t('auth.title')}</h1>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5, marginTop: 4 }}>
-          Acesso reservado à administração.
+          {t('auth.subtitle')}
         </p>
       </div>
       <Card className="auth-card stack">
         <form onSubmit={onSubmit} className="stack">
           <Input
-            label="E-mail"
+            label={t('auth.email')}
             type="email"
             name="email"
             autoComplete="email"
@@ -88,7 +98,7 @@ function SignInForm() {
             onChange={(e) => setEmail(e.target.value)}
           />
           <Input
-            label="Palavra-passe"
+            label={t('auth.password')}
             type="password"
             name="password"
             autoComplete="current-password"
@@ -99,10 +109,10 @@ function SignInForm() {
           {displayedError && <div className="banner banner-error">{displayedError}</div>}
           {resetMessage && <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{resetMessage}</p>}
           <Button type="submit" fullWidth disabled={submitting}>
-            {submitting ? 'A entrar…' : 'Entrar'}
+            {submitting ? t('auth.signingIn') : t('auth.signIn')}
           </Button>
           <Button type="button" variant="ghost" fullWidth disabled={resetting} onClick={onForgotPassword}>
-            {resetting ? 'A enviar…' : 'Esqueceu-se da palavra-passe?'}
+            {resetting ? t('auth.sendingReset') : t('auth.forgotPassword')}
           </Button>
         </form>
       </Card>

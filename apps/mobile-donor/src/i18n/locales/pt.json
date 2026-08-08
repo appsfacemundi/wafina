@@ -1,0 +1,62 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "signOut": "Sair",
+    "loading": "A carregar…",
+    "search": "Pesquisar"
+  },
+  "nav": {
+    "home": "Início",
+    "impact": "Impacto",
+    "myDonations": "Doações",
+    "institutions": "Instituições",
+    "notifications": "Notificações",
+    "settings": "Definições"
+  },
+  "auth": {
+    "badge": "DOADOR",
+    "welcome": "Bem-vindo(a) à Wafina",
+    "tagline": "DOAR HOJE, TRANSFORMAR AMANHÃ",
+    "email": "E-mail",
+    "password": "Palavra-passe",
+    "signIn": "Entrar",
+    "signingIn": "A entrar…",
+    "noAccount": "Ainda não tem conta? Criar conta",
+    "forgotPassword": "Esqueceu-se da palavra-passe?",
+    "sendingReset": "A enviar…",
+    "enterEmailForReset": "Introduza o seu e-mail para recuperar a palavra-passe.",
+    "resetSent": "Enviámos um e-mail com instruções para redefinir a sua palavra-passe.",
+    "resetSentGeneric": "Se existir uma conta com este e-mail, foi enviado um e-mail de recuperação."
+  },
+  "home": {
+    "greeting": "Olá",
+    "thankYou": "Obrigado por fazer parte da Wafina.",
+    "activeCountry": "País ativo",
+    "donateNow": "Doar Agora",
+    "donateNowSubtitle": "Ajude alguém em menos de 2 minutos.",
+    "donateNowCta": "Doar agora →",
+    "yourImpact": "O seu impacto",
+    "viewAll": "Ver tudo",
+    "donationsMade": "Doações realizadas",
+    "institutionsSupported": "Instituições apoiadas",
+    "itemsDonated": "Itens doados",
+    "quickActions": "Ações rápidas",
+    "quickDonate": "Doar",
+    "latestStories": "Últimas histórias",
+    "viewAllStories": "Ver todas",
+    "thanks": "Obrigado.",
+    "ourPartners": "Os Nossos Parceiros",
+    "partnersTagline": "Juntos, transformamos generosidade em impacto real.",
+    "becomePartner": "Torne-se Parceiro Wafina",
+    "becomePartnerText": "Junte-se às organizações que ajudam a ligar doações a pessoas e comunidades que precisam.",
+    "becomePartnerCta": "Seja Parceiro →",
+    "visitWebsite": "Visitar website →",
+    "close": "Fechar",
+    "noMailApp": "Sem aplicação de email. Contacte: {{email}}"
+  },
+  "language": {
+    "choose": "Idioma",
+    "restartRequired": "Reinicie a aplicação para aplicar totalmente a direção do texto."
+  }
+}

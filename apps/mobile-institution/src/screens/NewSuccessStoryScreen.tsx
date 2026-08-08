@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
@@ -27,6 +28,7 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [showDonationDetails, setShowDonationDetails] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -94,6 +96,7 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
           Donation_ID: donationId,
           Title: title,
           Description: description,
+          Show_Donation_Details: String(showDonationDetails),
         },
       });
       showToast('História enviada para aprovação do Admin!');
@@ -132,6 +135,25 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
               Escolher outra fotografia
             </Button>
           )}
+
+          <Pressable
+            onPress={() => setShowDonationDetails((v) => !v)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: showDonationDetails }}
+            style={styles.checkboxRow}
+          >
+            <Ionicons
+              name={showDonationDetails ? 'checkbox' : 'square-outline'}
+              size={22}
+              color={showDonationDetails ? colors.accent : colors.textFaint}
+            />
+            <Text style={styles.checkboxLabel}>
+              Mostrar o nome da instituição e o tipo de item doado na história{'\n'}
+              <Text style={styles.checkboxHint}>
+                Se desativar, o doador vê apenas o título e a descrição acima.
+              </Text>
+            </Text>
+          </Pressable>
 
           {error ? <ErrorBanner message={error} /> : null}
           <Button onPress={onSubmit} loading={submitting} fullWidth>
@@ -178,5 +200,21 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: radius.md,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[2],
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontFamily: 'Manrope-600',
+    fontSize: 13.5,
+    color: colors.text,
+  },
+  checkboxHint: {
+    fontFamily: 'Manrope-400',
+    fontSize: 12,
+    color: colors.textFaint,
   },
 });

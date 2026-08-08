@@ -1,7 +1,7 @@
 'use client';
 
 import type { GeoRegion, RegistrableRole, User } from '@wafina/shared';
-import { Badge, Button, Card, EmptyState, Input, useToast } from '@wafina/ui';
+import { Badge, Button, Card, CollapsibleGroup, EmptyState, Input, useToast } from '@wafina/ui';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -62,6 +62,18 @@ export default function AdminUsersPage() {
     });
   }, [users, search]);
 
+  // Admin UX consistency pass, 2026-08-08 — same collapsible grouping as
+  // Donations/Institutions, so a large user base doesn't bury Institution
+  // and Admin accounts among a long alphabetical list of Donors.
+  const groups = useMemo(() => {
+    if (!filtered) return [];
+    return [
+      { key: 'donor', title: 'Doadores', items: filtered.filter((u) => u.Role === 'Donor') },
+      { key: 'institution', title: 'Instituições', items: filtered.filter((u) => u.Role === 'Institution') },
+      { key: 'admin', title: 'Admins', items: filtered.filter((u) => u.Role === 'Admin') },
+    ];
+  }, [filtered]);
+
   async function onSuspend(userId: string) {
     setError('');
     setBusyId(userId);
@@ -117,6 +129,50 @@ export default function AdminUsersPage() {
     }
   }
 
+  function renderUserCard(u: User) {
+    return (
+      <Card key={u.User_ID} className="stack" style={{ gap: 6 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+          <div>
+            <p style={{ fontWeight: 700, fontSize: 15 }}>{u.Name || '(sem nome)'}</p>
+            <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>{u.Email}</p>
+          </div>
+          <Badge tone={u.Status === 'Suspended' ? 'warning' : 'success'}>
+            {u.Status === 'Suspended' ? 'Suspensa' : 'Ativa'}
+          </Badge>
+        </div>
+        <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
+          {ROLE_LABEL[u.Role] ?? u.Role}
+          {u.Donor_Subtype === 'Corporate' ? ' · Corporativo' : ''}
+          {u.Home_Country_ID ? ` · ${countryName(u.Home_Country_ID)}` : ''}
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+          {u.Status === 'Suspended' ? (
+            <Button onClick={() => onReactivate(u.User_ID)} disabled={busyId === u.User_ID}>
+              Reativar
+            </Button>
+          ) : (
+            <Button variant="danger" onClick={() => onSuspend(u.User_ID)} disabled={busyId === u.User_ID}>
+              Suspender
+            </Button>
+          )}
+          {u.Role !== 'Admin' && (
+            <Button
+              variant="secondary"
+              onClick={() => onChangeRole(u.User_ID, u.Role === 'Donor' ? 'Institution' : 'Donor')}
+              disabled={busyId === u.User_ID}
+            >
+              Mudar para {u.Role === 'Donor' ? 'Instituição' : 'Doador'}
+            </Button>
+          )}
+          <Button variant="ghost" onClick={() => onResetPassword(u.Email)}>
+            Redefinir password
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
   if (!session) return null;
 
   return (
@@ -134,48 +190,14 @@ export default function AdminUsersPage() {
           <EmptyState title="Sem resultados" description="Nenhum utilizador corresponde à pesquisa." icon="users" />
         )}
         {filtered && filtered.length > 0 && (
-          <div className="stack">
-            {filtered.map((u) => (
-              <Card key={u.User_ID} className="stack" style={{ gap: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                  <div>
-                    <p style={{ fontWeight: 700, fontSize: 15 }}>{u.Name || '(sem nome)'}</p>
-                    <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>{u.Email}</p>
-                  </div>
-                  <Badge tone={u.Status === 'Suspended' ? 'warning' : 'success'}>
-                    {u.Status === 'Suspended' ? 'Suspensa' : 'Ativa'}
-                  </Badge>
-                </div>
-                <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
-                  {ROLE_LABEL[u.Role] ?? u.Role}
-                  {u.Donor_Subtype === 'Corporate' ? ' · Corporativo' : ''}
-                  {u.Home_Country_ID ? ` · ${countryName(u.Home_Country_ID)}` : ''}
-                </p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                  {u.Status === 'Suspended' ? (
-                    <Button onClick={() => onReactivate(u.User_ID)} disabled={busyId === u.User_ID}>
-                      Reativar
-                    </Button>
-                  ) : (
-                    <Button variant="danger" onClick={() => onSuspend(u.User_ID)} disabled={busyId === u.User_ID}>
-                      Suspender
-                    </Button>
-                  )}
-                  {u.Role !== 'Admin' && (
-                    <Button
-                      variant="secondary"
-                      onClick={() => onChangeRole(u.User_ID, u.Role === 'Donor' ? 'Institution' : 'Donor')}
-                      disabled={busyId === u.User_ID}
-                    >
-                      Mudar para {u.Role === 'Donor' ? 'Instituição' : 'Doador'}
-                    </Button>
-                  )}
-                  <Button variant="ghost" onClick={() => onResetPassword(u.Email)}>
-                    Redefinir password
-                  </Button>
-                </div>
-              </Card>
-            ))}
+          <div className="stack" style={{ gap: 'var(--space-4)' }}>
+            {groups
+              .filter((group) => group.items.length > 0)
+              .map((group) => (
+                <CollapsibleGroup key={group.key} title={group.title} count={group.items.length}>
+                  {group.items.map((u) => renderUserCard(u))}
+                </CollapsibleGroup>
+              ))}
           </div>
         )}
       </div>

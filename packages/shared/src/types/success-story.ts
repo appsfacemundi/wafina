@@ -28,10 +28,21 @@ export interface SuccessStory {
   /** The institution's User_ID at time of publish — stored explicitly rather than assumed, in case an institution ever has more than one author account. */
   Author_User_ID: string;
   Date_Published: string;
+  /**
+   * Attribution module, 2026-08-08 — chosen by whoever creates the story
+   * (institution submitting, or Admin's manual upload). Defaults true. When
+   * false, Institution_Name/Item_Type below are withheld server-side (never
+   * sent to the client at all, not just hidden in the UI) — the free-text
+   * Title/Description are unaffected either way.
+   */
+  Show_Donation_Details: boolean;
+  /** Joined from the donation at read time; null when Show_Donation_Details is false. */
+  Institution_Name: string | null;
+  /** Joined from the donation at read time; null when Show_Donation_Details is false. */
+  Item_Type: string | null;
 }
 
-/** Admin moderation queue — same story plus enough institution context to review it. */
+/** Admin moderation queue — same story plus the institution's logo (Institution_Name already on SuccessStory), always visible to Admin regardless of Show_Donation_Details. */
 export interface AdminSuccessStoryView extends SuccessStory {
-  Institution_Name: string | null;
   Institution_Logo: string | null;
 }

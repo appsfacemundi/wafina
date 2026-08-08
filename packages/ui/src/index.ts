@@ -8,3 +8,5 @@ export * from './EmptyState';
 export * from './Photo';
 export * from './Toast';
 export * from './DonationTimeline';
+export * from './CollapsibleGroup';
+export * from './LanguageSwitcher';

@@ -14,6 +14,7 @@ import { geoRegionsRouter } from './routes/geo-regions';
 import { healthRouter } from './routes/health';
 import { institutionsRouter } from './routes/institutions';
 import { notificationsRouter } from './routes/notifications';
+import { partnersRouter } from './routes/partners';
 import { photosRouter } from './routes/photos';
 import { successStoriesRouter } from './routes/success-stories';
 import { usersRouter } from './routes/users';
@@ -70,6 +71,7 @@ app.use(notificationsRouter);
 app.use(disputesRouter);
 app.use(changeRequestsRouter);
 app.use(successStoriesRouter);
+app.use(partnersRouter);
 app.use(adminRouter);
 app.use(errorHandler);
 

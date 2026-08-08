@@ -97,6 +97,7 @@ export default function AdminHomePage() {
           <StatCard href="/success-stories" icon="heart" value={stats?.pendingSuccessStories} label="Histórias por rever" />
           <StatCard href="/change-requests" icon="refresh" value={stats?.pendingChangeRequests} label="Pedidos de alteração por rever" />
           <StatCard href="/disputes" icon="alert-circle" value={stats?.openDisputes} label="Ocorrências abertas" />
+          <StatCard href="/partners" icon="shield-check" value={stats?.activePartners} label="Parceiros ativos" />
         </div>
       </div>
     </AppShell>

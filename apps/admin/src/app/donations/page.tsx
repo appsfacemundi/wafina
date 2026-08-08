@@ -11,7 +11,7 @@ import {
   type DeliveryMethod,
   type GeoRegion,
 } from '@wafina/shared';
-import { Badge, Button, Card, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
+import { Badge, Button, Card, CollapsibleGroup, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
@@ -21,6 +21,12 @@ import { ApiError, apiFetch } from '@/lib/api';
 function toDateInputValue(iso: string | null): string {
   if (!iso) return '';
   return iso.slice(0, 10);
+}
+
+function parseDate(v: string | null): number {
+  if (!v) return 0;
+  const t = Date.parse(v);
+  return Number.isNaN(t) ? 0 : t;
 }
 
 export default function AdminDonationsPage() {
@@ -37,7 +43,12 @@ export default function AdminDonationsPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { collection: string; delivery: string }>>({});
   const [photoSavingId, setPhotoSavingId] = useState<string | null>(null);
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [storyFormId, setStoryFormId] = useState<string | null>(null);
+  const [storyDrafts, setStoryDrafts] = useState<
+    Record<string, { title: string; description: string; file: File | null; showDetails: boolean }>
+  >({});
+  const [storySavingId, setStorySavingId] = useState<string | null>(null);
+  const [sendingToFeedId, setSendingToFeedId] = useState<string | null>(null);
 
   async function load() {
     if (!firebaseUser) return;
@@ -87,12 +98,7 @@ export default function AdminDonationsPage() {
     // but this page never re-sorted after filtering, so it relied entirely
     // on that order surviving the filters above untouched. Sorting
     // defensively here keeps the newest-on-top guarantee explicit.
-    const parse = (v: string) => {
-      if (!v) return 0;
-      const t = Date.parse(v);
-      return Number.isNaN(t) ? 0 : t;
-    };
-    return [...result].sort((a, b) => parse(b.Date_Submitted) - parse(a.Date_Submitted));
+    return [...result].sort((a, b) => parseDate(b.Date_Submitted) - parseDate(a.Date_Submitted));
   }, [donations, countryFilter, deliveryFilter, search]);
 
   /**
@@ -121,7 +127,15 @@ export default function AdminDonationsPage() {
       {
         key: 'delivered',
         title: 'Entregue',
-        items: filteredDonations.filter((d) => d.Status === 'Delivered'),
+        // Bug fix, 2026-08-08 — this group inherited the list's Date_Submitted
+        // sort, so a donation delivered today but submitted weeks ago could sit
+        // buried under ones submitted more recently but delivered earlier —
+        // exactly backwards for "find the newest delivery to publish to the
+        // Feed". Sort by Date_Delivered instead so the most recently delivered
+        // donation (the one most likely to still need a story) is always first.
+        items: [...filteredDonations.filter((d) => d.Status === 'Delivered')].sort(
+          (a, b) => parseDate(b.Date_Delivered) - parseDate(a.Date_Delivered),
+        ),
       },
     ];
   }, [filteredDonations]);
@@ -174,6 +188,62 @@ export default function AdminDonationsPage() {
       setError(err instanceof ApiError ? err.message : 'Não foi possível atualizar a fotografia.');
     } finally {
       setPhotoSavingId(null);
+    }
+  }
+
+  async function onSendToFeed(donationId: string) {
+    setError('');
+    setSendingToFeedId(donationId);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch(`/admin/donations/${donationId}/send-to-feed`, { method: 'POST', idToken });
+      await load();
+      showToast('Enviado para a Feed de Impacto.');
+    } catch (err) {
+      // Bug fix, 2026-08-08 — this list can run to dozens of cards; the page-level
+      // `error` banner renders at the very top, invisible while scrolled deep into
+      // a status group. A failed send looked identical to nothing happening at
+      // all. The toast is fixed-position, so it stays visible regardless of scroll.
+      const message = err instanceof ApiError ? err.message : 'Não foi possível enviar para a Feed.';
+      setError(message);
+      showToast(message, 'error');
+    } finally {
+      setSendingToFeedId(null);
+    }
+  }
+
+  async function onPublishStory(donationId: string) {
+    const draft = storyDrafts[donationId];
+    if (!draft?.file) {
+      setError('Escolha uma fotografia para a história.');
+      return;
+    }
+    if (!draft.title.trim() || !draft.description.trim()) {
+      setError('Preencha o título e a descrição da história.');
+      return;
+    }
+    setError('');
+    setStorySavingId(donationId);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      const form = new FormData();
+      form.append('image', draft.file);
+      form.append('Donation_ID', donationId);
+      form.append('Title', draft.title.trim());
+      form.append('Description', draft.description.trim());
+      form.append('Show_Donation_Details', String(draft.showDetails));
+      await apiFetch('/admin/success-stories', { method: 'POST', idToken, body: form });
+      setStoryFormId(null);
+      setStoryDrafts((prev) => ({
+        ...prev,
+        [donationId]: { title: '', description: '', file: null, showDetails: true },
+      }));
+      await load();
+      showToast('História publicada — já visível no Feed de Impacto do doador.');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível publicar a história.');
+    } finally {
+      setStorySavingId(null);
     }
   }
 
@@ -268,41 +338,170 @@ export default function AdminDonationsPage() {
               Doação já entregue — as datas ficam por referência e não podem ser alteradas.
             </p>
           )}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <Input
-              label="Data estimada de recolha"
-              type="date"
-              disabled={d.Status === 'Delivered'}
-              value={drafts[d.Donation_ID]?.collection ?? ''}
-              onChange={(e) =>
-                setDrafts((prev) => ({
-                  ...prev,
-                  [d.Donation_ID]: { ...prev[d.Donation_ID], collection: e.target.value, delivery: prev[d.Donation_ID]?.delivery ?? '' },
-                }))
-              }
-            />
-            <Input
-              label="Data estimada de entrega"
-              type="date"
-              disabled={d.Status === 'Delivered'}
-              value={drafts[d.Donation_ID]?.delivery ?? ''}
-              onChange={(e) =>
-                setDrafts((prev) => ({
-                  ...prev,
-                  [d.Donation_ID]: { ...prev[d.Donation_ID], delivery: e.target.value, collection: prev[d.Donation_ID]?.collection ?? '' },
-                }))
-              }
-            />
-          </div>
-          {d.Status !== 'Delivered' && (
-            <Button
-              onClick={() => onSave(d.Donation_ID)}
-              disabled={
-                savingId === d.Donation_ID || (!drafts[d.Donation_ID]?.collection && !drafts[d.Donation_ID]?.delivery)
-              }
-            >
-              {savingId === d.Donation_ID ? 'A guardar…' : 'Guardar estimativas'}
-            </Button>
+          {d.Status === 'Delivered' && (
+            <div className="stack" style={{ gap: 8 }}>
+              {d.Has_Success_Story ? (
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-success-700, #15803d)' }}>
+                  ✓ Já publicado no Feed de Impacto
+                </p>
+              ) : storyFormId !== d.Donation_ID ? (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Button
+                    variant="cta"
+                    onClick={() => onSendToFeed(d.Donation_ID)}
+                    disabled={sendingToFeedId === d.Donation_ID}
+                  >
+                    {sendingToFeedId === d.Donation_ID ? 'A enviar…' : 'Enviar para a Feed'}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setStoryFormId(d.Donation_ID)}>
+                    Carregar do PC
+                  </Button>
+                </div>
+              ) : (
+                <div className="stack" style={{ gap: 8, padding: 12, border: '1px solid var(--color-border)', borderRadius: 8 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700 }}>
+                    Carregar uma fotografia diferente para a Feed
+                  </p>
+                  <Input
+                    label="Título"
+                    value={storyDrafts[d.Donation_ID]?.title ?? ''}
+                    onChange={(e) =>
+                      setStoryDrafts((prev) => ({
+                        ...prev,
+                        [d.Donation_ID]: {
+                          title: e.target.value,
+                          description: prev[d.Donation_ID]?.description ?? '',
+                          file: prev[d.Donation_ID]?.file ?? null,
+                          showDetails: prev[d.Donation_ID]?.showDetails ?? true,
+                        },
+                      }))
+                    }
+                  />
+                  <div className="field">
+                    <label htmlFor={`story-desc-${d.Donation_ID}`}>Descrição</label>
+                    <textarea
+                      id={`story-desc-${d.Donation_ID}`}
+                      className="input"
+                      rows={3}
+                      style={{ resize: 'vertical' }}
+                      value={storyDrafts[d.Donation_ID]?.description ?? ''}
+                      onChange={(e) =>
+                        setStoryDrafts((prev) => ({
+                          ...prev,
+                          [d.Donation_ID]: {
+                            title: prev[d.Donation_ID]?.title ?? '',
+                            description: e.target.value,
+                            file: prev[d.Donation_ID]?.file ?? null,
+                            showDetails: prev[d.Donation_ID]?.showDetails ?? true,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Fotografia</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null;
+                        setStoryDrafts((prev) => ({
+                          ...prev,
+                          [d.Donation_ID]: {
+                            title: prev[d.Donation_ID]?.title ?? '',
+                            description: prev[d.Donation_ID]?.description ?? '',
+                            file,
+                            showDetails: prev[d.Donation_ID]?.showDetails ?? true,
+                          },
+                        }));
+                      }}
+                    />
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13.5 }}>
+                    <input
+                      type="checkbox"
+                      checked={storyDrafts[d.Donation_ID]?.showDetails ?? true}
+                      onChange={(e) =>
+                        setStoryDrafts((prev) => ({
+                          ...prev,
+                          [d.Donation_ID]: {
+                            title: prev[d.Donation_ID]?.title ?? '',
+                            description: prev[d.Donation_ID]?.description ?? '',
+                            file: prev[d.Donation_ID]?.file ?? null,
+                            showDetails: e.target.checked,
+                          },
+                        }))
+                      }
+                      style={{ marginTop: 2 }}
+                    />
+                    <span>
+                      Mostrar instituição e item doado na história
+                      <br />
+                      <span style={{ color: 'var(--color-text-faint)', fontSize: 12 }}>
+                        Se desativar, o doador vê apenas o título e a descrição acima.
+                      </span>
+                    </span>
+                  </label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button onClick={() => onPublishStory(d.Donation_ID)} disabled={storySavingId === d.Donation_ID}>
+                      {storySavingId === d.Donation_ID ? 'A publicar…' : 'Publicar'}
+                    </Button>
+                    <Button variant="ghost" onClick={() => setStoryFormId(null)} disabled={storySavingId === d.Donation_ID}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {/* Bug fix, 2026-08-08 — a Pending donation has no claiming institution
+              yet, so there's nothing to estimate a collection/delivery date
+              against. Offering the inputs anyway let Admin "save" a date that
+              silently did nothing visible (Status stays Pendente, which read as
+              broken). Estimates only make sense from Claimed onward. */}
+          {d.Status === 'Pending' ? (
+            <p style={{ fontSize: 12.5, color: 'var(--color-text-faint)' }}>
+              Aguarda aceitação por uma instituição — as datas estimadas só podem ser definidas depois disso.
+            </p>
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <Input
+                  label="Data estimada de recolha"
+                  type="date"
+                  disabled={d.Status === 'Delivered'}
+                  value={drafts[d.Donation_ID]?.collection ?? ''}
+                  onChange={(e) =>
+                    setDrafts((prev) => ({
+                      ...prev,
+                      [d.Donation_ID]: { ...prev[d.Donation_ID], collection: e.target.value, delivery: prev[d.Donation_ID]?.delivery ?? '' },
+                    }))
+                  }
+                />
+                <Input
+                  label="Data estimada de entrega"
+                  type="date"
+                  disabled={d.Status === 'Delivered'}
+                  value={drafts[d.Donation_ID]?.delivery ?? ''}
+                  onChange={(e) =>
+                    setDrafts((prev) => ({
+                      ...prev,
+                      [d.Donation_ID]: { ...prev[d.Donation_ID], delivery: e.target.value, collection: prev[d.Donation_ID]?.collection ?? '' },
+                    }))
+                  }
+                />
+              </div>
+              {d.Status !== 'Delivered' && (
+                <Button
+                  onClick={() => onSave(d.Donation_ID)}
+                  disabled={
+                    savingId === d.Donation_ID || (!drafts[d.Donation_ID]?.collection && !drafts[d.Donation_ID]?.delivery)
+                  }
+                >
+                  {savingId === d.Donation_ID ? 'A guardar…' : 'Guardar estimativas'}
+                </Button>
+              )}
+            </>
           )}
         </div>
       </Card>
@@ -364,35 +563,11 @@ export default function AdminDonationsPage() {
           <div className="stack" style={{ gap: 'var(--space-4)' }}>
             {donationGroups
               .filter((group) => group.items.length > 0)
-              .map((group) => {
-                const collapsed = collapsedGroups[group.key] ?? false;
-                return (
-                  <div key={group.key} className="stack" style={{ gap: 'var(--space-3)' }}>
-                    <button
-                      type="button"
-                      onClick={() => setCollapsedGroups((prev) => ({ ...prev, [group.key]: !collapsed }))}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        background: 'var(--color-surface)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 8,
-                        padding: '10px 14px',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                      }}
-                    >
-                      <span style={{ fontSize: 12, color: 'var(--color-text-faint)', transform: collapsed ? 'rotate(-90deg)' : 'none' }}>
-                        ▾
-                      </span>
-                      <h2 style={{ fontSize: 15, fontWeight: 700 }}>{group.title}</h2>
-                      <span style={{ fontSize: 13, color: 'var(--color-text-faint)' }}>({group.items.length})</span>
-                    </button>
-                    {!collapsed && <div className="stack">{group.items.map((d) => renderDonationCard(d))}</div>}
-                  </div>
-                );
-              })}
+              .map((group) => (
+                <CollapsibleGroup key={group.key} title={group.title} count={group.items.length}>
+                  {group.items.map((d) => renderDonationCard(d))}
+                </CollapsibleGroup>
+              ))}
           </div>
         )}
       </div>

@@ -1,0 +1,62 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "signOut": "Cerrar sesión",
+    "loading": "Cargando…",
+    "search": "Buscar"
+  },
+  "nav": {
+    "home": "Inicio",
+    "impact": "Impacto",
+    "myDonations": "Donaciones",
+    "institutions": "Instituciones",
+    "notifications": "Notificaciones",
+    "settings": "Configuración"
+  },
+  "auth": {
+    "badge": "DONANTE",
+    "welcome": "Bienvenido(a) a Wafina",
+    "tagline": "DONAR HOY, TRANSFORMAR MAÑANA",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "signIn": "Iniciar sesión",
+    "signingIn": "Iniciando sesión…",
+    "noAccount": "¿Aún no tienes cuenta? Crear cuenta",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "sendingReset": "Enviando…",
+    "enterEmailForReset": "Introduce tu correo para recuperar tu contraseña.",
+    "resetSent": "Hemos enviado un correo con instrucciones para restablecer tu contraseña.",
+    "resetSentGeneric": "Si existe una cuenta con este correo, se ha enviado un correo de recuperación."
+  },
+  "home": {
+    "greeting": "Hola",
+    "thankYou": "Gracias por ser parte de Wafina.",
+    "activeCountry": "País activo",
+    "donateNow": "Donar Ahora",
+    "donateNowSubtitle": "Ayuda a alguien en menos de 2 minutos.",
+    "donateNowCta": "Donar ahora →",
+    "yourImpact": "Tu impacto",
+    "viewAll": "Ver todo",
+    "donationsMade": "Donaciones realizadas",
+    "institutionsSupported": "Instituciones apoyadas",
+    "itemsDonated": "Artículos donados",
+    "quickActions": "Acciones rápidas",
+    "quickDonate": "Donar",
+    "latestStories": "Últimas historias",
+    "viewAllStories": "Ver todas",
+    "thanks": "Gracias.",
+    "ourPartners": "Nuestros Socios",
+    "partnersTagline": "Juntos, transformamos la generosidad en impacto real.",
+    "becomePartner": "Hazte Socio de Wafina",
+    "becomePartnerText": "Únete a las organizaciones que ayudan a conectar donaciones con personas y comunidades necesitadas.",
+    "becomePartnerCta": "Sé Socio →",
+    "visitWebsite": "Visitar sitio web →",
+    "close": "Cerrar",
+    "noMailApp": "No hay aplicación de correo disponible. Contacto: {{email}}"
+  },
+  "language": {
+    "choose": "Idioma",
+    "restartRequired": "Reinicia la aplicación para aplicar completamente la dirección del texto."
+  }
+}

@@ -27,4 +27,6 @@ export interface AuthenticatedUser {
   showNameToInstitutions: boolean;
   /** Which pool of Success Stories the donor's Impact feed draws from — see enums/impact-feed-visibility.ts. */
   impactFeedVisibility: ImpactFeedVisibility;
+  /** Email notifications for events like a published impact story. In-app notifications are never gated by this — always on. Defaults true. */
+  emailNotificationsEnabled: boolean;
 }

@@ -25,3 +25,8 @@ apps/api/backups/
 
 # Local reference screenshots from browser-preview checks — snapshots for comparison, not project source
 reference-screenshots/
+
+# EAS build output artifacts (e.g. from `eas build --local`) — build products, not source
+*.ipa
+*.apk
+*.aab

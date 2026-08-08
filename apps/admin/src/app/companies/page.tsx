@@ -1,8 +1,8 @@
 'use client';
 
 import type { AdminCorporateAccountView, GeoRegion, InvitationCode } from '@wafina/shared';
-import { Badge, Button, Card, EmptyState, Input, Select, useToast } from '@wafina/ui';
-import { useEffect, useState } from 'react';
+import { Badge, Button, Card, CollapsibleGroup, EmptyState, Input, Select, useToast } from '@wafina/ui';
+import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
 import { ApiError, apiFetch } from '@/lib/api';
@@ -48,6 +48,16 @@ export default function AdminCompaniesPage() {
   useEffect(() => {
     load();
   }, [firebaseUser]);
+
+  // Admin UX consistency pass, 2026-08-08 — same collapsible grouping as
+  // Donations/Institutions/Users.
+  const groups = useMemo(() => {
+    if (!companies) return [];
+    return [
+      { key: 'active', title: 'Ativas', items: companies.filter((c) => c.Status !== 'Suspended') },
+      { key: 'suspended', title: 'Suspensas', items: companies.filter((c) => c.Status === 'Suspended') },
+    ];
+  }, [companies]);
 
   async function onCreate() {
     if (!companyName.trim() || !country.trim()) {
@@ -182,6 +192,128 @@ export default function AdminCompaniesPage() {
     }
   }
 
+  function renderCompanyCard(c: AdminCorporateAccountView) {
+    return (
+      <Card key={c.Corporate_Account_ID} className="stack" style={{ gap: 6 }}>
+        {editingId === c.Corporate_Account_ID ? (
+          <div className="stack">
+            <Input label="Nome da empresa" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <Select label="País" value={editCountry} onChange={(e) => setEditCountry(e.target.value)}>
+              <option value="">Selecione um país…</option>
+              {countries.map((country) => (
+                <option key={country.Region_ID} value={country.Name}>
+                  {country.Name}
+                </option>
+              ))}
+            </Select>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button onClick={() => onSaveEdit(c.Corporate_Account_ID)} disabled={busyId === c.Corporate_Account_ID}>
+                Guardar
+              </Button>
+              <Button variant="ghost" onClick={() => setEditingId(null)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+              <div>
+                <p style={{ fontWeight: 700, fontSize: 15 }}>{c.Company_Name}</p>
+                <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>{c.Country}</p>
+              </div>
+              <Badge tone={c.Status === 'Suspended' ? 'warning' : 'success'}>
+                {c.Status === 'Suspended' ? 'Suspensa' : 'Ativa'}
+              </Badge>
+            </div>
+            <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
+              {c.Employee_Count} colaborador{c.Employee_Count === 1 ? '' : 'es'} · {c.Donation_Count} doações
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setEditingId(c.Corporate_Account_ID);
+                  setEditName(c.Company_Name);
+                  setEditCountry(c.Country);
+                }}
+              >
+                Editar
+              </Button>
+              {c.Status === 'Suspended' ? (
+                <Button onClick={() => onReactivate(c.Corporate_Account_ID)} disabled={busyId === c.Corporate_Account_ID}>
+                  Reativar
+                </Button>
+              ) : (
+                <Button
+                  variant="danger"
+                  onClick={() => onSuspend(c.Corporate_Account_ID)}
+                  disabled={busyId === c.Corporate_Account_ID}
+                >
+                  Suspender
+                </Button>
+              )}
+              <Button variant="ghost" onClick={() => onManageCodes(c.Corporate_Account_ID)}>
+                Códigos de convite
+              </Button>
+            </div>
+          </>
+        )}
+
+        {managingCodesId === c.Corporate_Account_ID && (
+          <div
+            className="stack"
+            style={{ marginTop: 8, padding: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}
+          >
+            <p style={{ fontWeight: 700, fontSize: 13.5 }}>Códigos de convite</p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <Input
+                label="Utilizações máximas"
+                hint="1 = uso único"
+                type="number"
+                value={maxUses}
+                onChange={(e) => setMaxUses(e.target.value)}
+              />
+              <Input
+                label="Expira em (opcional)"
+                type="date"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+              />
+              <Button onClick={() => onGenerateCode(c.Corporate_Account_ID)} disabled={busyId === c.Corporate_Account_ID}>
+                Gerar código
+              </Button>
+            </div>
+            {(codesById[c.Corporate_Account_ID] ?? []).map((code) => (
+              <div key={code.Code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <div>
+                  <p className="mono" style={{ fontSize: 14, fontWeight: 700 }}>
+                    {code.Code}
+                  </p>
+                  <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
+                    {code.Uses_Count}/{code.Max_Uses} utilizações
+                    {code.Expires_At ? ` · expira ${code.Expires_At.slice(0, 10)}` : ''}
+                    {!code.Active ? ' · desativado' : ''}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button variant="ghost" onClick={() => onCopyCode(code.Code)}>
+                    Copiar
+                  </Button>
+                  {code.Active && (
+                    <Button variant="ghost" onClick={() => onDeactivateCode(c.Corporate_Account_ID, code.Code)}>
+                      Desativar
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    );
+  }
+
   if (!session) return null;
 
   return (
@@ -213,129 +345,14 @@ export default function AdminCompaniesPage() {
           <EmptyState title="Sem empresas" description="As empresas parceiras aparecem aqui depois de criadas." icon="briefcase" />
         )}
         {companies && companies.length > 0 && (
-          <div className="stack">
-            {companies.map((c) => (
-              <Card key={c.Corporate_Account_ID} className="stack" style={{ gap: 6 }}>
-                {editingId === c.Corporate_Account_ID ? (
-                  <div className="stack">
-                    <Input label="Nome da empresa" value={editName} onChange={(e) => setEditName(e.target.value)} />
-                    <Select label="País" value={editCountry} onChange={(e) => setEditCountry(e.target.value)}>
-                      <option value="">Selecione um país…</option>
-                      {countries.map((c) => (
-                        <option key={c.Region_ID} value={c.Name}>
-                          {c.Name}
-                        </option>
-                      ))}
-                    </Select>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <Button onClick={() => onSaveEdit(c.Corporate_Account_ID)} disabled={busyId === c.Corporate_Account_ID}>
-                        Guardar
-                      </Button>
-                      <Button variant="ghost" onClick={() => setEditingId(null)}>
-                        Cancelar
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                      <div>
-                        <p style={{ fontWeight: 700, fontSize: 15 }}>{c.Company_Name}</p>
-                        <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>{c.Country}</p>
-                      </div>
-                      <Badge tone={c.Status === 'Suspended' ? 'warning' : 'success'}>
-                        {c.Status === 'Suspended' ? 'Suspensa' : 'Ativa'}
-                      </Badge>
-                    </div>
-                    <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
-                      {c.Employee_Count} colaborador{c.Employee_Count === 1 ? '' : 'es'} · {c.Donation_Count} doações
-                    </p>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          setEditingId(c.Corporate_Account_ID);
-                          setEditName(c.Company_Name);
-                          setEditCountry(c.Country);
-                        }}
-                      >
-                        Editar
-                      </Button>
-                      {c.Status === 'Suspended' ? (
-                        <Button onClick={() => onReactivate(c.Corporate_Account_ID)} disabled={busyId === c.Corporate_Account_ID}>
-                          Reativar
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="danger"
-                          onClick={() => onSuspend(c.Corporate_Account_ID)}
-                          disabled={busyId === c.Corporate_Account_ID}
-                        >
-                          Suspender
-                        </Button>
-                      )}
-                      <Button variant="ghost" onClick={() => onManageCodes(c.Corporate_Account_ID)}>
-                        Códigos de convite
-                      </Button>
-                    </div>
-                  </>
-                )}
-
-                {managingCodesId === c.Corporate_Account_ID && (
-                  <div
-                    className="stack"
-                    style={{ marginTop: 8, padding: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}
-                  >
-                    <p style={{ fontWeight: 700, fontSize: 13.5 }}>Códigos de convite</p>
-                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                      <Input
-                        label="Utilizações máximas"
-                        hint="1 = uso único"
-                        type="number"
-                        value={maxUses}
-                        onChange={(e) => setMaxUses(e.target.value)}
-                      />
-                      <Input
-                        label="Expira em (opcional)"
-                        type="date"
-                        value={expiresAt}
-                        onChange={(e) => setExpiresAt(e.target.value)}
-                      />
-                      <Button onClick={() => onGenerateCode(c.Corporate_Account_ID)} disabled={busyId === c.Corporate_Account_ID}>
-                        Gerar código
-                      </Button>
-                    </div>
-                    {(codesById[c.Corporate_Account_ID] ?? []).map((code) => (
-                      <div
-                        key={code.Code}
-                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}
-                      >
-                        <div>
-                          <p className="mono" style={{ fontSize: 14, fontWeight: 700 }}>
-                            {code.Code}
-                          </p>
-                          <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
-                            {code.Uses_Count}/{code.Max_Uses} utilizações
-                            {code.Expires_At ? ` · expira ${code.Expires_At.slice(0, 10)}` : ''}
-                            {!code.Active ? ' · desativado' : ''}
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <Button variant="ghost" onClick={() => onCopyCode(code.Code)}>
-                            Copiar
-                          </Button>
-                          {code.Active && (
-                            <Button variant="ghost" onClick={() => onDeactivateCode(c.Corporate_Account_ID, code.Code)}>
-                              Desativar
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            ))}
+          <div className="stack" style={{ gap: 'var(--space-4)' }}>
+            {groups
+              .filter((group) => group.items.length > 0)
+              .map((group) => (
+                <CollapsibleGroup key={group.key} title={group.title} count={group.items.length}>
+                  {group.items.map((c) => renderCompanyCard(c))}
+                </CollapsibleGroup>
+              ))}
           </div>
         )}
       </div>

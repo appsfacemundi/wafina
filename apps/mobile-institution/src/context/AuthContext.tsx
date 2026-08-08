@@ -7,7 +7,7 @@ import {
   signOut,
   type User as FirebaseUser,
 } from 'firebase/auth';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
 import { firebaseAuth } from '@/lib/firebase';
 
@@ -62,8 +62,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
 
+  // Real-device finding, 2026-08-08 — Donor and Institution share one Firebase
+  // project, and Expo Go doesn't isolate AsyncStorage per project the way two
+  // standalone installs would. A session persisted from testing the Donor app
+  // on the same phone was auto-restored here on cold launch, tripped the
+  // role-mismatch guard in resolveSession, and threw the loud error banner
+  // above onto an empty, untouched sign-in screen — before the user had done
+  // anything. The guard itself is correct; only the very first auth-state
+  // check (the silent cold-launch restore, as opposed to something the user
+  // just actively did) should stay quiet and just land on a clean form.
+  const isInitialCheck = useRef(true);
+
   useEffect(() => {
     return onAuthStateChanged(firebaseAuth, async (user) => {
+      const isInitial = isInitialCheck.current;
+      isInitialCheck.current = false;
       setFirebaseUser(user);
       if (user) {
         try {
@@ -75,7 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // this, RootNavigator just never swaps stacks — the sign-in button
           // silently stops spinning with no error and no navigation at all.
           setSession(null);
-          setSessionError(err instanceof ApiError ? err.message : 'Não foi possível iniciar sessão. Tente novamente.');
+          if (!isInitial) {
+            setSessionError(err instanceof ApiError ? err.message : 'Não foi possível iniciar sessão. Tente novamente.');
+          }
           await signOut(firebaseAuth);
         }
       } else {

@@ -5,6 +5,7 @@ import { uploadPhoto } from '../config/drive';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { getAdminDashboardStats } from '../services/admin-stats';
+import { getAdminInsights } from '../services/admin-insights';
 import {
   approveChangeRequest,
   listPendingChangeRequests,
@@ -33,11 +34,17 @@ import {
   sendAdminNotification,
 } from '../services/notifications';
 import {
+  adminCreateSuccessStory,
+  adminQuickPublishToFeed,
+  adminReplaceSuccessStoryPhoto,
   approveSuccessStory,
   listAllSuccessStories,
   listPendingSuccessStories,
+  listPublishedSuccessStories,
   rejectSuccessStory,
+  removeSuccessStoryFromFeed,
 } from '../services/success-stories';
+import { createPartner, listAllPartners, setPartnerActive, updatePartner } from '../services/partners';
 import { findUserByEmail, listAllUsers, reactivateUser, setUserRole, suspendUser } from '../services/users';
 import { ValidationError } from '../services/validation-error';
 
@@ -84,6 +91,19 @@ adminRouter.get(
   requireRole('Admin'),
   asyncHandler(async (_req, res) => {
     res.json(await getAdminDashboardStats());
+  }),
+);
+
+/**
+ * Admin Insights module, 2026-08-08 — one aggregated payload feeding the
+ * geographic/statistical dashboard (map + charts). See services/admin-insights.ts.
+ */
+adminRouter.get(
+  '/admin/insights',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await getAdminInsights());
   }),
 );
 
@@ -173,6 +193,51 @@ adminRouter.patch(
   }),
 );
 
+/**
+ * Admin Web App Parity gap, 2026-08-08 — lets Admin publish an Impact Feed
+ * story directly for any Delivered donation, instead of only ever moderating
+ * ones an institution already submitted (see adminCreateSuccessStory).
+ */
+adminRouter.post(
+  '/admin/success-stories',
+  requireAuth,
+  requireRole('Admin'),
+  upload.single('image'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new ValidationError('A imagem é obrigatória');
+    const imageUrl = await uploadPhoto(
+      req.file.buffer,
+      `${Date.now()}-${req.file.originalname}`,
+      req.file.mimetype,
+    );
+    const story = await adminCreateSuccessStory(req.user!.userId, {
+      Donation_ID: req.body.Donation_ID,
+      Title: req.body.Title,
+      Description: req.body.Description,
+      Image: imageUrl,
+      // multipart form fields always arrive as strings.
+      Show_Donation_Details: req.body.Show_Donation_Details !== 'false',
+    });
+    res.status(201).json(story);
+  }),
+);
+
+/**
+ * One-click Feed publish, 2026-08-08 (stakeholder simplification) — the
+ * common case doesn't need a new photo or written copy; it reuses the
+ * donation's own photo and auto-generates title/description. No multipart
+ * upload here, unlike the route above — nothing to upload.
+ */
+adminRouter.post(
+  '/admin/donations/:id/send-to-feed',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    const story = await adminQuickPublishToFeed(req.params.id, req.user!.userId);
+    res.status(201).json(story);
+  }),
+);
+
 /** Success Story moderation module — nothing an institution publishes is visible until Admin acts on it. */
 adminRouter.get(
   '/admin/success-stories/pending',
@@ -198,6 +263,111 @@ adminRouter.post(
   requireRole('Admin'),
   asyncHandler(async (req, res) => {
     res.json(await rejectSuccessStory(req.params.id, req.body?.reason));
+  }),
+);
+
+/**
+ * Impact Feed management, launch-critical 2026-08-08 — every currently-live
+ * story (published by an institution or by Admin directly), so Admin can
+ * replace a photo or take a story down without going through Sheets by hand.
+ */
+adminRouter.get(
+  '/admin/success-stories/published',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listPublishedSuccessStories());
+  }),
+);
+
+adminRouter.patch(
+  '/admin/success-stories/:id/photo',
+  requireAuth,
+  requireRole('Admin'),
+  upload.single('image'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new ValidationError('A imagem é obrigatória');
+    const imageUrl = await uploadPhoto(
+      req.file.buffer,
+      `${Date.now()}-${req.file.originalname}`,
+      req.file.mimetype,
+    );
+    res.json(await adminReplaceSuccessStoryPhoto(req.params.id, imageUrl));
+  }),
+);
+
+adminRouter.post(
+  '/admin/success-stories/:id/remove',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await removeSuccessStoryFromFeed(req.params.id, req.body?.reason));
+  }),
+);
+
+/**
+ * "Our Partners" management, launch-critical 2026-08-08 — Admin CRUD for the
+ * trust-building section on the Donor Home. A new partner starts Active
+ * (immediately visible); setPartnerActive pauses one without deleting its
+ * profile, same lever Admin already has for countries.
+ */
+adminRouter.get(
+  '/admin/partners',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listAllPartners());
+  }),
+);
+
+adminRouter.post(
+  '/admin/partners',
+  requireAuth,
+  requireRole('Admin'),
+  upload.single('logo'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new ValidationError('O logótipo é obrigatório');
+    const logoUrl = await uploadPhoto(
+      req.file.buffer,
+      `${Date.now()}-${req.file.originalname}`,
+      req.file.mimetype,
+    );
+    const partner = await createPartner({
+      Name: req.body.Name,
+      Description: req.body.Description,
+      Website: req.body.Website,
+      Logo: logoUrl,
+    });
+    res.status(201).json(partner);
+  }),
+);
+
+adminRouter.patch(
+  '/admin/partners/:id',
+  requireAuth,
+  requireRole('Admin'),
+  upload.single('logo'),
+  asyncHandler(async (req, res) => {
+    const logoUrl = req.file
+      ? await uploadPhoto(req.file.buffer, `${Date.now()}-${req.file.originalname}`, req.file.mimetype)
+      : undefined;
+    const partner = await updatePartner(req.params.id, {
+      Name: req.body.Name,
+      Description: req.body.Description,
+      Website: req.body.Website,
+      Display_Order: req.body.Display_Order !== undefined ? Number(req.body.Display_Order) : undefined,
+      Logo: logoUrl,
+    });
+    res.json(partner);
+  }),
+);
+
+adminRouter.patch(
+  '/admin/partners/:id/active',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await setPartnerActive(req.params.id, Boolean(req.body?.active)));
   }),
 );
 

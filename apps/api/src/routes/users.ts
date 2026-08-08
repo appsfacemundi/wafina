@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth } from '../middleware/auth';
 import {
   updateActiveCountry,
+  updateEmailNotificationsEnabled,
   updateImpactFeedVisibility,
   updateShowNameToInstitutions,
   updateSwitchPreference,
@@ -69,6 +70,18 @@ usersRouter.patch(
     }
     await updateImpactFeedVisibility(req.user!.userId, visibility as (typeof IMPACT_FEED_VISIBILITIES)[number]);
     res.json({ impactFeedVisibility: visibility });
+  }),
+);
+
+/** Notification preferences module, 2026-08-08 — email channel only; in-app is never gated by this. */
+usersRouter.patch(
+  '/users/me/email-notifications',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const enabled = req.body?.enabled;
+    if (typeof enabled !== 'boolean') throw new ValidationError('enabled must be a boolean');
+    await updateEmailNotificationsEnabled(req.user!.userId, enabled);
+    res.json({ emailNotificationsEnabled: enabled });
   }),
 );
 

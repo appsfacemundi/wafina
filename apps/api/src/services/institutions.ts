@@ -203,9 +203,16 @@ export async function listVerifiedInstitutions(countryId?: string): Promise<Inst
   // Epic 0.5, 2026-08-06: newest-registered first, now that Created_At exists —
   // same `|| ''` fallback idiom as Donations/SuccessStories, so institutions
   // registered before this field existed sort last rather than erroring.
+  // 2026-08-08: legacy AppSheet-era rows only have day precision, so several
+  // registered the same calendar day tie exactly — same root cause as
+  // sequenceSuffix's doc comment in sheet-values.ts. Institutions have no
+  // equivalent incrementing sequence to break the tie with, so Name is the
+  // best available deterministic (if not truly chronological) fallback.
   const verifiedRows = rows
     .filter((row) => fromSheetBool(row.Verified ?? '') && (!countryId || row.Country_ID === countryId))
-    .sort((a, b) => parseSheetDate(b.Created_At) - parseSheetDate(a.Created_At));
+    .sort(
+      (a, b) => parseSheetDate(b.Created_At) - parseSheetDate(a.Created_At) || a.Name.localeCompare(b.Name, 'pt'),
+    );
   return Promise.all(verifiedRows.map(rowToInstitution));
 }
 
@@ -214,14 +221,18 @@ export async function listPendingInstitutions(): Promise<Institution[]> {
   const rows = await getRows(SHEET_TABS.institutions);
   const pendingRows = rows
     .filter((row) => !fromSheetBool(row.Verified ?? ''))
-    .sort((a, b) => parseSheetDate(b.Created_At) - parseSheetDate(a.Created_At));
+    .sort(
+      (a, b) => parseSheetDate(b.Created_At) - parseSheetDate(a.Created_At) || a.Name.localeCompare(b.Name, 'pt'),
+    );
   return Promise.all(pendingRows.map(rowToInstitution));
 }
 
 /** Admin Web App Parity Phase C — Reports, unfiltered by verification status. */
 export async function listAllInstitutions(): Promise<Institution[]> {
   const rows = await getRows(SHEET_TABS.institutions);
-  const sorted = [...rows].sort((a, b) => parseSheetDate(b.Created_At) - parseSheetDate(a.Created_At));
+  const sorted = [...rows].sort(
+    (a, b) => parseSheetDate(b.Created_At) - parseSheetDate(a.Created_At) || a.Name.localeCompare(b.Name, 'pt'),
+  );
   return Promise.all(sorted.map(rowToInstitution));
 }
 

@@ -51,6 +51,7 @@ export function SettingsScreen() {
 
   const [savingNamePref, setSavingNamePref] = useState(false);
   const [savingFeedPref, setSavingFeedPref] = useState(false);
+  const [savingEmailPref, setSavingEmailPref] = useState(false);
 
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -161,6 +162,19 @@ export function SettingsScreen() {
       // Non-critical — the toggle simply reverts to its saved value on next load if this fails.
     } finally {
       setSavingFeedPref(false);
+    }
+  }
+
+  async function onChangeEmailNotifications(enabled: boolean) {
+    setSavingEmailPref(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch('/users/me/email-notifications', { method: 'PATCH', idToken, body: { enabled } });
+      await refreshSession();
+    } catch {
+      // Non-critical — the toggle simply reverts to its saved value on next load if this fails.
+    } finally {
+      setSavingEmailPref(false);
     }
   }
 
@@ -324,6 +338,25 @@ export function SettingsScreen() {
             ]}
           />
           {savingFeedPref && <Text style={styles.hint}>A guardar…</Text>}
+        </Card>
+
+        <Card style={{ gap: spacing[3] }}>
+          <Text style={styles.cardTitle}>Notificações</Text>
+          <Text style={styles.hint}>
+            A notificação na app está sempre ativa. Pode também escolher receber um email
+            personalizado sempre que uma história de impacto sobre uma das suas doações for
+            publicada.
+          </Text>
+          <Select
+            label="Notificações por email"
+            value={session?.emailNotificationsEnabled ? 'yes' : 'no'}
+            onValueChange={(v) => onChangeEmailNotifications(v === 'yes')}
+            options={[
+              { label: 'Receber por email', value: 'yes' },
+              { label: 'Não receber por email', value: 'no' },
+            ]}
+          />
+          {savingEmailPref && <Text style={styles.hint}>A guardar…</Text>}
         </Card>
 
         {__DEV__ && (

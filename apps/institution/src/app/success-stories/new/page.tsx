@@ -31,6 +31,7 @@ function NewSuccessStoryForm() {
   const [description, setDescription] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [showDonationDetails, setShowDonationDetails] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
@@ -85,6 +86,7 @@ function NewSuccessStoryForm() {
       form.append('Title', title);
       form.append('Description', description);
       form.append('image', image);
+      form.append('Show_Donation_Details', String(showDonationDetails));
 
       await apiFetch('/success-stories', { method: 'POST', idToken, body: form });
       showToast('História enviada para aprovação do Admin!');
@@ -147,6 +149,21 @@ function NewSuccessStoryForm() {
                 onChange={(e) => onImageChange(e.target.files?.[0] ?? null)}
               />
             </div>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13.5 }}>
+              <input
+                type="checkbox"
+                checked={showDonationDetails}
+                onChange={(e) => setShowDonationDetails(e.target.checked)}
+                style={{ marginTop: 2 }}
+              />
+              <span>
+                Mostrar o nome da instituição e o tipo de item doado na história
+                <br />
+                <span style={{ color: 'var(--color-text-faint)', fontSize: 12 }}>
+                  Se desativar, o doador vê apenas o título e a descrição que escrever acima.
+                </span>
+              </span>
+            </label>
             {error && <div className="banner banner-error">{error}</div>}
             <Button type="submit" fullWidth disabled={submitting}>
               {submitting ? 'A publicar…' : 'Publicar'}

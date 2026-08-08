@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { apiFetch, ApiError } from '@/lib/api';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
@@ -23,14 +24,20 @@ import { colors, fonts, spacing } from '@/theme/tokens';
 // full reinstall/cache-clear cycle — resolving that needs an actual native
 // rebuild, untestable through Expo Go. Reverted to unblock RC1; revisit
 // once a real production/dev-client build exists to verify against.
-async function onShareStory(story: SuccessStory) {
+//
+// Bug fix, 2026-08-08 — `Share.share()` only resolves on dismiss (both
+// platforms), it never throws for that case; a rejection here is always a
+// genuine failure (e.g. no share target registered on the device). The
+// previous empty catch silently ate those too, so a real failure looked
+// identical to nothing happening — surface it via a toast instead.
+async function onShareStory(story: SuccessStory, showToast: (message: string, tone?: 'success' | 'error') => void) {
   try {
     await Share.share({
       title: `Wafina — ${story.Title}`,
       message: `${story.Title}\n\n${story.Description}\n\n— partilhado via Wafina`,
     });
   } catch {
-    // Non-critical — the share sheet was likely just dismissed by the user.
+    showToast('Não foi possível abrir as opções de partilha.', 'error');
   }
 }
 
@@ -41,6 +48,7 @@ async function onShareStory(story: SuccessStory) {
  */
 export function ImpactScreen() {
   const { firebaseUser } = useAuth();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const [stories, setStories] = useState<SuccessStory[] | null>(null);
   const [error, setError] = useState('');
@@ -91,7 +99,7 @@ export function ImpactScreen() {
               <View style={styles.cardHeaderRow}>
                 <Text style={[styles.storyTitle, { flex: 1 }]}>{item.Title}</Text>
                 <Pressable
-                  onPress={() => onShareStory(item)}
+                  onPress={() => onShareStory(item, showToast)}
                   accessibilityRole="button"
                   accessibilityLabel="Partilhar história"
                   hitSlop={10}
@@ -99,6 +107,11 @@ export function ImpactScreen() {
                   <Ionicons name="share-social-outline" size={20} color={colors.textMuted} />
                 </Pressable>
               </View>
+              {(item.Institution_Name || item.Item_Type) && (
+                <Text style={styles.storyDetails}>
+                  {[item.Item_Type, item.Institution_Name].filter(Boolean).join(' · ')}
+                </Text>
+              )}
               <Text style={styles.description}>{item.Description}</Text>
               <Text style={styles.dateLabel}>Publicada em {formatDateTimeLabel(item.Date_Published)}</Text>
             </View>
@@ -173,6 +186,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
+  },
+  storyDetails: {
+    fontFamily: 'Manrope-600',
+    fontSize: 12.5,
+    color: colors.accent,
   },
   dateLabel: {
     fontFamily: 'Manrope-400',

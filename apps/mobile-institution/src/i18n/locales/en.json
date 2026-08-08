@@ -1,0 +1,36 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "signOut": "Sign Out",
+    "loading": "Loading…",
+    "search": "Search"
+  },
+  "nav": {
+    "home": "Home",
+    "availableDonations": "Available",
+    "claimedDonations": "Claimed",
+    "disputes": "Disputes",
+    "notifications": "Notifications",
+    "settings": "Settings"
+  },
+  "auth": {
+    "badge": "INSTITUTION",
+    "welcome": "Welcome to Wafina",
+    "tagline": "DONATE TODAY, TRANSFORM TOMORROW",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign In",
+    "signingIn": "Signing in…",
+    "noAccount": "Don't have an account? Sign up",
+    "forgotPassword": "Forgot your password?",
+    "sendingReset": "Sending…",
+    "enterEmailForReset": "Enter your email to recover your password.",
+    "resetSent": "We've sent an email with instructions to reset your password.",
+    "resetSentGeneric": "If an account exists with this email, a recovery email has been sent."
+  },
+  "language": {
+    "choose": "Language",
+    "restartRequired": "Restart the app to fully apply the text direction."
+  }
+}

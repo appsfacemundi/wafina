@@ -10,7 +10,7 @@ import type {
 } from '@wafina/shared';
 import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
-import { fromSheetLatLong, nowIso, parseSheetDate, toSheetLatLong } from '../config/sheet-values';
+import { fromSheetLatLong, nowIso, parseSheetDate, sequenceSuffix, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { getRegionById } from './geo-regions';
 import { createNotification } from './notifications';
@@ -213,7 +213,11 @@ export async function listDonationsByDonor(donorId: string): Promise<Donation[]>
   // implementation sweep; only the Institution equivalent got fixed then.
   return rows
     .filter((row) => row.Donor_ID === donorId)
-    .sort((a, b) => parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted))
+    .sort(
+      (a, b) =>
+        parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted) ||
+        sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
+    )
     .map(rowToDonation);
 }
 
@@ -306,7 +310,11 @@ export async function listAvailableDonations(countryId?: string): Promise<Instit
   // never caught here. Newest-submitted first, matching every sibling list.
   const filtered = rows
     .filter((row) => row.Status === 'Pending' && (!countryId || row.Country_ID === countryId))
-    .sort((a, b) => parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted));
+    .sort(
+      (a, b) =>
+        parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted) ||
+        sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
+    );
   return toInstitutionDonationViews(filtered);
 }
 
@@ -319,7 +327,11 @@ export async function listDonationsClaimedByInstitution(
   // listDonationsByDonor — newest-claimed first, matching every sibling list.
   const filtered = rows
     .filter((row) => row.Claimed_By_Institution_ID === institutionId)
-    .sort((a, b) => parseSheetDate(b.Date_Claimed) - parseSheetDate(a.Date_Claimed));
+    .sort(
+      (a, b) =>
+        parseSheetDate(b.Date_Claimed) - parseSheetDate(a.Date_Claimed) ||
+        sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
+    );
   return toInstitutionDonationViews(filtered);
 }
 
@@ -334,11 +346,17 @@ export async function listInFlightDonationsForAdmin(): Promise<AdminDonationView
   const rows = await getRows(SHEET_TABS.donations);
   const filtered = rows
     .filter((row) => row.Status !== 'Pending')
-    .sort((a, b) => parseSheetDate(b.Date_Claimed) - parseSheetDate(a.Date_Claimed));
+    .sort(
+      (a, b) =>
+        parseSheetDate(b.Date_Claimed) - parseSheetDate(a.Date_Claimed) ||
+        sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
+    );
 
   const views = await toInstitutionDonationViews(filtered);
   const institutionRows = await getRows(SHEET_TABS.institutions);
   const institutionById = new Map(institutionRows.map((r) => [r.Institution_ID, r]));
+  const successStoryRows = await getRows(SHEET_TABS.successStories);
+  const donationIdsWithStory = new Set(successStoryRows.map((r) => r.Donation_ID));
 
   return views.map((view) => {
     const institution = view.Claimed_By_Institution_ID
@@ -348,6 +366,7 @@ export async function listInFlightDonationsForAdmin(): Promise<AdminDonationView
       ...view,
       Claimed_By_Institution_Name: institution?.Name || null,
       Claimed_By_Institution_Logo: toProxiedUrl(institution?.Logo),
+      Has_Success_Story: donationIdsWithStory.has(view.Donation_ID),
     };
   });
 }
@@ -365,11 +384,17 @@ export async function listInFlightDonationsForAdmin(): Promise<AdminDonationView
  */
 export async function listAllDonationsForAdmin(): Promise<AdminDonationView[]> {
   const rows = await getRows(SHEET_TABS.donations);
-  const sorted = [...rows].sort((a, b) => parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted));
+  const sorted = [...rows].sort(
+    (a, b) =>
+      parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted) ||
+      sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
+  );
 
   const views = await toInstitutionDonationViews(sorted);
   const institutionRows = await getRows(SHEET_TABS.institutions);
   const institutionById = new Map(institutionRows.map((r) => [r.Institution_ID, r]));
+  const successStoryRows = await getRows(SHEET_TABS.successStories);
+  const donationIdsWithStory = new Set(successStoryRows.map((r) => r.Donation_ID));
 
   return views.map((view) => {
     const institution = view.Claimed_By_Institution_ID
@@ -379,6 +404,7 @@ export async function listAllDonationsForAdmin(): Promise<AdminDonationView[]> {
       ...view,
       Claimed_By_Institution_Name: institution?.Name || null,
       Claimed_By_Institution_Logo: toProxiedUrl(institution?.Logo),
+      Has_Success_Story: donationIdsWithStory.has(view.Donation_ID),
     };
   });
 }
@@ -570,6 +596,13 @@ export async function setExpectedDates(
 ): Promise<Donation> {
   const existing = await getDonation(donationId);
   if (!existing) throw new ValidationError('Doação não encontrada');
+  // Bug fix, 2026-08-08 — a Pending donation has no claiming institution yet,
+  // so there's nothing to estimate collection/delivery against. The Admin UI
+  // no longer offers this for Pending donations; guarding here too in case
+  // this is ever called directly.
+  if (existing.Status === 'Pending') {
+    throw new ValidationError('Esta doação ainda não foi aceite por nenhuma instituição.');
+  }
 
   const patch: Record<string, string> = {};
   const changes: string[] = [];

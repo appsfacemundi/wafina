@@ -1,0 +1,36 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "signOut": "Déconnexion",
+    "loading": "Chargement…",
+    "search": "Rechercher"
+  },
+  "nav": {
+    "home": "Accueil",
+    "availableDonations": "Disponibles",
+    "claimedDonations": "Acceptés",
+    "disputes": "Litiges",
+    "notifications": "Notifications",
+    "settings": "Paramètres"
+  },
+  "auth": {
+    "badge": "INSTITUTION",
+    "welcome": "Bienvenue sur Wafina",
+    "tagline": "DONNER AUJOURD'HUI, TRANSFORMER DEMAIN",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "signIn": "Se connecter",
+    "signingIn": "Connexion…",
+    "noAccount": "Pas encore de compte ? Créer un compte",
+    "forgotPassword": "Mot de passe oublié ?",
+    "sendingReset": "Envoi…",
+    "enterEmailForReset": "Entrez votre e-mail pour récupérer votre mot de passe.",
+    "resetSent": "Nous avons envoyé un e-mail avec les instructions de réinitialisation.",
+    "resetSentGeneric": "Si un compte existe avec cet e-mail, un e-mail de récupération a été envoyé."
+  },
+  "language": {
+    "choose": "Langue",
+    "restartRequired": "Redémarrez l'application pour appliquer complètement le sens du texte."
+  }
+}

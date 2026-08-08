@@ -2,7 +2,7 @@
 
 import type { GeoRegion, Institution, InstitutionReviewEvent } from '@wafina/shared';
 import { formatDateLabel } from '@wafina/shared';
-import { Badge, Button, Card, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
+import { Badge, Button, Card, CollapsibleGroup, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
@@ -92,6 +92,18 @@ export default function AdminInstitutionsPage() {
     });
   }, [institutions, search, statusFilter]);
 
+  // Admin UX consistency pass, 2026-08-08 — same collapsible grouping as the
+  // Donations page, so a long institutions list doesn't bury the ones
+  // actually needing action (Pendente) among Verificada/Rejeitada ones.
+  const groups = useMemo(() => {
+    if (!filtered) return [];
+    return [
+      { key: 'pending', title: 'Pendentes', items: filtered.filter((i) => statusOf(i) === 'pending') },
+      { key: 'verified', title: 'Verificadas', items: filtered.filter((i) => statusOf(i) === 'verified') },
+      { key: 'rejected', title: 'Rejeitadas', items: filtered.filter((i) => statusOf(i) === 'rejected') },
+    ];
+  }, [filtered]);
+
   function countryName(countryId: string): string {
     return countries.find((c) => c.Region_ID === countryId)?.Name ?? countryId;
   }
@@ -136,6 +148,119 @@ export default function AdminInstitutionsPage() {
     }
   }
 
+  function renderInstitutionCard(institution: Institution) {
+    const status = statusOf(institution);
+    const badge = STATUS_BADGE[status];
+    return (
+      <Card key={institution.Institution_ID} className="stack">
+        <div className="institution-card" style={{ display: 'flex', gap: 12 }}>
+          <Photo
+            src={institution.Logo}
+            placeholderIcon="🏢"
+            style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+          />
+          <div className="stack" style={{ gap: 2, flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+              <p style={{ fontWeight: 600, fontSize: 16 }}>{institution.Name}</p>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {isResubmitted(institution) && <Badge tone="info">Reenviada</Badge>}
+                <Badge tone={badge.tone}>{badge.label}</Badge>
+              </div>
+            </div>
+            <p className="needs">
+              {institution.Type} · {countryName(institution.Country_ID)}
+            </p>
+            <p className="mono" style={{ fontSize: 11.5, color: 'var(--color-text-faint)' }}>
+              {institution.Institution_ID}
+            </p>
+            {institution.Created_At && (
+              <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                Registado: {formatDateLabel(institution.Created_At)}
+              </p>
+            )}
+            <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+              Localização: {institution.Location.lat.toFixed(5)}, {institution.Location.lng.toFixed(5)}
+              {institution.Service_Radius_Km ? ` · Raio: ${institution.Service_Radius_Km} km` : ''}
+            </p>
+            {institution.Coverage_Area && (
+              <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                Área de cobertura: {institution.Coverage_Area}
+              </p>
+            )}
+            {institution.Needs_List && <p className="needs">Necessidades: {institution.Needs_List}</p>}
+            {status === 'rejected' && institution.Rejection_Reason && (
+              <p style={{ fontSize: 13, color: 'var(--color-danger, #b8433a)' }}>
+                Motivo: {institution.Rejection_Reason}
+              </p>
+            )}
+            {institution.Review_History.length > 0 && (
+              <details>
+                <summary style={{ fontSize: 13, color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+                  Histórico de revisão ({institution.Review_History.length})
+                </summary>
+                <ul className="stack" style={{ gap: 2, marginTop: 4, paddingLeft: 16 }}>
+                  {institution.Review_History.map((event, i) => (
+                    <li key={i} style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+                      {REVIEW_EVENT_LABEL[event.event]} — {formatDateLabel(event.at)}
+                      {event.reason ? `: ${event.reason}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        </div>
+
+        {status === 'pending' &&
+          (rejectingId === institution.Institution_ID ? (
+            <div className="stack">
+              <Input
+                label="Motivo da rejeição"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                // Inline, not just the page-top banner — found live, 2026-08-06: a
+                // validation error rendered only at the top of the page was invisible
+                // when this form is deep in a long list. Input already supports a red
+                // border + inline message via `error`, just wasn't wired up here.
+                error={rejectingId === institution.Institution_ID ? error : undefined}
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button
+                  variant="danger"
+                  onClick={() => onReject(institution.Institution_ID)}
+                  disabled={busyId === institution.Institution_ID}
+                >
+                  Confirmar rejeição
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setRejectingId(null);
+                    setRejectReason('');
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button onClick={() => onApprove(institution.Institution_ID)} disabled={busyId === institution.Institution_ID}>
+                Aprovar
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => setRejectingId(institution.Institution_ID)}
+                disabled={busyId === institution.Institution_ID}
+              >
+                Rejeitar
+              </Button>
+            </div>
+          ))}
+      </Card>
+    );
+  }
+
   if (!session) return null;
 
   return (
@@ -173,121 +298,13 @@ export default function AdminInstitutionsPage() {
           />
         )}
 
-        {filtered?.map((institution) => {
-          const status = statusOf(institution);
-          const badge = STATUS_BADGE[status];
-          return (
-            <Card key={institution.Institution_ID} className="stack">
-              <div className="institution-card" style={{ display: 'flex', gap: 12 }}>
-                <Photo
-                  src={institution.Logo}
-                  placeholderIcon="🏢"
-                  style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
-                />
-                <div className="stack" style={{ gap: 2, flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <p style={{ fontWeight: 600, fontSize: 16 }}>{institution.Name}</p>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {isResubmitted(institution) && <Badge tone="info">Reenviada</Badge>}
-                      <Badge tone={badge.tone}>{badge.label}</Badge>
-                    </div>
-                  </div>
-                  <p className="needs">
-                    {institution.Type} · {countryName(institution.Country_ID)}
-                  </p>
-                  <p className="mono" style={{ fontSize: 11.5, color: 'var(--color-text-faint)' }}>
-                    {institution.Institution_ID}
-                  </p>
-                  {institution.Created_At && (
-                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                      Registado: {formatDateLabel(institution.Created_At)}
-                    </p>
-                  )}
-                  <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                    Localização: {institution.Location.lat.toFixed(5)}, {institution.Location.lng.toFixed(5)}
-                    {institution.Service_Radius_Km ? ` · Raio: ${institution.Service_Radius_Km} km` : ''}
-                  </p>
-                  {institution.Coverage_Area && (
-                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                      Área de cobertura: {institution.Coverage_Area}
-                    </p>
-                  )}
-                  {institution.Needs_List && <p className="needs">Necessidades: {institution.Needs_List}</p>}
-                  {status === 'rejected' && institution.Rejection_Reason && (
-                    <p style={{ fontSize: 13, color: 'var(--color-danger, #b8433a)' }}>
-                      Motivo: {institution.Rejection_Reason}
-                    </p>
-                  )}
-                  {institution.Review_History.length > 0 && (
-                    <details>
-                      <summary style={{ fontSize: 13, color: 'var(--color-text-muted)', cursor: 'pointer' }}>
-                        Histórico de revisão ({institution.Review_History.length})
-                      </summary>
-                      <ul className="stack" style={{ gap: 2, marginTop: 4, paddingLeft: 16 }}>
-                        {institution.Review_History.map((event, i) => (
-                          <li key={i} style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
-                            {REVIEW_EVENT_LABEL[event.event]} — {formatDateLabel(event.at)}
-                            {event.reason ? `: ${event.reason}` : ''}
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  )}
-                </div>
-              </div>
-
-              {status === 'pending' &&
-                (rejectingId === institution.Institution_ID ? (
-                  <div className="stack">
-                    <Input
-                      label="Motivo da rejeição"
-                      value={rejectReason}
-                      onChange={(e) => setRejectReason(e.target.value)}
-                      // Inline, not just the page-top banner — found live, 2026-08-06: a
-                      // validation error rendered only at the top of the page was invisible
-                      // when this form is deep in a long list. Input already supports a red
-                      // border + inline message via `error`, just wasn't wired up here.
-                      error={rejectingId === institution.Institution_ID ? error : undefined}
-                    />
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <Button
-                        variant="danger"
-                        onClick={() => onReject(institution.Institution_ID)}
-                        disabled={busyId === institution.Institution_ID}
-                      >
-                        Confirmar rejeição
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          setRejectingId(null);
-                          setRejectReason('');
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button
-                      onClick={() => onApprove(institution.Institution_ID)}
-                      disabled={busyId === institution.Institution_ID}
-                    >
-                      Aprovar
-                    </Button>
-                    <Button
-                      variant="danger"
-                      onClick={() => setRejectingId(institution.Institution_ID)}
-                      disabled={busyId === institution.Institution_ID}
-                    >
-                      Rejeitar
-                    </Button>
-                  </div>
-                ))}
-            </Card>
-          );
-        })}
+        {groups
+          .filter((group) => group.items.length > 0)
+          .map((group) => (
+            <CollapsibleGroup key={group.key} title={group.title} count={group.items.length}>
+              {group.items.map((institution) => renderInstitutionCard(institution))}
+            </CollapsibleGroup>
+          ))}
       </div>
     </AppShell>
   );

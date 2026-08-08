@@ -43,7 +43,17 @@ const INSTITUTION_STATUS_PRIORITY: Record<string, number> = { Pendente: 0, Rejei
 const ROLE_PRIORITY: Record<string, number> = { Donor: 0, Institution: 1, Admin: 2 };
 
 type ReportRow = Record<string, unknown>;
-type Column = { label: string; get: (row: ReportRow, countryName: (id: string) => string) => string };
+
+function formatNum(value: unknown): string {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toLocaleString('pt-PT') : String(value ?? '');
+}
+type Column = {
+  label: string;
+  get: (row: ReportRow, countryName: (id: string) => string) => string;
+  /** Real-device finding, 2026-08-08 — a numeric column left-aligned among text columns read like a raw spreadsheet dump, not a report. Right-aligns and applies thousands separators. */
+  numeric?: boolean;
+};
 
 /** Real-device finding, 2026-08-04: the export used to dump every internal
  * field (IDs, raw booleans, nested objects) with no labels or chosen order —
@@ -53,7 +63,7 @@ const REPORT_COLUMNS: Record<string, Column[]> = {
   donations: [
     { label: 'Código', get: (r) => String(r.Public_Donation_Code ?? '') },
     { label: 'Item', get: (r) => String(r.Item_Type ?? '') },
-    { label: 'Quantidade', get: (r) => String(r.Quantity ?? '') },
+    { label: 'Quantidade', get: (r) => formatNum(r.Quantity), numeric: true },
     { label: 'Estado do item', get: (r) => String(r.Condition ?? '') },
     {
       label: 'Categoria do destinatário',
@@ -83,14 +93,14 @@ const REPORT_COLUMNS: Record<string, Column[]> = {
     { label: 'Tipo', get: (r) => String(r.Type ?? '') },
     { label: 'País', get: (r, countryName) => countryName(String(r.Country_ID ?? '')) },
     { label: 'Estado', get: institutionStatus },
-    { label: 'Itens recebidos', get: (r) => String(r.Total_Items_Received ?? 0) },
+    { label: 'Itens recebidos', get: (r) => formatNum(r.Total_Items_Received ?? 0), numeric: true },
   ],
   companies: [
     { label: 'Nome', get: (r) => String(r.Company_Name ?? '') },
     { label: 'País', get: (r) => String(r.Country ?? '') },
     { label: 'Estado', get: (r) => (r.Status === 'Suspended' ? 'Suspensa' : 'Ativa') },
-    { label: 'Colaboradores', get: (r) => String(r.Employee_Count ?? 0) },
-    { label: 'Doações', get: (r) => String(r.Donation_Count ?? 0) },
+    { label: 'Colaboradores', get: (r) => formatNum(r.Employee_Count ?? 0), numeric: true },
+    { label: 'Doações', get: (r) => formatNum(r.Donation_Count ?? 0), numeric: true },
   ],
   users: [
     { label: 'Nome', get: (r) => String(r.Name ?? '(sem nome)') },
@@ -159,6 +169,8 @@ export default function AdminReportsPage() {
   const [countryFilter, setCountryFilter] = useState('all');
   const [recipientCategoryFilter, setRecipientCategoryFilter] = useState<RecipientCategory | 'all'>('all');
   const [deliveryMethodFilter, setDeliveryMethodFilter] = useState<DeliveryMethod | 'all'>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   async function load() {
     if (!firebaseUser) return;
@@ -189,6 +201,8 @@ export default function AdminReportsPage() {
     setCountryFilter('all');
     setRecipientCategoryFilter('all');
     setDeliveryMethodFilter('all');
+    setDateFrom('');
+    setDateTo('');
   }, [type]);
 
   const countryName = useMemo(() => {
@@ -231,6 +245,8 @@ export default function AdminReportsPage() {
       if (deliveryMethodFilter !== 'all') {
         result = result.filter((r) => r.Delivery_Method === deliveryMethodFilter);
       }
+      if (dateFrom) result = result.filter((r) => String(r.Date_Submitted ?? '').slice(0, 10) >= dateFrom);
+      if (dateTo) result = result.filter((r) => String(r.Date_Submitted ?? '').slice(0, 10) <= dateTo);
     }
 
     if (type === 'companies') {
@@ -262,10 +278,26 @@ export default function AdminReportsPage() {
     countryFilter,
     recipientCategoryFilter,
     deliveryMethodFilter,
+    dateFrom,
+    dateTo,
     search,
     columns,
     countryName,
   ]);
+
+  /** Pilot feedback, 2026-08-08 — a raw table gives no at-a-glance sense of
+   * scale; a quick summary line (count, plus total items for Donations)
+   * answers "how much" before scanning any rows. */
+  const summaryLabel = useMemo(() => {
+    const count = processedRows.length;
+    const noun = count === 1 ? 'registo' : 'registos';
+    if (type !== 'donations') return `${count} ${noun}`;
+    const totalItems = processedRows.reduce((sum, r) => {
+      const q = Number(r.Quantity);
+      return sum + (Number.isFinite(q) ? q : 0);
+    }, 0);
+    return `${count} ${noun} · ${totalItems} itens no total`;
+  }, [processedRows, type]);
 
   if (!session) return null;
 
@@ -326,6 +358,8 @@ export default function AdminReportsPage() {
                   </option>
                 ))}
               </Select>
+              <Input label="Submetida desde" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <Input label="Submetida até" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </>
           )}
 
@@ -364,46 +398,63 @@ export default function AdminReportsPage() {
         )}
         {rows?.length === 0 && <EmptyState title="Sem dados" description="Não há registos para este relatório." icon="bar-chart" />}
         {processedRows.length > 0 && (
-          <Card style={{ padding: 0, overflow: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
-              <thead>
-                <tr>
-                  {columns.map((col) => (
-                    <th
-                      key={col.label}
-                      style={{
-                        textAlign: 'left',
-                        padding: '8px 12px',
-                        borderBottom: '1px solid var(--color-border)',
-                        whiteSpace: 'nowrap',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {col.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {processedRows.map((row, i) => (
-                  <tr key={i}>
-                    {columns.map((col) => (
-                      <td
-                        key={col.label}
-                        style={{
-                          padding: '8px 12px',
-                          borderBottom: '1px solid var(--color-border)',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {col.get(row, countryName)}
-                      </td>
+          <>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13, fontWeight: 600 }}>{summaryLabel}</p>
+            <Card style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 640, fontSize: 13 }}>
+                  <thead>
+                    <tr>
+                      {columns.map((col, ci) => (
+                        <th
+                          key={col.label}
+                          style={{
+                            textAlign: col.numeric ? 'right' : 'left',
+                            padding: '10px 12px',
+                            borderBottom: '1px solid var(--color-border)',
+                            whiteSpace: 'nowrap',
+                            fontWeight: 700,
+                            fontSize: 11,
+                            textTransform: 'uppercase',
+                            letterSpacing: 0.3,
+                            color: 'var(--color-text-muted)',
+                            position: ci === 0 ? 'sticky' : undefined,
+                            left: ci === 0 ? 0 : undefined,
+                            background: 'var(--color-surface)',
+                          }}
+                        >
+                          {col.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {processedRows.map((row, i) => (
+                      <tr key={i} style={{ background: i % 2 === 1 ? 'var(--color-surface-2, rgba(0,0,0,0.02))' : 'transparent' }}>
+                        {columns.map((col, ci) => (
+                          <td
+                            key={col.label}
+                            style={{
+                              padding: '9px 12px',
+                              borderBottom: '1px solid var(--color-border)',
+                              whiteSpace: 'nowrap',
+                              textAlign: col.numeric ? 'right' : 'left',
+                              fontWeight: ci === 0 ? 600 : 400,
+                              position: ci === 0 ? 'sticky' : undefined,
+                              left: ci === 0 ? 0 : undefined,
+                              background: ci === 0 ? 'inherit' : undefined,
+                            }}
+                          >
+                            {col.get(row, countryName)}
+                          </td>
+                        ))}
+                      </tr>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </>
         )}
       </div>
     </AppShell>

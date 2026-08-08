@@ -11,7 +11,7 @@ import {
   type Donation,
   type SuccessStory,
 } from '@wafina/shared';
-import { Badge, Button, Card, DonationTimeline, EmptyState, Photo } from '@wafina/ui';
+import { Badge, Button, Card, CollapsibleGroup, DonationTimeline, EmptyState, Photo } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -36,6 +36,25 @@ export default function DonationsPage() {
       claimed: donations.filter((d) => d.Status === 'Claimed').length,
       delivered: donations.filter((d) => d.Status === 'Delivered').length,
     };
+  }, [donations]);
+
+  // Bug fix, 2026-08-08 — matches the fold/expand grouping already rolled out
+  // to every equivalent Admin/Institution donations list, so a donor with
+  // many donations across different stages can collapse the ones they don't
+  // need right now instead of scrolling one long flat list.
+  const donationGroups = useMemo(() => {
+    if (!donations) return [];
+    return [
+      {
+        key: 'accepted',
+        title: 'Aceites',
+        items: donations.filter(
+          (d) => d.Status === 'Claimed' || d.Status === 'Collection_Scheduled' || d.Status === 'Collected',
+        ),
+      },
+      { key: 'pending', title: 'Pendentes', items: donations.filter((d) => d.Status === 'Pending') },
+      { key: 'delivered', title: 'Entregue', items: donations.filter((d) => d.Status === 'Delivered') },
+    ];
   }, [donations]);
 
   useEffect(() => {
@@ -113,9 +132,14 @@ export default function DonationsPage() {
         )}
         {donations && donations.length > 0 && (
           <div className="stack">
-            {donations.map((d) => {
-              const story = storiesByDonation.get(d.Donation_ID);
-              return (
+            {donationGroups
+              .filter((group) => group.items.length > 0)
+              .map((group) => (
+                <CollapsibleGroup key={group.key} title={group.title} count={group.items.length}>
+                  <div className="stack">
+                    {group.items.map((d) => {
+                      const story = storiesByDonation.get(d.Donation_ID);
+                      return (
                 <Card key={d.Donation_ID} className="stack">
                   <div className="donation-row" style={{ gap: 12 }}>
                     <Photo
@@ -190,8 +214,11 @@ export default function DonationsPage() {
                     </div>
                   )}
                 </Card>
-              );
-            })}
+                      );
+                    })}
+                  </div>
+                </CollapsibleGroup>
+              ))}
           </div>
         )}
       </div>

@@ -51,3 +51,21 @@ export function parseSheetDate(value: string): number {
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : parsed;
 }
+
+/**
+ * Real-device finding, 2026-08-08 — parseSheetDate fixed cross-format
+ * comparison, but legacy AppSheet-era rows still only ever had day precision
+ * ("7/27/2026", no time), so several rows submitted on the same calendar day
+ * parse to the exact same midnight timestamp — a genuine tie, not a bug in
+ * parseSheetDate. Left as a plain date-difference comparator, those ties fall
+ * back to whatever order the rows happen to sit in the sheet, which is
+ * oldest-first (appendRow only ever appends) — the opposite of the intended
+ * "newest first" almost everywhere this is used. A donation's
+ * Public_Donation_Code is a genuine per-country incrementing sequence set at
+ * creation time (see generatePublicDonationCode), so its numeric suffix is a
+ * real secondary chronological signal even for same-day legacy rows.
+ */
+export function sequenceSuffix(code: string): number {
+  const match = code.match(/(\d+)$/);
+  return match ? Number(match[1]) : 0;
+}

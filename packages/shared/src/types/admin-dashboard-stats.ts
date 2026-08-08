@@ -10,4 +10,5 @@ export interface AdminDashboardStats {
   pendingSuccessStories: number;
   pendingChangeRequests: number;
   openDisputes: number;
+  activePartners: number;
 }

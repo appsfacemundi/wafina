@@ -3,6 +3,7 @@ import { listPendingChangeRequests } from './change-requests';
 import { countPendingDonations, listInFlightDonationsForAdmin } from './donations';
 import { listAllOpenDisputes } from './disputes';
 import { listPendingInstitutions, listVerifiedInstitutions } from './institutions';
+import { listActivePartners } from './partners';
 import { listPendingSuccessStories } from './success-stories';
 
 /** Admin dashboard overview — counts across every moderation queue, so Admin has a landing page instead of jumping straight into one list. */
@@ -15,6 +16,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     pendingSuccessStories,
     pendingChangeRequests,
     openDisputes,
+    activePartners,
   ] = await Promise.all([
     listPendingInstitutions(),
     listVerifiedInstitutions(),
@@ -23,6 +25,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     listPendingSuccessStories(),
     listPendingChangeRequests(),
     listAllOpenDisputes(),
+    listActivePartners(),
   ]);
 
   return {
@@ -34,5 +37,6 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     pendingSuccessStories: pendingSuccessStories.length,
     pendingChangeRequests: pendingChangeRequests.length,
     openDisputes: openDisputes.length,
+    activePartners: activePartners.length,
   };
 }

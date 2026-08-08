@@ -46,6 +46,17 @@ export const env = {
     // (confirmed by hitting this exact error while building this module).
     sharedDriveId: optionalEnv('GOOGLE_DRIVE_SHARED_DRIVE_ID'),
   },
+  email: {
+    // Notification preferences module, 2026-08-08 — Resend, chosen for a
+    // simple REST API (no SDK dependency needed). Optional on purpose: email
+    // sending no-ops with a warning until this is set, so the rest of the
+    // app isn't blocked on obtaining the key.
+    resendApiKey: optionalEnv('RESEND_API_KEY'),
+    // zuinder.com must be a verified sending domain in the Resend account
+    // that owns RESEND_API_KEY (SPF/DKIM records) — otherwise Resend rejects
+    // the send outright regardless of what this is set to.
+    fromAddress: optionalEnv('EMAIL_FROM_ADDRESS') ?? 'Wafina <wafina@zuinder.com>',
+  },
 };
 
 export function isFirebaseConfigured(): boolean {

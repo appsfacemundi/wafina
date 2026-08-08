@@ -1,0 +1,62 @@
+{
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "signOut": "تسجيل الخروج",
+    "loading": "جارٍ التحميل…",
+    "search": "بحث"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "impact": "الأثر",
+    "myDonations": "تبرعاتي",
+    "institutions": "المؤسسات",
+    "notifications": "الإشعارات",
+    "settings": "الإعدادات"
+  },
+  "auth": {
+    "badge": "متبرع",
+    "welcome": "مرحبًا بك في وافينا",
+    "tagline": "تبرع اليوم، غيّر الغد",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "signIn": "تسجيل الدخول",
+    "signingIn": "جارٍ تسجيل الدخول…",
+    "noAccount": "ليس لديك حساب؟ أنشئ حسابًا",
+    "forgotPassword": "هل نسيت كلمة المرور؟",
+    "sendingReset": "جارٍ الإرسال…",
+    "enterEmailForReset": "أدخل بريدك الإلكتروني لاستعادة كلمة المرور.",
+    "resetSent": "أرسلنا بريدًا إلكترونيًا يحتوي على تعليمات إعادة تعيين كلمة المرور.",
+    "resetSentGeneric": "إذا كان هناك حساب مرتبط بهذا البريد، فقد تم إرسال بريد الاستعادة."
+  },
+  "home": {
+    "greeting": "مرحبًا",
+    "thankYou": "شكرًا لكونك جزءًا من وافينا.",
+    "activeCountry": "الدولة النشطة",
+    "donateNow": "تبرع الآن",
+    "donateNowSubtitle": "ساعد شخصًا في أقل من دقيقتين.",
+    "donateNowCta": "تبرع الآن ←",
+    "yourImpact": "أثرك",
+    "viewAll": "عرض الكل",
+    "donationsMade": "التبرعات المقدمة",
+    "institutionsSupported": "المؤسسات المدعومة",
+    "itemsDonated": "الأغراض المتبرع بها",
+    "quickActions": "إجراءات سريعة",
+    "quickDonate": "تبرع",
+    "latestStories": "أحدث القصص",
+    "viewAllStories": "عرض الكل",
+    "thanks": "شكرًا لك.",
+    "ourPartners": "شركاؤنا",
+    "partnersTagline": "معًا، نحوّل الكرم إلى أثر حقيقي.",
+    "becomePartner": "كن شريكًا لوافينا",
+    "becomePartnerText": "انضم إلى المؤسسات التي تساعد في ربط التبرعات بالأشخاص والمجتمعات المحتاجة.",
+    "becomePartnerCta": "كن شريكًا ←",
+    "visitWebsite": "زيارة الموقع ←",
+    "close": "إغلاق",
+    "noMailApp": "لا يوجد تطبيق بريد إلكتروني. تواصل معنا: {{email}}"
+  },
+  "language": {
+    "choose": "اللغة",
+    "restartRequired": "أعد تشغيل التطبيق لتطبيق اتجاه النص بالكامل."
+  }
+}

@@ -10,7 +10,7 @@ import {
   type InstitutionDonationView,
   type SuccessStory,
 } from '@wafina/shared';
-import { Badge, Button, Card, DonationTimeline, EmptyState, Photo, useToast } from '@wafina/ui';
+import { Badge, Button, Card, CollapsibleGroup, DonationTimeline, EmptyState, Photo, useToast } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -61,6 +61,27 @@ export default function ClaimedDonationsPage() {
     };
     return [...donations].sort((a, b) => parse(b.Date_Claimed) - parse(a.Date_Claimed));
   }, [donations]);
+
+  // Bug fix, 2026-08-08 — this page was a single flat list with no fold/expand
+  // at all, unlike every equivalent Admin list (Donations/Institutions/Users),
+  // making it hard to scan once an institution had many claimed donations.
+  // Grouped the same way as Admin's Donations page: still-moving donations
+  // first, delivered (done, reference only) ones collapsible below.
+  const donationGroups = useMemo(() => {
+    if (!sortedDonations) return [];
+    return [
+      {
+        key: 'in-progress',
+        title: 'Em Curso',
+        items: sortedDonations.filter((d) => d.Status !== 'Delivered'),
+      },
+      {
+        key: 'delivered',
+        title: 'Entregue',
+        items: sortedDonations.filter((d) => d.Status === 'Delivered'),
+      },
+    ];
+  }, [sortedDonations]);
 
   const SUCCESS_MESSAGE: Record<'schedule-collection' | 'collect' | 'deliver', string> = {
     'schedule-collection': 'Recolha agendada com sucesso!',
@@ -128,7 +149,12 @@ export default function ClaimedDonationsPage() {
         )}
         {sortedDonations && sortedDonations.length > 0 && (
           <div className="stack">
-            {sortedDonations.map((d) => (
+            {donationGroups
+              .filter((group) => group.items.length > 0)
+              .map((group) => (
+                <CollapsibleGroup key={group.key} title={group.title} count={group.items.length}>
+                  <div className="stack">
+                    {group.items.map((d) => (
               <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
                 <Photo
                   src={d.Photo}
@@ -255,7 +281,10 @@ export default function ClaimedDonationsPage() {
                   </div>
                 </div>
               </Card>
-            ))}
+                    ))}
+                  </div>
+                </CollapsibleGroup>
+              ))}
           </div>
         )}
       </div>

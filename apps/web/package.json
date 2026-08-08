@@ -12,9 +12,11 @@
     "@wafina/shared": "*",
     "@wafina/ui": "*",
     "firebase": "^12.16.0",
+    "i18next": "^26.3.6",
     "next": "^16.2.12",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-i18next": "^17.0.11"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

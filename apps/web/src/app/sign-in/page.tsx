@@ -1,13 +1,17 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Button, Card, Input } from '@wafina/ui';
+import { Button, Card, Input, LanguageSwitcher } from '@wafina/ui';
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
 import { friendlyAuthError } from '@/lib/auth-errors';
 import { ApiError } from '@/lib/api';
+import { setLanguage } from '@/i18n';
+import { SUPPORTED_LANGUAGES } from '@/i18n/languages';
 
 export default function SignInPage() {
+  const { t, i18n } = useTranslation();
   const { signIn, sessionError } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -36,21 +40,29 @@ export default function SignInPage() {
 
   return (
     <main className="screen-center">
+      <div style={{ position: 'absolute', top: 16, insetInlineEnd: 16 }}>
+        <LanguageSwitcher
+          languages={SUPPORTED_LANGUAGES}
+          value={i18n.language}
+          onChange={setLanguage}
+          label={t('language.choose')}
+        />
+      </div>
       <div className="auth-brand">
         <img src="/wafina-icon-mark.png" alt="Wafina" width={104} height={87} />
         <span
           className="auth-badge"
           style={{ backgroundColor: 'var(--color-accent-soft)', color: 'var(--color-accent)' }}
         >
-          DOADOR
+          {t('auth.badge')}
         </span>
-        <h1 className="auth-welcome">Bem-vindo(a) à Wafina</h1>
-        <p className="auth-tagline">DOAR HOJE, TRANSFORMAR AMANHÃ</p>
+        <h1 className="auth-welcome">{t('auth.welcome')}</h1>
+        <p className="auth-tagline">{t('auth.tagline')}</p>
       </div>
       <Card className="auth-card stack">
         <form onSubmit={onSubmit} className="stack">
           <Input
-            label="E-mail"
+            label={t('auth.email')}
             type="email"
             name="email"
             autoComplete="email"
@@ -59,7 +71,7 @@ export default function SignInPage() {
             onChange={(e) => setEmail(e.target.value)}
           />
           <Input
-            label="Palavra-passe"
+            label={t('auth.password')}
             type="password"
             name="password"
             autoComplete="current-password"
@@ -69,11 +81,11 @@ export default function SignInPage() {
           />
           {displayedError && <div className="banner banner-error">{displayedError}</div>}
           <Button type="submit" fullWidth disabled={submitting}>
-            {submitting ? 'A entrar…' : 'Entrar'}
+            {submitting ? t('auth.signingIn') : t('auth.signIn')}
           </Button>
         </form>
         <Button variant="ghost" fullWidth onClick={() => router.push('/sign-up')}>
-          Ainda não tem conta? Criar conta
+          {t('auth.noAccount')}
         </Button>
       </Card>
     </main>

@@ -1,0 +1,63 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "signOut": "Sign Out",
+    "loading": "Loading…",
+    "search": "Search"
+  },
+  "nav": {
+    "home": "Home",
+    "donate": "Donate",
+    "myDonations": "My Donations",
+    "impactStories": "Impact Stories",
+    "institutions": "Institutions",
+    "notifications": "Notifications",
+    "settings": "Settings"
+  },
+  "auth": {
+    "badge": "DONOR",
+    "welcome": "Welcome to Wafina",
+    "tagline": "DONATE TODAY, TRANSFORM TOMORROW",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign In",
+    "signingIn": "Signing in…",
+    "noAccount": "Don't have an account? Sign up",
+    "createAccount": "Sign up",
+    "creatingAccount": "Creating account…",
+    "passwordHint": "At least 6 characters.",
+    "alreadyHaveAccount": "Already have an account? Sign in"
+  },
+  "home": {
+    "greeting": "Hello",
+    "thankYou": "Thank you for being part of Wafina.",
+    "activeCountry": "Active country",
+    "donateNow": "Donate Now",
+    "donateNowSubtitle": "Help someone in under 2 minutes.",
+    "donateNowCta": "Donate now →",
+    "yourImpact": "Your impact",
+    "viewAll": "View all",
+    "donationsMade": "Donations made",
+    "institutionsSupported": "Institutions supported",
+    "itemsDonated": "Items donated",
+    "quickActions": "Quick actions",
+    "latestStories": "Latest stories",
+    "viewAllStories": "View all",
+    "ourPartners": "Our Partners",
+    "partnersTagline": "Together, we turn generosity into real impact.",
+    "becomePartner": "Become a Wafina Partner",
+    "becomePartnerText": "Join organizations helping connect donations with people and communities in need.",
+    "becomePartnerCta": "Become a Partner →",
+    "quickDonate": "Donate",
+    "quickImpact": "Impact",
+    "quickInstitutions": "Institutions",
+    "quickMine": "Mine",
+    "visitWebsite": "Visit website →",
+    "close": "Close",
+    "thanks": "Thank you."
+  },
+  "language": {
+    "choose": "Language"
+  }
+}

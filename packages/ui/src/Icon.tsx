@@ -20,7 +20,8 @@ export type IconName =
   | 'package'
   | 'clock'
   | 'shield-check'
-  | 'camera';
+  | 'camera'
+  | 'share';
 
 interface IconProps {
   name: IconName;
@@ -187,6 +188,15 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M4 8h3l1.5-2h7L17 8h3v11H4z" />
       <circle cx="12" cy="14" r="3" />
+    </>
+  ),
+  share: (
+    <>
+      <circle cx="18" cy="5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="19" r="2.5" />
+      <line x1="8.3" y1="10.7" x2="15.7" y2="6.3" />
+      <line x1="8.3" y1="13.3" x2="15.7" y2="17.7" />
     </>
   ),
 };

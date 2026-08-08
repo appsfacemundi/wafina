@@ -31,6 +31,7 @@ export interface UserRow {
   Switch_Preference: string;
   Show_Name_To_Institutions: string;
   Impact_Feed_Visibility: string;
+  Email_Notifications_Enabled: string;
   Status: string;
 }
 
@@ -83,6 +84,8 @@ export async function createUser(email: string, role: RegistrableRole): Promise<
     Switch_Preference: 'Always_Ask',
     Show_Name_To_Institutions: toSheetBool(false),
     Impact_Feed_Visibility: 'Private',
+    // Opt-out, not opt-in — matches every other notification default in this app (in-app is always on).
+    Email_Notifications_Enabled: toSheetBool(true),
     Status: 'Active',
   };
 
@@ -169,6 +172,15 @@ export async function updateImpactFeedVisibility(userId: string, visibility: Imp
 }
 
 /**
+ * Notification preferences module, 2026-08-08 — governs the email channel only.
+ * In-app notifications are never gated by this (always on, per spec). SMS/WhatsApp
+ * will get their own separate toggle once that channel is wired up.
+ */
+export async function updateEmailNotificationsEnabled(userId: string, enabled: boolean): Promise<void> {
+  await updateRow(SHEET_TABS.users, 'User_ID', userId, { Email_Notifications_Enabled: toSheetBool(enabled) });
+}
+
+/**
  * Pilot feedback, 2026-08-05 — Donor's Users.Name gets set during onboarding
  * (OnboardingProfileScreen, spec 13.1), but Institution accounts never had
  * any path to set their own Users.Name at all (see AuthenticatedUser.name's
@@ -211,12 +223,21 @@ export async function linkCorporateAccount(userId: string, corporateAccountId: s
   );
 }
 
-/** Admin parity Phase A — the full user list for Admin's Users page, newest first. */
+/**
+ * Admin parity Phase A — the full user list for Admin's Users page, newest
+ * first. 2026-08-08: legacy AppSheet-era rows only have day precision on
+ * Date_Joined, so several users who joined the same calendar day tie exactly
+ * — same root cause as sequenceSuffix's doc comment in sheet-values.ts.
+ * Users have no equivalent incrementing sequence, so Name is the best
+ * available deterministic (if not truly chronological) tiebreak.
+ */
 export async function listAllUsers(): Promise<User[]> {
   const rows = await getRows(SHEET_TABS.users);
   return rows
     .map((row) => rowToUser(row as unknown as UserRow))
-    .sort((a, b) => parseSheetDate(b.Date_Joined) - parseSheetDate(a.Date_Joined));
+    .sort(
+      (a, b) => parseSheetDate(b.Date_Joined) - parseSheetDate(a.Date_Joined) || a.Name.localeCompare(b.Name, 'pt'),
+    );
 }
 
 async function getUserOrThrow(userId: string): Promise<UserRow> {
@@ -290,5 +311,7 @@ export function toAuthenticatedUser(uid: string, row: UserRow): AuthenticatedUse
     switchPreference: (row.Switch_Preference as SwitchPreference) || null,
     showNameToInstitutions: row.Show_Name_To_Institutions === 'TRUE',
     impactFeedVisibility: (row.Impact_Feed_Visibility as ImpactFeedVisibility) || 'Private',
+    // Existing rows predate this column — an empty cell must mean "on" (the default), not "off".
+    emailNotificationsEnabled: row.Email_Notifications_Enabled !== 'FALSE',
   };
 }

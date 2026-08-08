@@ -50,6 +50,8 @@ successStoriesRouter.post(
       Title: req.body.Title,
       Description: req.body.Description,
       Image: imageUrl,
+      // multipart form fields always arrive as strings.
+      Show_Donation_Details: req.body.Show_Donation_Details !== 'false',
     });
     res.status(201).json(story);
   }),

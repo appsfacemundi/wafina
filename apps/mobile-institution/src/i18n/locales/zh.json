@@ -1,0 +1,36 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "signOut": "退出登录",
+    "loading": "加载中…",
+    "search": "搜索"
+  },
+  "nav": {
+    "home": "首页",
+    "availableDonations": "可领取",
+    "claimedDonations": "已领取",
+    "disputes": "争议",
+    "notifications": "通知",
+    "settings": "设置"
+  },
+  "auth": {
+    "badge": "机构",
+    "welcome": "欢迎来到 Wafina",
+    "tagline": "今日捐赠，明日改变",
+    "email": "电子邮箱",
+    "password": "密码",
+    "signIn": "登录",
+    "signingIn": "登录中…",
+    "noAccount": "还没有账户？注册",
+    "forgotPassword": "忘记密码？",
+    "sendingReset": "发送中…",
+    "enterEmailForReset": "请输入您的电子邮箱以找回密码。",
+    "resetSent": "我们已发送包含重置密码说明的电子邮件。",
+    "resetSentGeneric": "如果此邮箱存在账户，我们已发送找回邮件。"
+  },
+  "language": {
+    "choose": "语言",
+    "restartRequired": "请重启应用以完全应用文字方向。"
+  }
+}

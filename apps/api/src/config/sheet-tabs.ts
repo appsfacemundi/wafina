@@ -16,4 +16,6 @@ export const SHEET_TABS = {
   successStories: 'Success_Stories',
   /** Admin Web App Parity Phase B — replaces treating Corporate_Account_ID itself as the invite code. */
   invitationCodes: 'Invitation_Codes',
+  /** Launch-critical, 2026-08-08 — "Our Partners" section. See packages/shared/src/types/partner.ts. */
+  partners: 'Partners',
 } as const;

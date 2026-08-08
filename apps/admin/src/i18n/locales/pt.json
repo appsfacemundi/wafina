@@ -1,0 +1,42 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "signOut": "Sair",
+    "loading": "A carregar…",
+    "search": "Pesquisar",
+    "confirmSignOut": "Tem a certeza que quer sair?"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "institutions": "Instituições",
+    "donations": "Doações",
+    "impactStories": "Histórias de Impacto",
+    "changeRequests": "Pedidos de Alteração",
+    "users": "Utilizadores",
+    "countries": "Países",
+    "disputes": "Ocorrências",
+    "companies": "Empresas",
+    "notifications": "Notificações",
+    "partners": "Parceiros",
+    "insights": "Painel Geográfico",
+    "reports": "Relatórios"
+  },
+  "auth": {
+    "title": "Wafina Admin",
+    "subtitle": "Acesso reservado à administração.",
+    "email": "E-mail",
+    "password": "Palavra-passe",
+    "signIn": "Entrar",
+    "signingIn": "A entrar…",
+    "notAdminError": "Esta conta não tem acesso de administrador.",
+    "forgotPassword": "Esqueceu-se da palavra-passe?",
+    "sendingReset": "A enviar…",
+    "enterEmailForReset": "Introduza o seu e-mail para recuperar a palavra-passe.",
+    "resetSent": "Enviámos um e-mail com instruções para redefinir a sua palavra-passe.",
+    "resetSentGeneric": "Se existir uma conta com este e-mail, foi enviado um e-mail de recuperação."
+  },
+  "language": {
+    "choose": "Idioma"
+  }
+}

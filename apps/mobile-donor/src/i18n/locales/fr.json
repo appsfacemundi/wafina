@@ -1,0 +1,62 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "signOut": "Déconnexion",
+    "loading": "Chargement…",
+    "search": "Rechercher"
+  },
+  "nav": {
+    "home": "Accueil",
+    "impact": "Impact",
+    "myDonations": "Dons",
+    "institutions": "Institutions",
+    "notifications": "Notifications",
+    "settings": "Paramètres"
+  },
+  "auth": {
+    "badge": "DONATEUR",
+    "welcome": "Bienvenue sur Wafina",
+    "tagline": "DONNER AUJOURD'HUI, TRANSFORMER DEMAIN",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "signIn": "Se connecter",
+    "signingIn": "Connexion…",
+    "noAccount": "Pas encore de compte ? Créer un compte",
+    "forgotPassword": "Mot de passe oublié ?",
+    "sendingReset": "Envoi…",
+    "enterEmailForReset": "Entrez votre e-mail pour récupérer votre mot de passe.",
+    "resetSent": "Nous avons envoyé un e-mail avec les instructions de réinitialisation.",
+    "resetSentGeneric": "Si un compte existe avec cet e-mail, un e-mail de récupération a été envoyé."
+  },
+  "home": {
+    "greeting": "Bonjour",
+    "thankYou": "Merci de faire partie de Wafina.",
+    "activeCountry": "Pays actif",
+    "donateNow": "Faire un don",
+    "donateNowSubtitle": "Aidez quelqu'un en moins de 2 minutes.",
+    "donateNowCta": "Faire un don →",
+    "yourImpact": "Votre impact",
+    "viewAll": "Tout voir",
+    "donationsMade": "Dons effectués",
+    "institutionsSupported": "Institutions soutenues",
+    "itemsDonated": "Articles donnés",
+    "quickActions": "Actions rapides",
+    "quickDonate": "Donner",
+    "latestStories": "Dernières histoires",
+    "viewAllStories": "Tout voir",
+    "thanks": "Merci.",
+    "ourPartners": "Nos Partenaires",
+    "partnersTagline": "Ensemble, nous transformons la générosité en impact réel.",
+    "becomePartner": "Devenez Partenaire Wafina",
+    "becomePartnerText": "Rejoignez les organisations qui aident à connecter les dons aux personnes et communautés dans le besoin.",
+    "becomePartnerCta": "Devenir Partenaire →",
+    "visitWebsite": "Visiter le site →",
+    "close": "Fermer",
+    "noMailApp": "Aucune application de messagerie. Contact : {{email}}"
+  },
+  "language": {
+    "choose": "Langue",
+    "restartRequired": "Redémarrez l'application pour appliquer complètement le sens du texte."
+  }
+}

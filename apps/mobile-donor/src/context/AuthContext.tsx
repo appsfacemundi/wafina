@@ -7,7 +7,7 @@ import {
   signOut,
   type User as FirebaseUser,
 } from 'firebase/auth';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
 import { firebaseAuth } from '@/lib/firebase';
 
@@ -42,8 +42,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
 
+  // Real-device finding, 2026-08-08 (mirrors the same fix in the Institution
+  // app) — a cold-launch auto-restore of a persisted Firebase session can
+  // fail for reasons that have nothing to do with anything the user just did
+  // (e.g. a brief Sheets hiccup, or — under Expo Go, where storage isn't
+  // isolated per project — a session left over from testing another Wafina
+  // app on the same phone). Only the very first auth-state check is that
+  // silent cold-launch restore; anything after it reflects something the
+  // user actively just did, so only that later case should show the banner.
+  const isInitialCheck = useRef(true);
+
   useEffect(() => {
     return onAuthStateChanged(firebaseAuth, async (user) => {
+      const isInitial = isInitialCheck.current;
+      isInitialCheck.current = false;
       setFirebaseUser(user);
       if (user) {
         try {
@@ -55,7 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // this, RootNavigator just never swaps stacks — the sign-in button
           // silently stops spinning with no error and no navigation at all.
           setSession(null);
-          setSessionError(err instanceof ApiError ? err.message : 'Não foi possível iniciar sessão. Tente novamente.');
+          if (!isInitial) {
+            setSessionError(err instanceof ApiError ? err.message : 'Não foi possível iniciar sessão. Tente novamente.');
+          }
           await signOut(firebaseAuth);
         }
       } else {

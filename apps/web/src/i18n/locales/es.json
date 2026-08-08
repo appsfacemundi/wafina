@@ -1,0 +1,63 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "signOut": "Cerrar sesión",
+    "loading": "Cargando…",
+    "search": "Buscar"
+  },
+  "nav": {
+    "home": "Inicio",
+    "donate": "Donar",
+    "myDonations": "Mis Donaciones",
+    "impactStories": "Historias de Impacto",
+    "institutions": "Instituciones",
+    "notifications": "Notificaciones",
+    "settings": "Configuración"
+  },
+  "auth": {
+    "badge": "DONANTE",
+    "welcome": "Bienvenido(a) a Wafina",
+    "tagline": "DONAR HOY, TRANSFORMAR MAÑANA",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "signIn": "Iniciar sesión",
+    "signingIn": "Iniciando sesión…",
+    "noAccount": "¿Aún no tienes cuenta? Crear cuenta",
+    "createAccount": "Crear cuenta",
+    "creatingAccount": "Creando cuenta…",
+    "passwordHint": "Mínimo 6 caracteres.",
+    "alreadyHaveAccount": "¿Ya tienes cuenta? Iniciar sesión"
+  },
+  "home": {
+    "greeting": "Hola",
+    "thankYou": "Gracias por ser parte de Wafina.",
+    "activeCountry": "País activo",
+    "donateNow": "Donar Ahora",
+    "donateNowSubtitle": "Ayuda a alguien en menos de 2 minutos.",
+    "donateNowCta": "Donar ahora →",
+    "yourImpact": "Tu impacto",
+    "viewAll": "Ver todo",
+    "donationsMade": "Donaciones realizadas",
+    "institutionsSupported": "Instituciones apoyadas",
+    "itemsDonated": "Artículos donados",
+    "quickActions": "Acciones rápidas",
+    "latestStories": "Últimas historias",
+    "viewAllStories": "Ver todas",
+    "ourPartners": "Nuestros Socios",
+    "partnersTagline": "Juntos, transformamos la generosidad en impacto real.",
+    "becomePartner": "Hazte Socio de Wafina",
+    "becomePartnerText": "Únete a las organizaciones que ayudan a conectar donaciones con personas y comunidades necesitadas.",
+    "becomePartnerCta": "Sé Socio →",
+    "quickDonate": "Donar",
+    "quickImpact": "Impacto",
+    "quickInstitutions": "Instituciones",
+    "quickMine": "Las Mías",
+    "visitWebsite": "Visitar sitio web →",
+    "close": "Cerrar",
+    "thanks": "Gracias."
+  },
+  "language": {
+    "choose": "Idioma"
+  }
+}

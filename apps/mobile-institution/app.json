@@ -15,7 +15,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "A Wafina usa a sua localização para registar a localização da sua instituição.",
         "NSPhotoLibraryUsageDescription": "A Wafina precisa de acesso às suas fotografias para o logótipo e para Histórias de Impacto.",
-        "NSCameraUsageDescription": "A Wafina precisa de acesso à câmara para tirar fotografias para Histórias de Impacto."
+        "NSCameraUsageDescription": "A Wafina precisa de acesso à câmara para tirar fotografias para Histórias de Impacto.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

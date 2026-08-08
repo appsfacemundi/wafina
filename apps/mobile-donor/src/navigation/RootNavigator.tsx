@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { SplashView } from '@/components/SplashView';
@@ -63,7 +64,7 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 function tabLabel(label: string) {
   return ({ color }: { color: string }) => (
     <Text
-      style={{ fontFamily: 'Manrope-600', fontSize: 10.5, color, textAlign: 'center' }}
+      style={{ fontFamily: 'Manrope-600', fontSize: 11.5, color, textAlign: 'center' }}
       numberOfLines={1}
       adjustsFontSizeToFit
       minimumFontScale={0.8}
@@ -86,15 +87,15 @@ function tabLabel(label: string) {
 function tabIcon(name: keyof typeof Ionicons.glyphMap) {
   return ({ color, focused }: { color: string; focused: boolean }) => (
     <View style={[navStyles.iconWrap, focused && navStyles.iconWrapActive]}>
-      <Ionicons name={focused ? name : (`${name}-outline` as keyof typeof Ionicons.glyphMap)} size={20} color={color} />
+      <Ionicons name={focused ? name : (`${name}-outline` as keyof typeof Ionicons.glyphMap)} size={24} color={color} />
     </View>
   );
 }
 
 const navStyles = StyleSheet.create({
   iconWrap: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: radius.full,
   },
   iconWrapActive: {
@@ -104,6 +105,7 @@ const navStyles = StyleSheet.create({
 
 function AppTabs() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   return (
     <AppTab.Navigator
@@ -132,18 +134,18 @@ function AppTabs() {
           // squeezed the icon+label into a sliver. Adding insets.bottom
           // to the total height, matching what React Navigation's own
           // default does, fixes it.
-          height: 60 + insets.bottom,
-          paddingTop: 6,
-          paddingBottom: insets.bottom + 6,
+          height: 68 + insets.bottom,
+          paddingTop: 8,
+          paddingBottom: insets.bottom + 8,
         },
-        tabBarItemStyle: { paddingVertical: 2 },
-        tabBarLabelStyle: { fontFamily: 'Manrope-600', fontSize: 10 },
+        tabBarItemStyle: { paddingVertical: 3 },
+        tabBarLabelStyle: { fontFamily: 'Manrope-600', fontSize: 11 },
       }}
     >
       <AppTab.Screen
         name="Home"
         component={HomeScreen}
-        options={{ tabBarLabel: tabLabel('Início'), tabBarIcon: tabIcon('home') }}
+        options={{ tabBarLabel: tabLabel(t('nav.home')), tabBarIcon: tabIcon('home') }}
       />
       <AppTab.Screen
         name="Impact"
@@ -152,27 +154,27 @@ function AppTabs() {
         // inside MyDonationsScreen to its own tab, filling the slot Donate
         // left behind (see RootStackParamList comment) instead of leaving it
         // empty.
-        options={{ tabBarLabel: tabLabel('Impacto'), tabBarIcon: tabIcon('heart') }}
+        options={{ tabBarLabel: tabLabel(t('nav.impact')), tabBarIcon: tabIcon('heart') }}
       />
       <AppTab.Screen
         name="MyDonations"
         component={MyDonationsScreen}
-        options={{ tabBarLabel: tabLabel('Doações'), tabBarIcon: tabIcon('receipt') }}
+        options={{ tabBarLabel: tabLabel(t('nav.myDonations')), tabBarIcon: tabIcon('receipt') }}
       />
       <AppTab.Screen
         name="Institutions"
         component={InstitutionsScreen}
-        options={{ tabBarLabel: tabLabel('Instituições'), tabBarIcon: tabIcon('business') }}
+        options={{ tabBarLabel: tabLabel(t('nav.institutions')), tabBarIcon: tabIcon('business') }}
       />
       <AppTab.Screen
         name="Notifications"
         component={NotificationsScreen}
-        options={{ tabBarLabel: tabLabel('Notificações'), tabBarIcon: tabIcon('notifications') }}
+        options={{ tabBarLabel: tabLabel(t('nav.notifications')), tabBarIcon: tabIcon('notifications') }}
       />
       <AppTab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ tabBarLabel: tabLabel('Definições'), tabBarIcon: tabIcon('settings') }}
+        options={{ tabBarLabel: tabLabel(t('nav.settings')), tabBarIcon: tabIcon('settings') }}
       />
     </AppTab.Navigator>
   );

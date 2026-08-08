@@ -1,0 +1,62 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "signOut": "退出登录",
+    "loading": "加载中…",
+    "search": "搜索"
+  },
+  "nav": {
+    "home": "首页",
+    "impact": "影响",
+    "myDonations": "捐赠",
+    "institutions": "机构",
+    "notifications": "通知",
+    "settings": "设置"
+  },
+  "auth": {
+    "badge": "捐赠者",
+    "welcome": "欢迎来到 Wafina",
+    "tagline": "今日捐赠，明日改变",
+    "email": "电子邮箱",
+    "password": "密码",
+    "signIn": "登录",
+    "signingIn": "登录中…",
+    "noAccount": "还没有账户？注册",
+    "forgotPassword": "忘记密码？",
+    "sendingReset": "发送中…",
+    "enterEmailForReset": "请输入您的电子邮箱以找回密码。",
+    "resetSent": "我们已发送包含重置密码说明的电子邮件。",
+    "resetSentGeneric": "如果此邮箱存在账户，我们已发送找回邮件。"
+  },
+  "home": {
+    "greeting": "你好",
+    "thankYou": "感谢您成为 Wafina 的一员。",
+    "activeCountry": "当前国家",
+    "donateNow": "立即捐赠",
+    "donateNowSubtitle": "不到2分钟即可帮助他人。",
+    "donateNowCta": "立即捐赠 →",
+    "yourImpact": "您的影响力",
+    "viewAll": "查看全部",
+    "donationsMade": "已完成捐赠",
+    "institutionsSupported": "已支持机构",
+    "itemsDonated": "已捐赠物品",
+    "quickActions": "快捷操作",
+    "quickDonate": "捐赠",
+    "latestStories": "最新故事",
+    "viewAllStories": "查看全部",
+    "thanks": "谢谢。",
+    "ourPartners": "我们的合作伙伴",
+    "partnersTagline": "携手同行，将善意转化为切实的影响力。",
+    "becomePartner": "成为 Wafina 合作伙伴",
+    "becomePartnerText": "加入帮助连接捐赠与有需要的人群和社区的组织。",
+    "becomePartnerCta": "成为合作伙伴 →",
+    "visitWebsite": "访问网站 →",
+    "close": "关闭",
+    "noMailApp": "没有可用的邮件应用。请联系：{{email}}"
+  },
+  "language": {
+    "choose": "语言",
+    "restartRequired": "请重启应用以完全应用文字方向。"
+  }
+}

@@ -1,11 +1,14 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import logoMark from '../../assets/icon-mark.png';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useAuth } from '@/context/AuthContext';
 import { friendlyAuthError } from '@/lib/auth-errors';
 import { ApiError } from '@/lib/api';
@@ -15,6 +18,8 @@ import { colors, fonts, spacing } from '@/theme/tokens';
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
 
 export function SignInScreen({ navigation }: Props) {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { signIn, sessionError, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,15 +52,15 @@ export function SignInScreen({ navigation }: Props) {
     setError('');
     setResetMessage('');
     if (!email.trim()) {
-      setError('Introduza o seu e-mail para recuperar a palavra-passe.');
+      setError(t('auth.enterEmailForReset'));
       return;
     }
     setResetting(true);
     try {
       await resetPassword(email.trim());
-      setResetMessage('Enviámos um e-mail com instruções para redefinir a sua palavra-passe.');
+      setResetMessage(t('auth.resetSent'));
     } catch {
-      setResetMessage('Se existir uma conta com este e-mail, foi enviado um e-mail de recuperação.');
+      setResetMessage(t('auth.resetSentGeneric'));
     } finally {
       setResetting(false);
     }
@@ -66,18 +71,21 @@ export function SignInScreen({ navigation }: Props) {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <View style={[styles.langWrap, { top: insets.top + spacing[3] }]}>
+        <LanguageSwitcher />
+      </View>
       <View style={styles.center}>
         <View style={styles.brand}>
           <Image source={logoMark} style={styles.logo} resizeMode="contain" />
           <View style={styles.appBadge}>
-            <Text style={styles.appBadgeText}>DOADOR</Text>
+            <Text style={styles.appBadgeText}>{t('auth.badge')}</Text>
           </View>
-          <Text style={styles.welcome}>Bem-vindo(a) à Wafina</Text>
-          <Text style={styles.tagline}>DOAR HOJE, TRANSFORMAR AMANHÃ</Text>
+          <Text style={styles.welcome}>{t('auth.welcome')}</Text>
+          <Text style={styles.tagline}>{t('auth.tagline')}</Text>
         </View>
         <Card style={styles.card}>
           <Input
-            label="E-mail"
+            label={t('auth.email')}
             keyboardType="email-address"
             textContentType="emailAddress"
             autoComplete="email"
@@ -85,7 +93,7 @@ export function SignInScreen({ navigation }: Props) {
             onChangeText={setEmail}
           />
           <Input
-            label="Palavra-passe"
+            label={t('auth.password')}
             secureTextEntry
             textContentType="password"
             autoComplete="password"
@@ -95,13 +103,13 @@ export function SignInScreen({ navigation }: Props) {
           {displayedError ? <ErrorBanner message={displayedError} /> : null}
           {resetMessage ? <Text style={styles.resetMessage}>{resetMessage}</Text> : null}
           <Button onPress={onSubmit} loading={submitting} fullWidth>
-            Entrar
+            {t('auth.signIn')}
           </Button>
           <Button variant="ghost" onPress={onForgotPassword} loading={resetting} fullWidth>
-            Esqueceu-se da palavra-passe?
+            {t('auth.forgotPassword')}
           </Button>
           <Button variant="ghost" onPress={() => navigation.navigate('SignUp')} fullWidth>
-            Ainda não tem conta? Criar conta
+            {t('auth.noAccount')}
           </Button>
         </Card>
       </View>
@@ -113,6 +121,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  langWrap: {
+    position: 'absolute',
+    right: spacing[5],
+    zIndex: 1,
   },
   center: {
     flex: 1,

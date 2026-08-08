@@ -34,6 +34,8 @@ export const NOTIFICATION_TYPES = [
   'success_story_published',
   'success_story_approved',
   'success_story_rejected',
+  /** Launch-critical, 2026-08-08 — distinct from 'success_story_rejected': this is a story that was already live (Approved) and Admin took it back down, not one that never made it out of moderation. */
+  'success_story_removed',
   /** Admin Web App Parity Phase C — manual single-recipient send and scoped broadcast both use this. */
   'admin_message',
 ] as const;

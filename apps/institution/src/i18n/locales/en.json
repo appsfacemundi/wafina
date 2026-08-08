@@ -1,0 +1,31 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "signOut": "Sign Out",
+    "loading": "Loading…",
+    "search": "Search"
+  },
+  "nav": {
+    "home": "Home",
+    "availableDonations": "Available Donations",
+    "claimedDonations": "Claimed Donations",
+    "impactStories": "Impact Stories",
+    "disputes": "Disputes",
+    "notifications": "Notifications",
+    "settings": "Settings"
+  },
+  "auth": {
+    "badge": "INSTITUTION",
+    "welcome": "Welcome to Wafina",
+    "tagline": "DONATE TODAY, TRANSFORM TOMORROW",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign In",
+    "signingIn": "Signing in…",
+    "noAccount": "Don't have an account? Register institution"
+  },
+  "language": {
+    "choose": "Language"
+  }
+}
