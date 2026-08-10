@@ -17,7 +17,7 @@
   "auth": {
     "badge": "DONANTE",
     "welcome": "Bienvenido(a) a Wafina",
-    "tagline": "DONAR HOY, TRANSFORMAR MAÑANA",
+    "tagline": "DONA CON AMOR & RECIBE CON ALEGRÍA",
     "email": "Correo electrónico",
     "password": "Contraseña",
     "signIn": "Iniciar sesión",
@@ -36,6 +36,9 @@
     "donateNow": "Donar Ahora",
     "donateNowSubtitle": "Ayuda a alguien en menos de 2 minutos.",
     "donateNowCta": "Donar ahora →",
+    "receiveNow": "Quiero Recibir",
+    "receiveNowSubtitle": "Pide lo que necesitas en pocos pasos.",
+    "receiveNowCta": "Ver disponibles →",
     "yourImpact": "Tu impacto",
     "viewAll": "Ver todo",
     "donationsMade": "Donaciones realizadas",

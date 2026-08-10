@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import logoMark from '../../assets/icon-mark.png';
@@ -75,7 +75,14 @@ export function SignInScreen({ navigation }: Props) {
       <View style={[styles.langWrap, { top: insets.top + spacing[3] }]}>
         <LanguageSwitcher />
       </View>
-      <View style={styles.center}>
+      {/* RC1 audit fix, 2026-08-10 — same fix as the Donor app's SignInScreen:
+          ScrollView + keyboardShouldPersistTaps="handled" so Forgot
+          Password / Register stay reachable once the keyboard is open. */}
+      <ScrollView
+        contentContainerStyle={styles.center}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.brand}>
           <Image source={logoMark} style={styles.logo} resizeMode="contain" />
           <View style={styles.appBadge}>
@@ -113,7 +120,7 @@ export function SignInScreen({ navigation }: Props) {
             {t('auth.noAccount')}
           </Button>
         </Card>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -129,7 +136,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   center: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     padding: spacing[6],
     gap: spacing[8],

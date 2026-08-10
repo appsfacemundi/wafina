@@ -227,6 +227,15 @@ p {
   background: var(--color-surface-2);
   color: var(--color-text);
 }
+/* RC1 UX polish, 2026-08-10 — Sair/sign-out: red text like a destructive
+   action, without the solid-fill weight of .btn-danger. */
+.btn-ghost-danger {
+  background: transparent;
+  color: var(--danger-500);
+}
+.btn-ghost-danger:hover:not(:disabled) {
+  background: var(--danger-100);
+}
 .btn:disabled {
   background: var(--color-surface-2);
   color: var(--color-text-faint);
@@ -512,6 +521,29 @@ p {
   padding: var(--space-8) var(--space-6);
 }
 
+/* RC1 UX polish, 2026-08-10 — exclusive status filter row on Admin Donations. */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.filter-btn {
+  font-family: var(--font-body), sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 8px 14px;
+  cursor: pointer;
+}
+.filter-btn-active {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 /* ---- List rows / cards for donations & institutions ---- */
 .donation-row {
   display: flex;
@@ -592,4 +624,11 @@ p {
   font-size: 10px;
   font-weight: 700;
   margin-left: 4px;
+}
+/* RC1 admin approval-gate rework, 2026-08-10 — the pending-approval nav
+   badge in warning orange, so it reads as "needs attention" rather than
+   an ordinary blue unread-count. */
+.nav-badge-warning {
+  background: var(--warning-500);
+  color: #ffffff;
 }

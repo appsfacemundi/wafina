@@ -282,7 +282,7 @@ export default function HomePage() {
             <Photo
               src={latestStory.Image}
               placeholderIcon="❤️"
-              style={{ width: '100%', height: 180, objectFit: 'cover' }}
+              style={{ width: '100%', height: 180, objectFit: 'contain', background: 'var(--color-surface-2)' }}
             />
             <div className="stack" style={{ gap: 4, padding: 16 }}>
               <p style={{ fontWeight: 700, fontSize: 15.5 }}>{latestStory.Title}</p>

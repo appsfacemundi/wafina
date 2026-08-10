@@ -14,7 +14,7 @@ import {
 } from '@wafina/shared';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorBanner } from '@/components/Banner';
@@ -114,11 +114,18 @@ export function DonateScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
 
   const [itemType, setItemType] = useState<string>(ITEM_TYPES[0]);
-  // Donate screen redesign, 2026-08-07 — a blank starting quantity read as an
-  // incomplete/broken stepper (0 peças with a still-tappable "−"). Starting
-  // at 1 matches how every stepper control behaves and needs one less tap
-  // for the overwhelmingly common single-item donation.
-  const [quantity, setQuantity] = useState('1');
+  // RC1 UX fix, 2026-08-10 — reverted the "start at 1" default: it let a
+  // donor swipe/submit past the quantity step without ever touching it,
+  // silently sending whatever the last value was. Starting empty forces a
+  // deliberate entry; submitting empty is now a real, visible validation
+  // failure instead of a silent default.
+  const [quantity, setQuantity] = useState('');
+  // RC1 audit fix, 2026-08-10 — server-side validation already rejected an
+  // invalid quantity/missing photo; this only adds the visual cue so the
+  // donor can immediately see WHICH field the top error banner is about,
+  // instead of having to re-scan the whole form.
+  const [quantityInvalid, setQuantityInvalid] = useState(false);
+  const [photoMissing, setPhotoMissing] = useState(false);
   const [condition, setCondition] = useState<string>(CONDITIONS[0]);
   const [recipientCategory, setRecipientCategory] = useState<RecipientCategory>(RECIPIENT_CATEGORIES[0]);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(DELIVERY_METHODS[0]);
@@ -234,15 +241,43 @@ export function DonateScreen({ navigation }: Props) {
     setQuantity(String(Math.max(1, quantityNumber + delta)));
   }
 
+  // RC1 UX fix, 2026-08-10 — when a required field blocks submission, jump
+  // the donor straight to it instead of leaving them to scroll and hunt for
+  // which field the top error banner is about.
+  const scrollRef = useRef<ScrollView>(null);
+  const quantityInputRef = useRef<TextInput>(null);
+  const photoSectionRef = useRef<View>(null);
+
+  // Works against TextInput or View refs at runtime — RN's TS types don't
+  // model ScrollView as a valid measureLayout target, so this goes through
+  // `unknown` rather than fighting RefObject variance for one call site.
+  type MeasureLayoutFn = (relativeToNativeNode: unknown, onSuccess: (x: number, y: number) => void) => void;
+  function scrollToSection(current: unknown) {
+    try {
+      (current as { measureLayout?: MeasureLayoutFn } | null)?.measureLayout?.(scrollRef.current, (_x, y) => {
+        scrollRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
+      });
+    } catch {
+      // Best-effort — the field's own error state is still visible either way.
+    }
+  }
+
   async function onSubmit() {
     setError('');
+    setPhotoMissing(false);
+    setQuantityInvalid(false);
 
-    if (!photo) {
-      setError('Adicione uma fotografia da doação.');
+    if (!quantity || Number(quantity) < 1) {
+      setQuantityInvalid(true);
+      setError('A quantidade é obrigatória.');
+      scrollToSection(quantityInputRef.current);
+      quantityInputRef.current?.focus();
       return;
     }
-    if (!quantity || Number(quantity) < 1) {
-      setError('Indique uma quantidade válida.');
+    if (!photo) {
+      setPhotoMissing(true);
+      setError('A fotografia é obrigatória. Adicione uma fotografia da doação.');
+      scrollToSection(photoSectionRef.current);
       return;
     }
     if (!hasValidLocation) {
@@ -290,7 +325,7 @@ export function DonateScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
+      <ScrollView ref={scrollRef} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
         <View style={styles.headerRow}>
           <View style={styles.headerSpacer} />
           <Text style={styles.title}>Doar</Text>
@@ -334,11 +369,19 @@ export function DonateScreen({ navigation }: Props) {
           </View>
 
           <View style={{ gap: spacing[2] }}>
-            <SectionHeader n={2} title="Quantidade" />
-            <View style={styles.stepperRow}>
+            <View style={styles.photoHeaderRow}>
+              <SectionHeader n={2} title="Quantidade de itens" />
+              <View style={styles.requiredPill}>
+                <Text style={styles.requiredPillText}>Obrigatória</Text>
+              </View>
+            </View>
+            <View style={[styles.stepperRow, quantityInvalid && styles.stepperRowInvalid]}>
               <Pressable
                 style={styles.stepperBtn}
-                onPress={() => adjustQuantity(-1)}
+                onPress={() => {
+                  setQuantityInvalid(false);
+                  adjustQuantity(-1);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="Diminuir quantidade"
                 hitSlop={8}
@@ -348,19 +391,26 @@ export function DonateScreen({ navigation }: Props) {
               {/* Real-device feedback, 2026-08-07 — the stepper-only quantity forced a tap-and-hold for anything beyond a couple of items; typing the number directly is faster for larger quantities. */}
               <View style={styles.stepperInputWrap}>
                 <TextInput
+                  ref={quantityInputRef}
                   style={styles.stepperInput}
                   value={quantity}
-                  onChangeText={(v) => setQuantity(v.replace(/[^0-9]/g, '').slice(0, 6))}
-                  onBlur={() => setQuantity(String(Math.max(1, Number(quantity) || 1)))}
+                  placeholder="0"
+                  placeholderTextColor={colors.textFaint}
+                  onChangeText={(v) => {
+                    setQuantityInvalid(false);
+                    setQuantity(v.replace(/[^0-9]/g, '').slice(0, 6));
+                  }}
                   keyboardType="number-pad"
                   maxLength={6}
-                  accessibilityLabel="Quantidade"
+                  accessibilityLabel="Quantidade de itens"
                 />
-                <Text style={styles.stepperUnit}>{quantityNumber === 1 ? 'peça' : 'peças'}</Text>
               </View>
               <Pressable
                 style={styles.stepperBtn}
-                onPress={() => adjustQuantity(1)}
+                onPress={() => {
+                  setQuantityInvalid(false);
+                  adjustQuantity(1);
+                }}
                 accessibilityRole="button"
                 accessibilityLabel="Aumentar quantidade"
                 hitSlop={8}
@@ -368,6 +418,11 @@ export function DonateScreen({ navigation }: Props) {
                 <Ionicons name="add" size={20} color={colors.accentText} />
               </Pressable>
             </View>
+            {quantityInvalid ? (
+              <Text style={styles.fieldErrorText}>⚠️ A quantidade é obrigatória.</Text>
+            ) : (
+              <Text style={styles.hint}>Obrigatório — indique quantas unidades está a doar.</Text>
+            )}
           </View>
 
           <View style={{ gap: spacing[2] }}>
@@ -437,11 +492,16 @@ export function DonateScreen({ navigation }: Props) {
             <Input label="Cidade" hideLabel placeholder="Ex: Luanda" value={city} onChangeText={setCity} />
           </View>
 
-          <View style={{ gap: spacing[2] }}>
-            <SectionHeader n={corporateAccount ? 8 : 7} title="Fotografia da doação" />
+          <View ref={photoSectionRef} style={{ gap: spacing[2] }}>
+            <View style={styles.photoHeaderRow}>
+              <SectionHeader n={corporateAccount ? 8 : 7} title="Fotografia da doação" />
+              <View style={styles.requiredPill}>
+                <Text style={styles.requiredPillText}>Obrigatória</Text>
+              </View>
+            </View>
             {photo ? (
               <Pressable onPress={onPickPhoto} style={styles.previewWrap}>
-                <Image source={{ uri: photo.uri }} style={styles.preview} />
+                <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" />
                 <Pressable
                   style={styles.removePhotoBtn}
                   onPress={() => setPhoto(null)}
@@ -453,12 +513,25 @@ export function DonateScreen({ navigation }: Props) {
                 </Pressable>
               </Pressable>
             ) : (
-              <Pressable style={styles.uploadWell} onPress={onPickPhoto}>
-                <Ionicons name="camera-outline" size={28} color={colors.textMuted} />
-                <Text style={styles.uploadText}>Adicionar fotografia</Text>
+              <Pressable
+                style={[styles.uploadWell, photoMissing && styles.uploadWellInvalid]}
+                onPress={() => {
+                  setPhotoMissing(false);
+                  onPickPhoto();
+                }}
+              >
+                <Ionicons
+                  name="camera-outline"
+                  size={28}
+                  color={photoMissing ? colors.danger : colors.textMuted}
+                />
+                <Text style={[styles.uploadText, photoMissing && { color: colors.danger }]}>
+                  Adicionar fotografia
+                </Text>
                 <Text style={styles.uploadHint}>PNG, JPG até 8MB</Text>
               </Pressable>
             )}
+            {photoMissing && <Text style={styles.fieldErrorText}>A fotografia é obrigatória.</Text>}
           </View>
 
           <View style={{ gap: spacing[2] }}>
@@ -619,6 +692,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface2,
     borderRadius: radius.md,
     paddingVertical: spacing[3],
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  stepperRowInvalid: {
+    borderColor: colors.danger,
+    backgroundColor: colors.dangerSoft,
   },
   stepperBtn: {
     width: 36,
@@ -684,6 +763,28 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: colors.accent,
   },
+  photoHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  requiredPill: {
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radius.full,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+  },
+  requiredPillText: {
+    fontFamily: 'Manrope-700',
+    fontSize: 10.5,
+    letterSpacing: 0.4,
+    color: colors.danger,
+  },
+  fieldErrorText: {
+    fontFamily: 'Manrope-400',
+    fontSize: 12.5,
+    color: colors.danger,
+  },
   uploadWell: {
     borderWidth: 1.5,
     borderColor: colors.borderStrong,
@@ -692,6 +793,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[6],
     alignItems: 'center',
     gap: spacing[1],
+  },
+  uploadWellInvalid: {
+    borderColor: colors.danger,
+    backgroundColor: colors.dangerSoft,
   },
   uploadText: {
     fontFamily: 'Manrope-600',
@@ -710,6 +815,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: radius.md,
+    backgroundColor: colors.surface2,
   },
   removePhotoBtn: {
     position: 'absolute',

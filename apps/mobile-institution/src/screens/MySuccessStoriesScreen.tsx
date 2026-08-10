@@ -90,7 +90,7 @@ export function MySuccessStoriesScreen() {
         keyExtractor={(item) => item.Success_Story_ID}
         renderItem={({ item }) => (
           <Card style={styles.card}>
-            <Image source={{ uri: item.Image }} style={styles.photo} />
+            <Image source={{ uri: item.Image }} style={styles.photo} resizeMode="contain" />
             <View style={styles.cardBody}>
               <View style={styles.rowBetween}>
                 <Text style={styles.storyTitle}>{item.Title}</Text>
@@ -164,6 +164,7 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: 160,
+    backgroundColor: colors.surface2,
   },
   cardBody: {
     padding: spacing[4],

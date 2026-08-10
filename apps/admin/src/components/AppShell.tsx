@@ -1,15 +1,21 @@
 'use client';
 
+import type { AdminDonationView } from '@wafina/shared';
 import { Button, Icon, LanguageSwitcher, type IconName } from '@wafina/ui';
 import { usePathname, useRouter } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
 import { setLanguage } from '@/i18n';
 import { SUPPORTED_LANGUAGES } from '@/i18n/languages';
+import { apiFetch } from '@/lib/api';
 
 const NAV_ITEMS: { href: string; labelKey: string; icon: IconName }[] = [
   { href: '/home', labelKey: 'nav.dashboard', icon: 'home' },
+  // RC1 admin approval-gate rework, 2026-08-10 — its own top-level, badged
+  // nav item (not folded into the general "Doações" list) so Admin never has
+  // to go looking for where donation approval lives.
+  { href: '/donations/approve', labelKey: 'nav.approveDonations', icon: 'check-circle' },
   { href: '/institutions', labelKey: 'nav.institutions', icon: 'building' },
   { href: '/donations', labelKey: 'nav.donations', icon: 'package' },
   { href: '/success-stories', labelKey: 'nav.impactStories', icon: 'heart' },
@@ -25,10 +31,27 @@ const NAV_ITEMS: { href: string; labelKey: string; icon: IconName }[] = [
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { signOutUser } = useAuth();
+  const { firebaseUser, signOutUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { t, i18n } = useTranslation();
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+
+  // RC1 admin approval-gate rework, 2026-08-10 — refetched on every route
+  // change (not just once) so approving/rejecting a donation on the queue
+  // page is reflected in the nav badge without a full reload.
+  useEffect(() => {
+    if (!firebaseUser) return;
+    (async () => {
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        const pending = await apiFetch<AdminDonationView[]>('/donations/pending-review', { idToken });
+        setPendingApprovalCount(pending.length);
+      } catch {
+        // Non-critical — the badge just stays at its last known count.
+      }
+    })();
+  }, [firebaseUser, pathname]);
 
   return (
     <div>
@@ -46,7 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               label={t('language.choose')}
             />
             <Button
-              variant="ghost"
+              variant="ghost-danger"
               onClick={() => {
                 if (window.confirm(t('common.confirmSignOut'))) signOutUser();
               }}
@@ -65,6 +88,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Icon name={item.icon} size={16} />
               {t(item.labelKey)}
+              {item.href === '/donations/approve' && pendingApprovalCount > 0 && (
+                <span className="nav-badge nav-badge-warning">{pendingApprovalCount}</span>
+              )}
             </button>
           ))}
         </nav>

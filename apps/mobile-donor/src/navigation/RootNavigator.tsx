@@ -14,10 +14,12 @@ import { InstitutionsScreen } from '@/screens/InstitutionsScreen';
 import { MyDonationsScreen } from '@/screens/MyDonationsScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
 import { OnboardingProfileScreen } from '@/screens/OnboardingProfileScreen';
+import { ReceberScreen } from '@/screens/ReceberScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { SignInScreen } from '@/screens/SignInScreen';
 import { SignUpScreen } from '@/screens/SignUpScreen';
 import { SwitchCountryPrompt } from '@/components/SwitchCountryPrompt';
+import { WhatsAppFloat } from '@/components/WhatsAppFloat';
 import { colors, radius } from '@/theme/tokens';
 
 export type AuthStackParamList = {
@@ -54,6 +56,10 @@ export type AppTabParamList = {
 export type RootStackParamList = {
   Tabs: { screen?: keyof AppTabParamList } | undefined;
   Donate: undefined;
+  // RC1 RECEBER — same off-tab-bar sibling pattern as Donate (see the comment
+  // above RootStackParamList): reached only via HomeScreen's card, never a
+  // registered tab.
+  Receber: undefined;
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -208,7 +214,9 @@ export function RootNavigator() {
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           <RootStack.Screen name="Tabs" component={AppTabs} />
           <RootStack.Screen name="Donate" component={DonateScreen} options={{ presentation: 'modal' }} />
+          <RootStack.Screen name="Receber" component={ReceberScreen} />
         </RootStack.Navigator>
+        <WhatsAppFloat />
         </>
       )}
     </NavigationContainer>

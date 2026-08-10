@@ -12,9 +12,32 @@ import type {
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso, parseSheetDate, toSheetBool } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
-import { isActiveCountry } from './geo-regions';
+import { getRegionById, isActiveCountry } from './geo-regions';
 import { createNotification } from './notifications';
 import { ValidationError } from './validation-error';
+
+/**
+ * RC1 RECEBER — permanent per-person identifier (e.g. WF-AO-000184), assigned
+ * once at first profile completion for Role==='Donor' only (see completeProfile).
+ * Same accepted small-race-window read-then-increment tradeoff as
+ * generatePublicDonationCode in services/donations.ts — proportionate to V1's
+ * expected write volume.
+ */
+async function generateWafinaId(countryId: string): Promise<string> {
+  const country = await getRegionById(countryId);
+  if (!country?.ISO_Code) {
+    throw new Error(`Country ${countryId} has no ISO_Code — cannot generate a Wafina ID`);
+  }
+  const prefix = `WF-${country.ISO_Code}-`;
+  const rows = await getRows(SHEET_TABS.users);
+  const maxSeq = rows.reduce((max, row) => {
+    const id = row.Wafina_ID ?? '';
+    if (!id.startsWith(prefix)) return max;
+    const num = Number(id.slice(prefix.length));
+    return Number.isFinite(num) && num > max ? num : max;
+  }, 0);
+  return `${prefix}${String(maxSeq + 1).padStart(6, '0')}`;
+}
 
 export interface UserRow {
   User_ID: string;
@@ -33,6 +56,8 @@ export interface UserRow {
   Impact_Feed_Visibility: string;
   Email_Notifications_Enabled: string;
   Status: string;
+  /** RC1 RECEBER — assigned once, on first profile completion, only for Role === 'Donor'. See completeProfile. */
+  Wafina_ID: string;
 }
 
 function rowToUser(row: UserRow): User {
@@ -51,12 +76,18 @@ function rowToUser(row: UserRow): User {
     Switch_Preference: (row.Switch_Preference as SwitchPreference) || 'Always_Ask',
     Show_Name_To_Institutions: row.Show_Name_To_Institutions === 'TRUE',
     Status: (row.Status as UserStatus) || 'Active',
+    Wafina_ID: row.Wafina_ID || null,
   };
 }
 
 export async function findUserByEmail(email: string): Promise<UserRow | null> {
   const rows = await getRows(SHEET_TABS.users);
-  const match = rows.find((row) => row.Email?.toLowerCase() === email.toLowerCase());
+  // RC1 audit fix, 2026-08-10 — trim defensively on both sides: a Sheet row's
+  // Email cell can carry stray whitespace from manual entry/legacy import,
+  // and normalizeEmail below now trims client input before it ever reaches
+  // Firebase, but this guards the lookup itself regardless of either source.
+  const target = email.trim().toLowerCase();
+  const match = rows.find((row) => row.Email?.trim().toLowerCase() === target);
   return (match as UserRow | undefined) ?? null;
 }
 
@@ -75,10 +106,12 @@ export async function createUser(email: string, role: RegistrableRole): Promise<
     Role: role,
     Donor_Subtype: role === 'Donor' ? 'Individual' : '',
     Corporate_Account_ID: '',
-    // Institutions stay blocked until Admin verifies them (spec 11.2); Donors need no verification.
-    Verified: toSheetBool(role !== 'Institution'),
+    // Institutions and Animal Shelters (RC1 RECEBER — same Institutions-sheet
+    // verification gate, see requireVerified) stay blocked until Admin
+    // verifies them (spec 11.2); Donors need no verification.
+    Verified: toSheetBool(role !== 'Institution' && role !== 'Animal_Shelter'),
     Date_Joined: nowIso(),
-    Email: email,
+    Email: email.trim(),
     Home_Country_ID: '',
     Active_Country_ID: '',
     Switch_Preference: 'Always_Ask',
@@ -87,6 +120,7 @@ export async function createUser(email: string, role: RegistrableRole): Promise<
     // Opt-out, not opt-in — matches every other notification default in this app (in-app is always on).
     Email_Notifications_Enabled: toSheetBool(true),
     Status: 'Active',
+    Wafina_ID: '',
   };
 
   await appendRow(SHEET_TABS.users, row as unknown as Record<string, string>);
@@ -133,12 +167,14 @@ export async function completeProfile(userId: string, input: ProfileInput): Prom
 
   const existing = await findUserById(userId);
   const isFirstCompletion = !existing?.Active_Country_ID?.trim();
+  const needsWafinaId = isFirstCompletion && existing?.Role === 'Donor' && !existing?.Wafina_ID?.trim();
 
   await updateRow(SHEET_TABS.users, 'User_ID', userId, {
     Name: input.Name,
     Phone: input.Phone,
     Home_Country_ID: input.Home_Country_ID,
     ...(isFirstCompletion ? { Active_Country_ID: input.Home_Country_ID } : {}),
+    ...(needsWafinaId ? { Wafina_ID: await generateWafinaId(input.Home_Country_ID) } : {}),
   });
 
   return input;
@@ -308,6 +344,7 @@ export function toAuthenticatedUser(uid: string, row: UserRow): AuthenticatedUse
     profileComplete: Boolean(row.Name?.trim() && row.Phone?.trim() && row.Home_Country_ID?.trim()),
     homeCountryId: row.Home_Country_ID || null,
     activeCountryId: row.Active_Country_ID || null,
+    wafinaId: row.Wafina_ID || null,
     switchPreference: (row.Switch_Preference as SwitchPreference) || null,
     showNameToInstitutions: row.Show_Name_To_Institutions === 'TRUE',
     impactFeedVisibility: (row.Impact_Feed_Visibility as ImpactFeedVisibility) || 'Private',

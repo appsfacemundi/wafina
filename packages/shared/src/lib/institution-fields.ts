@@ -16,6 +16,10 @@ export const INSTITUTION_FIELD_LABELS: Record<string, string> = {
   Location: 'Localização',
   Needs_List: 'Itens Necessários',
   Logo: 'Logótipo',
+  // RC1 audit fix, 2026-08-10 — Service_Radius_Km dropped from the open
+  // registration form (low-importance, kept the screen shorter); still
+  // settable afterward through this same Request Changes mechanism.
+  Service_Radius_Km: 'Raio de Cobertura (km)',
 };
 
 /** Falls back to the raw key only if it's ever missing from the map above — never surfaced normally. */

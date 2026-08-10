@@ -17,7 +17,7 @@
   "auth": {
     "badge": "捐赠者",
     "welcome": "欢迎来到 Wafina",
-    "tagline": "今日捐赠，明日改变",
+    "tagline": "用心捐赠，欣然领受",
     "email": "电子邮箱",
     "password": "密码",
     "signIn": "登录",
@@ -36,6 +36,9 @@
     "donateNow": "立即捐赠",
     "donateNowSubtitle": "不到2分钟即可帮助他人。",
     "donateNowCta": "立即捐赠 →",
+    "receiveNow": "我想领取",
+    "receiveNowSubtitle": "几步即可申请您需要的物品。",
+    "receiveNowCta": "查看可领取 →",
     "yourImpact": "您的影响力",
     "viewAll": "查看全部",
     "donationsMade": "已完成捐赠",

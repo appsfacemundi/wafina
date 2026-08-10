@@ -1,5 +1,7 @@
 import type { DeliveryMethod } from '../enums/delivery-method';
+import type { DonationApprovalStatus } from '../enums/donation-approval-status';
 import type { DonationStatus } from '../enums/donation-status';
+import type { IndividualDonationState } from '../enums/individual-donation-state';
 import type { RecipientCategory } from '../enums/recipient-category';
 import type { SuccessStoryStatus } from '../enums/success-story-status';
 import type { GeoPoint } from './geo-point';
@@ -91,6 +93,24 @@ export interface Donation {
    * the donor-company link itself never changes based on this field.
    */
   Corporate_Account_ID: string | null;
+  /**
+   * RC1 RECEBER — Admin quality gate. Blank on rows written before this field
+   * existed; read as 'Approved' at that point (rowToDonation) so every
+   * already-in-flight donation keeps working exactly as it did before this
+   * shipped. New donations start 'Pending_Review' and need explicit Admin
+   * action before they're visible to any recipient channel.
+   */
+  Approval_Status: DonationApprovalStatus;
+  Approval_Rejection_Reason: string | null;
+  /**
+   * RC1 RECEBER — set only for Recipient_Category === 'People' donations.
+   * Non-null + within 24h of Reserved_At means reserved; anything else is
+   * treated as available (lazy expiry, no background job).
+   */
+  Reserved_By_User_ID: string | null;
+  Reserved_At: string | null;
+  /** RC1 RECEBER — set when the individual recipient self-confirms pickup (Status becomes 'Delivered' at the same time). */
+  Individual_Delivered_At: string | null;
 }
 
 /**
@@ -133,4 +153,20 @@ export interface AdminDonationView extends InstitutionDonationView {
   Has_Success_Story: boolean;
   /** Null when Has_Success_Story is false. 'Pending' means an institution submitted one and it's awaiting Admin's separate moderation approval — it is NOT yet visible to any donor. */
   Success_Story_Status: SuccessStoryStatus | null;
+  /** RC1 RECEBER — null unless Recipient_Category === 'People'; see enums/individual-donation-state.ts. */
+  Individual_State: IndividualDonationState | null;
+}
+
+/**
+ * RC1 RECEBER — GET /donations/receber-status. What ReceberScreen checks
+ * before ever showing the swipe stack: an active reservation resumes the
+ * pickup step, a cooldown (since the caller's last confirmed receipt)
+ * blocks new reservations, otherwise they're free to browse.
+ */
+export interface ReceberEligibility {
+  eligible: boolean;
+  reason: 'active_reservation' | 'cooldown' | null;
+  activeReservation: Donation | null;
+  /** ISO timestamp, set only when reason === 'cooldown'. */
+  nextEligibleAt: string | null;
 }

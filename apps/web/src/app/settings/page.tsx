@@ -210,6 +210,11 @@ export default function SettingsPage() {
 
         <Card className="stack">
           <p style={{ fontWeight: 600 }}>Perfil</p>
+          {session.wafinaId && (
+            <p className="mono" style={{ fontSize: 12.5, color: 'var(--color-text-faint)' }}>
+              ID Wafina: {session.wafinaId}
+            </p>
+          )}
           {!profile && !profileError && (
             <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>
           )}

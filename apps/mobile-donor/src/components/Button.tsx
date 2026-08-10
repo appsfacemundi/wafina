@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { colors, radius, spacing } from '@/theme/tokens';
 
-type Variant = 'primary' | 'cta' | 'secondary' | 'ghost' | 'danger';
+type Variant = 'primary' | 'cta' | 'secondary' | 'ghost' | 'ghostDanger' | 'danger';
 type Size = 'default' | 'large';
 
 interface ButtonProps {
@@ -94,6 +94,10 @@ const variantStyles = StyleSheet.create({
   cta: { backgroundColor: colors.cta },
   secondary: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   ghost: { backgroundColor: 'transparent' },
+  // Sair/sign-out — red text like a destructive action, but without the
+  // solid-fill weight of `danger` (reserved for irreversible actions like
+  // deleting the account).
+  ghostDanger: { backgroundColor: 'transparent' },
   danger: { backgroundColor: colors.danger },
 });
 
@@ -102,5 +106,6 @@ const textVariantStyles = StyleSheet.create({
   cta: { color: colors.ctaText },
   secondary: { color: colors.text },
   ghost: { color: colors.accent },
+  ghostDanger: { color: colors.danger },
   danger: { color: colors.accentText },
 });

@@ -139,7 +139,13 @@ export default function AvailableDonationsPage() {
               <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
                 <Photo
                   src={d.Photo}
-                  style={{ width: '100%', height: 200, objectFit: 'cover', display: 'flex' }}
+                  style={{
+                    width: '100%',
+                    height: 200,
+                    objectFit: 'contain',
+                    display: 'flex',
+                    background: 'var(--color-surface-2)',
+                  }}
                 />
                 <div className="stack" style={{ padding: 'var(--space-4)', gap: 6 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>

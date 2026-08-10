@@ -29,7 +29,7 @@ export default function VerificationStatusPage() {
           <>
             <Badge tone="warning">Por verificar</Badge>
             <p style={{ color: 'var(--color-text-muted)' }}>
-              O seu registo está a aguardar aprovação do Admin. Isto pode demorar alguns dias.
+              O seu registo está a aguardar aprovação do Admin. Isto demora normalmente entre 24 a 48 horas.
             </p>
           </>
         )}

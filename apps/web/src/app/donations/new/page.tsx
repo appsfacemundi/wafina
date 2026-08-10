@@ -71,10 +71,16 @@ export default function NewDonationPage() {
   const { showToast } = useToast();
 
   const [itemType, setItemType] = useState<string>(ITEM_TYPES[0]);
-  // Donate form redesign, 2026-08-07 — a blank starting quantity read as an
-  // incomplete/broken stepper; starting at 1 matches the stepper control and
-  // needs one less tap for the overwhelmingly common single-item donation.
-  const [quantity, setQuantity] = useState('1');
+  // RC1 UX fix, 2026-08-10 — reverted the "start at 1" default: it let a
+  // donor submit past the quantity step without ever touching it, silently
+  // sending whatever the last value was. Starting empty forces a deliberate
+  // entry; submitting empty is now a real, visible validation failure.
+  const [quantity, setQuantity] = useState('');
+  // RC1 audit fix, 2026-08-10 — same field-level highlight as the mobile
+  // form; also closes a real gap the mobile version already had: quantity
+  // was never actually validated client-side here before, only server-side.
+  const [quantityInvalid, setQuantityInvalid] = useState(false);
+  const [photoMissing, setPhotoMissing] = useState(false);
   const [condition, setCondition] = useState<string>(CONDITIONS[0]);
   const [recipientCategory, setRecipientCategory] = useState<RecipientCategory>(RECIPIENT_CATEGORIES[0]);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(DELIVERY_METHODS[0]);
@@ -95,6 +101,10 @@ export default function NewDonationPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
+  // RC1 UX fix, 2026-08-10 — jump straight to whichever required field
+  // blocked submission instead of leaving the donor to hunt for it.
+  const quantityInputRef = useRef<HTMLInputElement>(null);
+  const photoSectionRef = useRef<HTMLDivElement>(null);
 
   const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
   const [isCorporateDonation, setIsCorporateDonation] = useState(false);
@@ -172,9 +182,20 @@ export default function NewDonationPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setPhotoMissing(false);
+    setQuantityInvalid(false);
 
+    if (!quantity || Number(quantity) < 1) {
+      setQuantityInvalid(true);
+      setError('A quantidade é obrigatória.');
+      quantityInputRef.current?.focus();
+      quantityInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     if (!photo) {
-      setError('Adicione uma fotografia da doação.');
+      setPhotoMissing(true);
+      setError('A fotografia é obrigatória. Adicione uma fotografia da doação.');
+      photoSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     if (!hasValidLocation) {
@@ -219,7 +240,18 @@ export default function NewDonationPage() {
   return (
     <AppShell>
       <div className="stack" style={{ maxWidth: 480 }}>
-        <h1 style={{ fontSize: 24 }}>Doar</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1 style={{ fontSize: 24 }}>Doar</h1>
+          {/* Closing here never signs the user out; it just returns to Home. */}
+          <button
+            type="button"
+            className="icon-close-btn"
+            onClick={() => router.push('/home')}
+            aria-label="Fechar"
+          >
+            ✕
+          </button>
+        </div>
 
         <div style={{ textAlign: 'center', padding: '0 var(--space-4) var(--space-2)' }}>
           <div
@@ -273,28 +305,51 @@ export default function NewDonationPage() {
             </div>
 
             <div>
-              <SectionHeader n={(sectionN += 1)} title="Quantidade" />
-              <div className="stepper-row">
-                <button type="button" className="stepper-btn" onClick={() => adjustQuantity(-1)} aria-label="Diminuir quantidade">
+              <SectionHeader n={(sectionN += 1)} title="Quantidade de itens" />
+              <span className="required-pill">Obrigatória</span>
+              <div className={['stepper-row', quantityInvalid ? 'is-error' : ''].join(' ')}>
+                <button
+                  type="button"
+                  className="stepper-btn"
+                  onClick={() => {
+                    setQuantityInvalid(false);
+                    adjustQuantity(-1);
+                  }}
+                  aria-label="Diminuir quantidade"
+                >
                   −
                 </button>
                 {/* Real-device feedback, 2026-08-07 — stepper-only forced a click-and-hold for larger quantities; typing the number directly is faster. */}
-                <span className="stepper-value" style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
-                  <input
-                    className="stepper-input"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                    onBlur={() => setQuantity(String(Math.max(1, Number(quantity) || 1)))}
-                    inputMode="numeric"
-                    maxLength={6}
-                    aria-label="Quantidade"
-                  />
-                  <span>{quantityNumber === 1 ? 'peça' : 'peças'}</span>
-                </span>
-                <button type="button" className="stepper-btn" onClick={() => adjustQuantity(1)} aria-label="Aumentar quantidade">
+                <input
+                  ref={quantityInputRef}
+                  className="stepper-input"
+                  value={quantity}
+                  placeholder="0"
+                  onChange={(e) => {
+                    setQuantityInvalid(false);
+                    setQuantity(e.target.value.replace(/[^0-9]/g, '').slice(0, 6));
+                  }}
+                  inputMode="numeric"
+                  maxLength={6}
+                  aria-label="Quantidade de itens"
+                />
+                <button
+                  type="button"
+                  className="stepper-btn"
+                  onClick={() => {
+                    setQuantityInvalid(false);
+                    adjustQuantity(1);
+                  }}
+                  aria-label="Aumentar quantidade"
+                >
                   +
                 </button>
               </div>
+              {quantityInvalid ? (
+                <p className="field-error-text">⚠️ A quantidade é obrigatória.</p>
+              ) : (
+                <span className="hint">Obrigatório — indique quantas unidades está a doar.</span>
+              )}
             </div>
 
             <div>
@@ -363,14 +418,22 @@ export default function NewDonationPage() {
               <Input label="Cidade" hideLabel placeholder="Ex: Luanda" value={city} onChange={(e) => setCity(e.target.value)} />
             </div>
 
-            <div className="field">
+            <div className="field" ref={photoSectionRef}>
               <SectionHeader n={(sectionN += 1)} title="Fotografia da doação" />
+              <span className="required-pill">Obrigatória</span>
               {photoPreview ? (
                 <div className="photo-preview-wrap">
                   <img
                     src={photoPreview}
                     alt="Pré-visualização da doação"
-                    style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 'var(--radius-md)', display: 'block' }}
+                    style={{
+                      width: '100%',
+                      maxHeight: 220,
+                      objectFit: 'contain',
+                      borderRadius: 'var(--radius-md)',
+                      display: 'block',
+                      background: 'var(--color-surface-2)',
+                    }}
                   />
                   <button
                     type="button"
@@ -386,18 +449,26 @@ export default function NewDonationPage() {
                   </button>
                 </div>
               ) : (
-                <label htmlFor="photo-input" className="upload-well" style={{ cursor: 'pointer', display: 'block' }}>
+                <label
+                  htmlFor="photo-input"
+                  className={['upload-well', photoMissing ? 'is-error' : ''].join(' ')}
+                  style={{ cursor: 'pointer', display: 'block' }}
+                >
                   📷 Adicionar fotografia
                   <br />
                   <span style={{ fontSize: 11.5, color: 'var(--color-text-faint)' }}>PNG, JPG até 8MB</span>
                 </label>
               )}
+              {photoMissing && <p className="field-error-text">A fotografia é obrigatória.</p>}
               <input
                 id="photo-input"
                 type="file"
                 accept="image/*"
                 style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0 }}
-                onChange={(e) => onPhotoChange(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  setPhotoMissing(false);
+                  onPhotoChange(e.target.files?.[0] ?? null);
+                }}
               />
             </div>
 

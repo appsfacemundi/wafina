@@ -39,7 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               onChange={setLanguage}
               label={t('language.choose')}
             />
-            <Button variant="ghost" onClick={() => signOutUser()}>
+            <Button variant="ghost-danger" onClick={() => signOutUser()}>
               {t('common.signOut')}
             </Button>
           </div>

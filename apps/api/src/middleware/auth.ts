@@ -81,7 +81,12 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
   next();
 });
 
-const ROLE_LABEL: Record<Role, string> = { Donor: 'Doador', Institution: 'Instituição', Admin: 'Admin' };
+const ROLE_LABEL: Record<Role, string> = {
+  Donor: 'Doador',
+  Institution: 'Instituição',
+  Admin: 'Admin',
+  Animal_Shelter: 'Abrigo de Animais',
+};
 
 /**
  * Section 4 permission gate — use after requireAuth.

@@ -20,7 +20,7 @@ export function SplashView() {
       <View style={styles.plate}>
         <Image source={iconMark} style={styles.mark} resizeMode="contain" />
       </View>
-      <Text style={[styles.tagline, { bottom: insets.bottom + 32 }]}>DOAR HOJE, TRANSFORMAR AMANHÃ</Text>
+      <Text style={[styles.tagline, { bottom: insets.bottom + 32 }]}>DOE COM AMOR & RECEBA COM PRAZER</Text>
       <Text style={[styles.credit, { bottom: insets.bottom + 12 }]}>BY ZUINDER</Text>
     </View>
   );

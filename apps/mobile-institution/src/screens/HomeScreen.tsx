@@ -1,16 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { Donation, InstitutionDonationView, Notification, SuccessStory } from '@wafina/shared';
 import type { ComponentProps } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/Card';
 import { useAuth } from '@/context/AuthContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { apiFetch } from '@/lib/api';
+import type { AppTabParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
+type Props = BottomTabScreenProps<AppTabParamList, 'Home'>;
 
 function StatCard({ icon, value, label }: { icon: IoniconName; value: number | null; label: string }) {
   return (
@@ -28,7 +31,7 @@ function todayDateOnly(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function HomeScreen() {
+export function HomeScreen({ navigation }: Props) {
   const { session, firebaseUser } = useAuth();
   const { institution } = useOwnInstitution();
   const insets = useSafeAreaInsets();
@@ -91,8 +94,32 @@ export function HomeScreen() {
         <Text style={styles.email}>{session?.email}</Text>
       </Card>
 
+      <Pressable
+        onPress={() => navigation.navigate('AvailableDonations')}
+        accessibilityRole="button"
+        accessibilityLabel="Receber Doações"
+        style={({ pressed }) => [styles.ctaCard, pressed && styles.ctaCardPressed]}
+      >
+        <View style={styles.ctaIconWrap}>
+          <Ionicons name="gift" size={22} color={colors.accentText} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ctaTitle}>Receber Doações</Text>
+          <Text style={styles.ctaSubtitle}>
+            {session?.role === 'Animal_Shelter'
+              ? 'Encontre doações disponíveis para o seu abrigo'
+              : 'Encontre doações disponíveis para a sua instituição'}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.accentText} />
+      </Pressable>
+
       <View style={styles.statsGrid}>
-        <StatCard icon="file-tray-outline" value={stats.available} label="Doações disponíveis" />
+        <StatCard
+          icon="file-tray-outline"
+          value={stats.available}
+          label={session?.role === 'Animal_Shelter' ? 'Doações para abrigos' : 'Doações disponíveis'}
+        />
         <StatCard icon="checkmark-circle-outline" value={stats.accepted} label="Aceites" />
         <StatCard icon="car-outline" value={stats.collectionsToday} label="Recolhas hoje" />
         <StatCard icon="cube-outline" value={stats.deliveriesPending} label="Entregas pendentes" />
@@ -127,6 +154,37 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-400',
     fontSize: 14,
     color: colors.textMuted,
+  },
+  ctaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    backgroundColor: colors.accent,
+    borderRadius: radius.lg,
+    padding: spacing[4],
+  },
+  ctaCardPressed: {
+    opacity: 0.85,
+  },
+  ctaIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaTitle: {
+    fontFamily: fonts.display,
+    fontSize: 16,
+    color: colors.accentText,
+  },
+  ctaSubtitle: {
+    fontFamily: 'Manrope-400',
+    fontSize: 12.5,
+    color: colors.accentText,
+    opacity: 0.9,
+    marginTop: 2,
   },
   statsGrid: {
     flexDirection: 'row',

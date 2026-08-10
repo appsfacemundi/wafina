@@ -216,6 +216,9 @@ export function SettingsScreen() {
 
         <Card style={{ gap: spacing[3] }}>
           <Text style={styles.cardTitle}>Perfil</Text>
+          {session?.wafinaId && (
+            <Text style={[styles.hint, { fontFamily: fonts.mono }]}>ID Wafina: {session.wafinaId}</Text>
+          )}
           {!profile && !profileError && <Text style={styles.hint}>A carregar…</Text>}
           {profileError && !profile && <ErrorBanner message={profileError} />}
           {profile && countries && (
@@ -429,7 +432,7 @@ export function SettingsScreen() {
           </Button>
         </Card>
 
-        <Button variant="ghost" onPress={onPressSignOut}>
+        <Button variant="ghostDanger" onPress={onPressSignOut}>
           Sair
         </Button>
       </ScrollView>

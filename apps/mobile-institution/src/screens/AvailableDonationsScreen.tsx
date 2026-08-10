@@ -139,7 +139,7 @@ export function AvailableDonationsScreen() {
         keyExtractor={(item) => item.Donation_ID}
         renderItem={({ item }) => (
           <Card style={styles.card}>
-            <Photo uri={item.Photo} style={styles.photo} />
+            <Photo uri={item.Photo} style={styles.photo} resizeMode="contain" />
             <View style={styles.cardBody}>
               <View style={styles.rowBetween}>
                 <Text style={styles.itemType}>{item.Item_Type}</Text>
@@ -261,6 +261,7 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: 180,
+    backgroundColor: colors.surface2,
   },
   cardBody: {
     padding: spacing[4],

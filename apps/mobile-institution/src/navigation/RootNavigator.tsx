@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { SplashView } from '@/components/SplashView';
+import { WhatsAppFloat } from '@/components/WhatsAppFloat';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { AvailableDonationsScreen } from '@/screens/AvailableDonationsScreen';
 import { ClaimedByMeScreen } from '@/screens/ClaimedByMeScreen';
@@ -167,6 +168,7 @@ export function RootNavigator() {
           <VerificationStack.Screen name="VerificationStatus" component={VerificationStatusScreen} />
         </VerificationStack.Navigator>
       ) : (
+        <>
         <AppTab.Navigator
           screenOptions={{
             headerShown: false,
@@ -233,6 +235,8 @@ export function RootNavigator() {
             options={{ tabBarLabel: tabLabel(t('nav.settings')), tabBarIcon: tabIcon('settings') }}
           />
         </AppTab.Navigator>
+        <WhatsAppFloat />
+        </>
       )}
     </NavigationContainer>
   );

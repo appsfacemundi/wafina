@@ -111,7 +111,13 @@ export default function ImpactPage() {
                 <img
                   src={story.Image}
                   alt=""
-                  style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }}
+                  style={{
+                    width: '100%',
+                    height: 220,
+                    objectFit: 'contain',
+                    display: 'block',
+                    background: 'var(--color-surface-2)',
+                  }}
                 />
                 <div className="stack" style={{ padding: 'var(--space-4)', gap: 6 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>

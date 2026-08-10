@@ -74,7 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionError,
     async signIn(email, password) {
       setSessionError(null);
-      const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+      // RC1 audit fix, 2026-08-10 — a stray leading/trailing space in the
+      // email field makes Firebase treat it as a different address entirely,
+      // failing with the same generic "wrong credentials" error as a real
+      // typo — for a real account, indistinguishable from "this account
+      // doesn't exist" even though it does.
+      const credential = await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
       try {
         setSession(await resolveSession(credential.user));
       } catch (err) {
@@ -89,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     async signUp(email, password) {
-      await createUserWithEmailAndPassword(firebaseAuth, email, password);
+      await createUserWithEmailAndPassword(firebaseAuth, email.trim(), password);
     },
     async signOutUser() {
       await signOut(firebaseAuth);

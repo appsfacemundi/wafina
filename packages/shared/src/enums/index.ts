@@ -14,3 +14,6 @@ export * from './user-status';
 export * from './recipient-category';
 export * from './delivery-method';
 export * from './impact-feed-visibility';
+export * from './donation-approval-status';
+export * from './individual-donation-state';
+export * from './institution-type';

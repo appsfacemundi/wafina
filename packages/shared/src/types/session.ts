@@ -22,6 +22,8 @@ export interface AuthenticatedUser {
   /** Null only before profile completion. Drives which institutions/donations/reports are visible. */
   activeCountryId: string | null;
   homeCountryId: string | null;
+  /** Donor-facing public ID (WF-<CountryCode>-NNNNNN), assigned at profile completion. Donor role only — always null for Institution/Admin. */
+  wafinaId: string | null;
   switchPreference: SwitchPreference | null;
   /** "Donor Name (if donor allows)" on donation cards — irrelevant/ignored for Corporate donors. */
   showNameToInstitutions: boolean;

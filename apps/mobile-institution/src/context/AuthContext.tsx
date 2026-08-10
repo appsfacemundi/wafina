@@ -11,6 +11,9 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { apiFetch, ApiError } from '@/lib/api';
 import { firebaseAuth } from '@/lib/firebase';
 
+/** This app now hosts two registrable roles (RC1 RECEBER: Instituição vs Abrigo de Animais). */
+type InstitutionAppRole = 'Institution' | 'Animal_Shelter';
+
 interface AuthContextValue {
   firebaseUser: FirebaseUser | null;
   session: AuthenticatedUser | null;
@@ -18,7 +21,7 @@ interface AuthContextValue {
   /** Why the last sign-in attempt didn't reach a session (e.g. suspended account, backend unavailable) — see AuthProvider. */
   sessionError: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, role: InstitutionAppRole) => Promise<void>;
   signOutUser: () => Promise<void>;
   refreshSession: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -26,16 +29,33 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const ROLE_LABEL: Record<string, string> = { Donor: 'Doador', Institution: 'Instituição', Admin: 'Admin' };
+const ROLE_LABEL: Record<string, string> = {
+  Donor: 'Doador',
+  Institution: 'Instituição',
+  Admin: 'Admin',
+  Animal_Shelter: 'Abrigo de Animais',
+};
+
+/**
+ * RC1 RECEBER — signUp() only calls Firebase's createUserWithEmailAndPassword,
+ * which carries no role field. The actual /auth/session bootstrap call happens
+ * later and asynchronously, inside the onAuthStateChanged listener below, once
+ * Firebase itself reports the new user. This module-level box is how the role
+ * chosen on SignUpScreen survives that gap — set immediately before the
+ * Firebase call, read (and cleared) the first time resolveSession runs.
+ */
+let pendingSignUpRole: InstitutionAppRole | null = null;
 
 async function resolveSession(user: FirebaseUser): Promise<AuthenticatedUser> {
   const idToken = await user.getIdToken();
-  // role is only honored by the API when bootstrapping a brand-new account —
-  // this is the Institution app, so new sign-ups always request the
-  // Institution role (spec 13.3: starts Verified=FALSE, full app block).
+  // role is only honored by the API when bootstrapping a brand-new account.
+  // Defaults to Institution for sign-in / session-refresh calls, where no
+  // pending choice exists and the field is ignored by the API anyway.
+  const requestedRole = pendingSignUpRole ?? 'Institution';
+  pendingSignUpRole = null;
   const authenticatedUser = await apiFetch<AuthenticatedUser>('/auth/session', {
     method: 'POST',
-    body: { idToken, role: 'Institution' },
+    body: { idToken, role: requestedRole },
   });
 
   // Real-device finding, 2026-08-04: role is fixed on an account's first-ever
@@ -46,7 +66,7 @@ async function resolveSession(user: FirebaseUser): Promise<AuthenticatedUser> {
   // entire registration form and hitting submit — with RegisterScreen having
   // no way to back out. Failing fast, right after sign-in, with a message that
   // says exactly what to do, closes both problems at once.
-  if (authenticatedUser.role !== 'Institution') {
+  if (authenticatedUser.role !== 'Institution' && authenticatedUser.role !== 'Animal_Shelter') {
     throw new ApiError(
       `Este e-mail já está associado a uma conta de ${ROLE_LABEL[authenticatedUser.role] ?? authenticatedUser.role}. Não pode ser utilizado para uma conta de Instituição — utilize outro e-mail.`,
       403,
@@ -107,7 +127,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionError,
     async signIn(email, password) {
       setSessionError(null);
-      const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+      // RC1 audit fix, 2026-08-10 — a stray leading/trailing space in the
+      // email field makes Firebase treat it as a different address entirely,
+      // failing with the same generic "wrong credentials" error as a real
+      // typo — for a real account, indistinguishable from "this account
+      // doesn't exist" even though it does. Trimming once here (rather than
+      // at every screen's call site) guarantees every caller gets it.
+      const credential = await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
       try {
         setSession(await resolveSession(credential.user));
       } catch (err) {
@@ -119,14 +145,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw err;
       }
     },
-    async signUp(email, password) {
-      await createUserWithEmailAndPassword(firebaseAuth, email, password);
+    async signUp(email, password, role) {
+      pendingSignUpRole = role;
+      await createUserWithEmailAndPassword(firebaseAuth, email.trim(), password);
     },
     async signOutUser() {
       await signOut(firebaseAuth);
     },
     async resetPassword(email) {
-      await sendPasswordResetEmail(firebaseAuth, email);
+      await sendPasswordResetEmail(firebaseAuth, email.trim());
     },
     async refreshSession() {
       if (firebaseAuth.currentUser) {

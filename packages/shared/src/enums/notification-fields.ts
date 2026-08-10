@@ -38,6 +38,12 @@ export const NOTIFICATION_TYPES = [
   'success_story_removed',
   /** Admin Web App Parity Phase C — manual single-recipient send and scoped broadcast both use this. */
   'admin_message',
+  /** RC1 RECEBER — Admin's new donation-approval gate. */
+  'donation_approved',
+  'donation_rejected',
+  'donation_correction_requested',
+  /** RC1 RECEBER — individual (People-category) reservation lifecycle. */
+  'donation_reserved',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

@@ -148,7 +148,13 @@ export default function AdminSuccessStoriesPage() {
             <div className="stack">
               {stories.map((story) => (
                 <Card key={story.Success_Story_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
-                  <img src={story.Image} alt="" style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
+                  <img src={story.Image} alt="" style={{
+                      width: '100%',
+                      height: 180,
+                      objectFit: 'contain',
+                      display: 'block',
+                      background: 'var(--color-surface-2)',
+                    }} />
                   <div className="stack" style={{ padding: 'var(--space-4)', gap: 6 }}>
                     <p style={{ fontWeight: 700, fontSize: 17 }}>{story.Title}</p>
                     {story.Institution_Name && (
@@ -213,7 +219,13 @@ export default function AdminSuccessStoriesPage() {
               {published.map((story) => (
                 <Card key={story.Success_Story_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
                   <div style={{ position: 'relative' }}>
-                    <img src={story.Image} alt="" style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
+                    <img src={story.Image} alt="" style={{
+                      width: '100%',
+                      height: 180,
+                      objectFit: 'contain',
+                      display: 'block',
+                      background: 'var(--color-surface-2)',
+                    }} />
                     <label
                       style={{
                         position: 'absolute',

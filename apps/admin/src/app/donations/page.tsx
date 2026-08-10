@@ -6,22 +6,20 @@ import {
   daysAgoLabel,
   DONATION_STATUS_LABEL,
   DONATION_STATUS_TONE,
+  INDIVIDUAL_DONATION_STATE_LABEL,
+  INDIVIDUAL_DONATION_STATE_TONE,
+  RECIPIENT_CATEGORIES,
   RECIPIENT_CATEGORY_LABEL,
   type AdminDonationView,
   type DeliveryMethod,
   type GeoRegion,
+  type RecipientCategory,
 } from '@wafina/shared';
-import { Badge, Button, Card, CollapsibleGroup, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
+import { Badge, Button, Card, CollapsibleGroup, DonationTimeline, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
 import { ApiError, apiFetch } from '@/lib/api';
-
-/** ISO datetime -> yyyy-mm-dd for a native date input; empty when unset. */
-function toDateInputValue(iso: string | null): string {
-  if (!iso) return '';
-  return iso.slice(0, 10);
-}
 
 function parseDate(v: string | null): number {
   if (!v) return 0;
@@ -38,10 +36,10 @@ export default function AdminDonationsPage() {
   const [countries, setCountries] = useState<GeoRegion[]>([]);
   const [countryFilter, setCountryFilter] = useState('');
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | ''>('');
+  const [categoryFilter, setCategoryFilter] = useState<RecipientCategory | ''>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'delivered'>('all');
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, { collection: string; delivery: string }>>({});
   const [photoSavingId, setPhotoSavingId] = useState<string | null>(null);
   const [storyFormId, setStoryFormId] = useState<string | null>(null);
   const [storyDrafts, setStoryDrafts] = useState<
@@ -49,6 +47,13 @@ export default function AdminDonationsPage() {
   >({});
   const [storySavingId, setStorySavingId] = useState<string | null>(null);
   const [sendingToFeedId, setSendingToFeedId] = useState<string | null>(null);
+  // RC1 RECEBER — used only by "Remover do Receber" on this page now;
+  // approve/reject/request-correction moved to the dedicated
+  // /donations/approve queue.
+  const [approvalActionId, setApprovalActionId] = useState<string | null>(null);
+  const [reasonFormId, setReasonFormId] = useState<string | null>(null);
+  const [reasonMode, setReasonMode] = useState<'remove' | null>(null);
+  const [reasonText, setReasonText] = useState('');
 
   async function load() {
     if (!firebaseUser) return;
@@ -60,17 +65,6 @@ export default function AdminDonationsPage() {
       ]);
       setDonations(list);
       setCountries(countryList);
-      setDrafts(
-        Object.fromEntries(
-          list.map((d) => [
-            d.Donation_ID,
-            {
-              collection: toDateInputValue(d.Expected_Collection_Date),
-              delivery: toDateInputValue(d.Expected_Delivery_Date),
-            },
-          ]),
-        ),
-      );
     } catch {
       setError('Não foi possível carregar as doações.');
     }
@@ -85,6 +79,7 @@ export default function AdminDonationsPage() {
     let result = donations;
     if (countryFilter) result = result.filter((d) => d.Country_ID === countryFilter);
     if (deliveryFilter) result = result.filter((d) => d.Delivery_Method === deliveryFilter);
+    if (categoryFilter) result = result.filter((d) => d.Recipient_Category === categoryFilter);
     const q = search.trim().toLowerCase();
     if (q) {
       result = result.filter((d) =>
@@ -99,80 +94,57 @@ export default function AdminDonationsPage() {
     // on that order surviving the filters above untouched. Sorting
     // defensively here keeps the newest-on-top guarantee explicit.
     return [...result].sort((a, b) => parseDate(b.Date_Submitted) - parseDate(a.Date_Submitted));
-  }, [donations, countryFilter, deliveryFilter, search]);
+  }, [donations, countryFilter, deliveryFilter, categoryFilter, search]);
 
   /**
-   * Admin UX fix, 2026-08-07 — a flat newest-first list buried delivered
-   * (done, no action needed) donations among ones still needing attention,
-   * and gave Admin no quick way to focus on just one stage. Grouped into
-   * collapsible sections instead, ordered Aceites (already claimed, actively
-   * moving) -> Pendentes (needs a claim) -> Entregue (done, reference only)
-   * per stakeholder direction — each group still newest-first internally.
+   * Admin UX fix, 2026-08-07, revised 2026-08-10 — the delivery-pipeline
+   * groups (Aceites/Pendentes/Entregue) are now a single-select filter
+   * (statusFilter below) instead of three always-expanded fold/expand
+   * groups, matching the donor/institution apps' equivalent lists.
+   * Pendentes de Aprovação moved off this page entirely — it now lives on
+   * its own badged nav item (/donations/approve). Rejeitadas stays here,
+   * always-visible, for reference (no action left to take on it).
    */
-  const donationGroups = useMemo(() => {
+  const priorityGroups = useMemo(() => {
     if (!filteredDonations) return [];
     return [
       {
-        key: 'accepted',
-        title: 'Aceites',
-        items: filteredDonations.filter(
-          (d) => d.Status === 'Claimed' || d.Status === 'Collection_Scheduled' || d.Status === 'Collected',
-        ),
-      },
-      {
-        key: 'pending',
-        title: 'Pendentes',
-        items: filteredDonations.filter((d) => d.Status === 'Pending'),
-      },
-      {
-        key: 'delivered',
-        title: 'Entregue',
-        // Bug fix, 2026-08-08 — this group inherited the list's Date_Submitted
-        // sort, so a donation delivered today but submitted weeks ago could sit
-        // buried under ones submitted more recently but delivered earlier —
-        // exactly backwards for "find the newest delivery to publish to the
-        // Feed". Sort by Date_Delivered instead so the most recently delivered
-        // donation (the one most likely to still need a story) is always first.
-        items: [...filteredDonations.filter((d) => d.Status === 'Delivered')].sort(
-          (a, b) => parseDate(b.Date_Delivered) - parseDate(a.Date_Delivered),
-        ),
+        key: 'rejected',
+        title: 'Rejeitadas',
+        items: filteredDonations.filter((d) => d.Approval_Status === 'Rejected'),
       },
     ];
   }, [filteredDonations]);
 
-  async function onSave(donationId: string) {
-    const draft = drafts[donationId];
-    if (!draft) return;
-    // Real-device finding, 2026-08-07 — the PATCH below sends `undefined` for
-    // an empty field, which the API treats as "leave this field alone" (see
-    // setExpectedDates's `dates.X !== undefined` checks in services/donations.ts)
-    // — never as "clear it". So saving with both dates empty was always a
-    // silent no-op that still showed a success toast, misleading whoever
-    // clicked it into thinking something changed.
-    if (!draft.collection && !draft.delivery) {
-      setError('Introduza pelo menos uma data antes de guardar.');
-      return;
+  const statusCounts = useMemo(() => {
+    const list = filteredDonations ?? [];
+    return {
+      accepted: list.filter((d) => d.Status === 'Claimed' || d.Status === 'Collection_Scheduled' || d.Status === 'Collected')
+        .length,
+      pending: list.filter((d) => d.Status === 'Pending' && d.Approval_Status === 'Approved').length,
+      delivered: list.filter((d) => d.Status === 'Delivered').length,
+    };
+  }, [filteredDonations]);
+
+  const visibleDonations = useMemo(() => {
+    const list = filteredDonations ?? [];
+    if (statusFilter === 'accepted') {
+      return list.filter((d) => d.Status === 'Claimed' || d.Status === 'Collection_Scheduled' || d.Status === 'Collected');
     }
-    setError('');
-    setSavingId(donationId);
-    try {
-      const idToken = await firebaseUser?.getIdToken();
-      await apiFetch(`/donations/${donationId}/expected-dates`, {
-        method: 'PATCH',
-        idToken,
-        body: {
-          Expected_Collection_Date: draft.collection || undefined,
-          Expected_Delivery_Date: draft.delivery || undefined,
-        },
-      });
-      await load();
-      showToast('Estimativas guardadas com sucesso.');
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível guardar as datas estimadas.');
-    } finally {
-      setSavingId(null);
+    if (statusFilter === 'pending') {
+      return list.filter((d) => d.Status === 'Pending' && d.Approval_Status === 'Approved');
     }
-  }
+    if (statusFilter === 'delivered') {
+      // Bug fix, 2026-08-08 — sort by Date_Delivered (not the list's
+      // Date_Submitted order) so the most recently delivered donation (the
+      // one most likely to still need a story) is always first.
+      return [...list.filter((d) => d.Status === 'Delivered')].sort(
+        (a, b) => parseDate(b.Date_Delivered) - parseDate(a.Date_Delivered),
+      );
+    }
+    // 'all' — everything the priority groups above don't already cover.
+    return list.filter((d) => d.Approval_Status !== 'Pending_Review' && d.Approval_Status !== 'Rejected');
+  }, [filteredDonations, statusFilter]);
 
   async function onChangePhoto(donationId: string, file: File) {
     setError('');
@@ -209,6 +181,41 @@ export default function AdminDonationsPage() {
       showToast(message, 'error');
     } finally {
       setSendingToFeedId(null);
+    }
+  }
+
+  function openReasonForm(donationId: string, mode: 'remove') {
+    setReasonFormId(donationId);
+    setReasonMode(mode);
+    setReasonText('');
+  }
+
+  /** RC1 RECEBER — remove-from-Receber; approve/reject/request-correction moved to /donations/approve. */
+  async function onSubmitReason(donationId: string) {
+    if (!reasonText.trim()) {
+      setError('O motivo é obrigatório.');
+      return;
+    }
+    setError('');
+    setApprovalActionId(donationId);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch(`/donations/${donationId}/remove-individual`, {
+        method: 'POST',
+        idToken,
+        body: { reason: reasonText.trim() },
+      });
+      setReasonFormId(null);
+      setReasonMode(null);
+      setReasonText('');
+      await load();
+      showToast('Doação removida do Receber.');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Não foi possível concluir a ação.';
+      setError(message);
+      showToast(message, 'error');
+    } finally {
+      setApprovalActionId(null);
     }
   }
 
@@ -252,7 +259,16 @@ export default function AdminDonationsPage() {
       <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ display: 'flex', gap: 12, padding: 'var(--space-4)' }}>
           <div className="stack" style={{ gap: 4, flexShrink: 0 }}>
-            <Photo src={d.Photo} style={{ width: 96, height: 96, borderRadius: 8, objectFit: 'cover' }} />
+            <Photo
+              src={d.Photo}
+              style={{
+                width: 96,
+                height: 96,
+                borderRadius: 8,
+                objectFit: 'contain',
+                background: 'var(--color-surface-2)',
+              }}
+            />
             <label
               style={{
                 fontSize: 11.5,
@@ -280,7 +296,15 @@ export default function AdminDonationsPage() {
           <div className="stack" style={{ gap: 4, flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
               <p style={{ fontWeight: 700, fontSize: 16 }}>{d.Item_Type}</p>
-              <Badge tone={DONATION_STATUS_TONE[d.Status]}>{DONATION_STATUS_LABEL[d.Status]}</Badge>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {d.Approval_Status === 'Rejected' && <Badge tone="danger">Rejeitada</Badge>}
+                {d.Individual_State && (
+                  <Badge tone={INDIVIDUAL_DONATION_STATE_TONE[d.Individual_State]}>
+                    {INDIVIDUAL_DONATION_STATE_LABEL[d.Individual_State]}
+                  </Badge>
+                )}
+                <Badge tone={DONATION_STATUS_TONE[d.Status]}>{DONATION_STATUS_LABEL[d.Status]}</Badge>
+              </div>
             </div>
             <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
               {d.Public_Donation_Code}
@@ -333,11 +357,53 @@ export default function AdminDonationsPage() {
             background: 'var(--color-surface-muted, transparent)',
           }}
         >
-          {d.Status === 'Delivered' && (
-            <p style={{ fontSize: 12.5, color: 'var(--color-text-faint)' }}>
-              Doação já entregue — as datas ficam por referência e não podem ser alteradas.
+          {/* RC1 admin approval-gate rework, 2026-08-10 — this page never
+              shows a Pending_Review donation anymore (approve/reject/request
+              correction now live on the dedicated /donations/approve queue);
+              a rejected donation's reason still shows here for reference. */}
+          {d.Approval_Status === 'Rejected' && d.Approval_Rejection_Reason && (
+            <p style={{ fontSize: 13, color: 'var(--color-danger-700, #b91c1c)' }}>
+              Motivo: {d.Approval_Rejection_Reason}
             </p>
           )}
+          {/* RC1 RECEBER — Admin can pull an inappropriate individual donation out of RECEBER at any point before it's received. */}
+          {d.Recipient_Category === 'People' &&
+            d.Approval_Status === 'Approved' &&
+            d.Individual_State !== 'Delivered' &&
+            (reasonFormId === d.Donation_ID && reasonMode === 'remove' ? (
+              <div className="stack" style={{ gap: 8, padding: 12, border: '1px solid var(--color-border)', borderRadius: 8 }}>
+                <p style={{ fontSize: 13, fontWeight: 700 }}>Motivo da remoção do Receber</p>
+                <div className="field">
+                  <textarea
+                    className="input"
+                    rows={2}
+                    style={{ resize: 'vertical' }}
+                    value={reasonText}
+                    onChange={(e) => setReasonText(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button
+                    variant="danger"
+                    onClick={() => onSubmitReason(d.Donation_ID)}
+                    disabled={approvalActionId === d.Donation_ID}
+                  >
+                    {approvalActionId === d.Donation_ID ? 'A enviar…' : 'Confirmar remoção'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setReasonFormId(null)}
+                    disabled={approvalActionId === d.Donation_ID}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button variant="danger" onClick={() => openReasonForm(d.Donation_ID, 'remove')}>
+                Remover do Receber
+              </Button>
+            ))}
           {d.Status === 'Delivered' && (
             <div className="stack" style={{ gap: 8 }}>
               {d.Success_Story_Status === 'Approved' ? (
@@ -463,55 +529,15 @@ export default function AdminDonationsPage() {
               )}
             </div>
           )}
-          {/* Bug fix, 2026-08-08 — a Pending donation has no claiming institution
-              yet, so there's nothing to estimate a collection/delivery date
-              against. Offering the inputs anyway let Admin "save" a date that
-              silently did nothing visible (Status stays Pendente, which read as
-              broken). Estimates only make sense from Claimed onward. */}
-          {d.Status === 'Pending' ? (
-            <p style={{ fontSize: 12.5, color: 'var(--color-text-faint)' }}>
-              Aguarda aceitação por uma instituição — as datas estimadas só podem ser definidas depois disso.
-            </p>
-          ) : (
-            <>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <Input
-                  label="Data estimada de recolha"
-                  type="date"
-                  disabled={d.Status === 'Delivered'}
-                  value={drafts[d.Donation_ID]?.collection ?? ''}
-                  onChange={(e) =>
-                    setDrafts((prev) => ({
-                      ...prev,
-                      [d.Donation_ID]: { ...prev[d.Donation_ID], collection: e.target.value, delivery: prev[d.Donation_ID]?.delivery ?? '' },
-                    }))
-                  }
-                />
-                <Input
-                  label="Data estimada de entrega"
-                  type="date"
-                  disabled={d.Status === 'Delivered'}
-                  value={drafts[d.Donation_ID]?.delivery ?? ''}
-                  onChange={(e) =>
-                    setDrafts((prev) => ({
-                      ...prev,
-                      [d.Donation_ID]: { ...prev[d.Donation_ID], delivery: e.target.value, collection: prev[d.Donation_ID]?.collection ?? '' },
-                    }))
-                  }
-                />
-              </div>
-              {d.Status !== 'Delivered' && (
-                <Button
-                  onClick={() => onSave(d.Donation_ID)}
-                  disabled={
-                    savingId === d.Donation_ID || (!drafts[d.Donation_ID]?.collection && !drafts[d.Donation_ID]?.delivery)
-                  }
-                >
-                  {savingId === d.Donation_ID ? 'A guardar…' : 'Guardar estimativas'}
-                </Button>
-              )}
-            </>
-          )}
+          {/* RC1 admin approval-gate rework, 2026-08-10 — the collection/
+              delivery date INPUTS are gone (Admin approves/moderates, it
+              doesn't invent a delivery estimate — that's for the
+              institution/recipient handoff to determine). The lifecycle
+              itself stays visible via the same timeline donor/institution
+              already see. */}
+          <div style={{ paddingTop: 4 }}>
+            <DonationTimeline donation={d} />
+          </div>
         </div>
       </Card>
     );
@@ -524,8 +550,8 @@ export default function AdminDonationsPage() {
       <div className="stack">
         <h1 style={{ fontSize: 24 }}>Doações</h1>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
-          Defina a data estimada de recolha e de entrega para cada doação. O doador e a instituição são
-          notificados quando uma estimativa já definida é alterada.
+          Acompanhe o percurso de cada doação já aprovada. Para rever e aprovar doações novas, vá a{' '}
+          <strong>Aprovar Doações</strong> no menu.
         </p>
         {error && <div className="banner banner-error">{error}</div>}
         {donations && donations.length > 0 && (
@@ -559,6 +585,22 @@ export default function AdminDonationsPage() {
             </Select>
           </div>
         )}
+        {donations && donations.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button variant={categoryFilter === '' ? 'primary' : 'secondary'} onClick={() => setCategoryFilter('')}>
+              Todos
+            </Button>
+            {RECIPIENT_CATEGORIES.map((c) => (
+              <Button
+                key={c}
+                variant={categoryFilter === c ? 'primary' : 'secondary'}
+                onClick={() => setCategoryFilter(c)}
+              >
+                {RECIPIENT_CATEGORY_LABEL[c]}
+              </Button>
+            ))}
+          </div>
+        )}
         {!error && filteredDonations === null && (
           <p style={{ color: 'var(--color-text-muted)' }}>A carregar…</p>
         )}
@@ -570,13 +612,42 @@ export default function AdminDonationsPage() {
         )}
         {filteredDonations && filteredDonations.length > 0 && (
           <div className="stack" style={{ gap: 'var(--space-4)' }}>
-            {donationGroups
+            {priorityGroups
               .filter((group) => group.items.length > 0)
               .map((group) => (
                 <CollapsibleGroup key={group.key} title={group.title} count={group.items.length}>
                   {group.items.map((d) => renderDonationCard(d))}
                 </CollapsibleGroup>
               ))}
+            <div className="filter-row">
+              {(
+                [
+                  {
+                    key: 'all',
+                    label: 'Todos',
+                    count: statusCounts.accepted + statusCounts.pending + statusCounts.delivered,
+                  },
+                  { key: 'pending', label: 'Pendentes', count: statusCounts.pending },
+                  { key: 'accepted', label: 'Aceites', count: statusCounts.accepted },
+                  { key: 'delivered', label: 'Entregues', count: statusCounts.delivered },
+                ] as { key: 'all' | 'pending' | 'accepted' | 'delivered'; label: string; count: number }[]
+              ).map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  className={['filter-btn', statusFilter === f.key ? 'filter-btn-active' : ''].join(' ')}
+                  onClick={() => setStatusFilter(f.key)}
+                  aria-pressed={statusFilter === f.key}
+                >
+                  {f.label} ({f.count})
+                </button>
+              ))}
+            </div>
+            {visibleDonations.length === 0 ? (
+              <EmptyState title="Sem doações neste estado" description="Não há doações que correspondam a este filtro." icon="package" />
+            ) : (
+              visibleDonations.map((d) => renderDonationCard(d))
+            )}
           </div>
         )}
       </div>

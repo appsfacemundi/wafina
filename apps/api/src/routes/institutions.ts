@@ -34,7 +34,7 @@ const upload = multer({
 institutionsRouter.post(
   '/institutions',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   upload.single('logo'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('O logótipo da instituição é obrigatório');
@@ -65,7 +65,7 @@ institutionsRouter.post(
 institutionsRouter.get(
   '/institutions/me',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   asyncHandler(async (req, res) => {
     const institution = await getInstitutionByUserId(req.user!.userId);
     res.json(institution);
@@ -76,7 +76,7 @@ institutionsRouter.get(
 institutionsRouter.patch(
   '/institutions/me/logo',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   upload.single('logo'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('A imagem do logótipo é obrigatória');

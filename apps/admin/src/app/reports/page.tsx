@@ -26,7 +26,12 @@ const REPORT_TYPES = [
   { label: 'Histórias de Impacto', value: 'success-stories' },
 ];
 
-const ROLE_LABEL: Record<string, string> = { Donor: 'Doador', Institution: 'Instituição', Admin: 'Admin' };
+const ROLE_LABEL: Record<string, string> = {
+  Donor: 'Doador',
+  Institution: 'Instituição',
+  Admin: 'Admin',
+  Animal_Shelter: 'Abrigo de Animais',
+};
 
 /** Same 3-way derivation the "Estado" column uses — shared so the filter and
  * the default sort order always agree with what's actually on screen. */

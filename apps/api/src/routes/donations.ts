@@ -4,15 +4,26 @@ import { uploadPhoto } from '../config/drive';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole, requireVerified } from '../middleware/auth';
 import {
+  approveDonation,
   assertValidDonationFields,
+  checkReceberEligibility,
   claimDonation,
   confirmDelivery,
+  confirmIndividualPickup,
   createDonation,
   editDonation,
   listAvailableDonations,
+  listAvailableDonationsForIndividuals,
   listDonationsByDonor,
   listDonationsClaimedByInstitution,
+  listDonationsReservedByIndividual,
+  listPendingReviewDonations,
   markCollected,
+  rejectDonation,
+  removeIndividualDonation,
+  requestDonationCorrection,
+  reserveDonationForIndividual,
+  resubmitDonation,
   scheduleCollection,
   setExpectedDates,
 } from '../services/donations';
@@ -113,11 +124,14 @@ donationsRouter.patch(
 donationsRouter.get(
   '/donations/available',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
   asyncHandler(async (req, res) => {
     const institution = await requireOwnInstitution(req.user!.userId);
-    res.json(await listAvailableDonations(institution.Country_ID));
+    // RC1 RECEBER — role-aware so this route keeps working unchanged once
+    // Phase 2 adds Animal_Shelter to requireRole above.
+    const category = req.user!.role === 'Animal_Shelter' ? 'Animal_Shelters' : 'Institutions';
+    res.json(await listAvailableDonations(category, institution.Country_ID));
   }),
 );
 
@@ -125,7 +139,7 @@ donationsRouter.get(
 donationsRouter.get(
   '/donations/claimed-by-me',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
   asyncHandler(async (req, res) => {
     const institution = await requireOwnInstitution(req.user!.userId);
@@ -136,11 +150,14 @@ donationsRouter.get(
 donationsRouter.post(
   '/donations/:id/claim',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
   asyncHandler(async (req, res) => {
     const institution = await requireOwnInstitution(req.user!.userId);
-    res.json(await claimDonation(institution.Institution_ID, req.params.id));
+    // RC1 audit fix, 2026-08-10 — same role-derived category as GET /donations/available,
+    // so claiming can never succeed cross-category (see claimDonation's Recipient_Category check).
+    const category = req.user!.role === 'Animal_Shelter' ? 'Animal_Shelters' : 'Institutions';
+    res.json(await claimDonation(institution.Institution_ID, req.params.id, category));
   }),
 );
 
@@ -148,7 +165,7 @@ donationsRouter.post(
 donationsRouter.post(
   '/donations/:id/schedule-collection',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
   asyncHandler(async (req, res) => {
     const institution = await requireOwnInstitution(req.user!.userId);
@@ -160,7 +177,7 @@ donationsRouter.post(
 donationsRouter.post(
   '/donations/:id/collect',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
   asyncHandler(async (req, res) => {
     const institution = await requireOwnInstitution(req.user!.userId);
@@ -171,7 +188,7 @@ donationsRouter.post(
 donationsRouter.post(
   '/donations/:id/deliver',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
   asyncHandler(async (req, res) => {
     const institution = await requireOwnInstitution(req.user!.userId);
@@ -196,5 +213,114 @@ donationsRouter.patch(
         expectedDeliveryDate: Expected_Delivery_Date,
       }),
     );
+  }),
+);
+
+/** RC1 RECEBER — Admin's donation-approval queue. */
+donationsRouter.get(
+  '/donations/pending-review',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await listPendingReviewDonations());
+  }),
+);
+
+donationsRouter.post(
+  '/donations/:id/approve',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await approveDonation(req.params.id));
+  }),
+);
+
+donationsRouter.post(
+  '/donations/:id/reject',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await rejectDonation(req.params.id, req.body.reason));
+  }),
+);
+
+donationsRouter.post(
+  '/donations/:id/request-correction',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await requestDonationCorrection(req.params.id, req.body.reason));
+  }),
+);
+
+/** RC1 RECEBER — Admin pulls an inappropriate individual donation out of RECEBER. */
+donationsRouter.post(
+  '/donations/:id/remove-individual',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await removeIndividualDonation(req.params.id, req.body.reason));
+  }),
+);
+
+/** Donor resubmits a rejected/correction-requested donation back into the review queue. */
+donationsRouter.post(
+  '/donations/:id/resubmit',
+  requireAuth,
+  requireRole('Donor'),
+  asyncHandler(async (req, res) => {
+    res.json(await resubmitDonation(req.user!.userId, req.params.id));
+  }),
+);
+
+/** RC1 RECEBER — the individual browse list: approved + People-category + not currently reserved. */
+donationsRouter.get(
+  '/donations/available-for-me',
+  requireAuth,
+  requireRole('Donor'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listAvailableDonationsForIndividuals());
+  }),
+);
+
+/** RC1 RECEBER — this caller's own currently-active reservation(s), so ReceberScreen can find it again after a remount. */
+donationsRouter.get(
+  '/donations/reserved-by-me',
+  requireAuth,
+  requireRole('Donor'),
+  asyncHandler(async (req, res) => {
+    res.json(await listDonationsReservedByIndividual(req.user!.userId));
+  }),
+);
+
+/**
+ * RC1 RECEBER — what ReceberScreen checks before ever rendering the swipe
+ * stack: eligible (free to browse), an active reservation (resume pickup),
+ * or the cooldown (blocked, with the date they're free again).
+ */
+donationsRouter.get(
+  '/donations/receber-status',
+  requireAuth,
+  requireRole('Donor'),
+  asyncHandler(async (req, res) => {
+    res.json(await checkReceberEligibility(req.user!.userId));
+  }),
+);
+
+donationsRouter.post(
+  '/donations/:id/reserve',
+  requireAuth,
+  requireRole('Donor'),
+  asyncHandler(async (req, res) => {
+    res.json(await reserveDonationForIndividual(req.user!.userId, req.params.id));
+  }),
+);
+
+donationsRouter.post(
+  '/donations/:id/confirm-received',
+  requireAuth,
+  requireRole('Donor'),
+  asyncHandler(async (req, res) => {
+    res.json(await confirmIndividualPickup(req.user!.userId, req.params.id));
   }),
 );

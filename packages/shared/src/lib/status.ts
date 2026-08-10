@@ -1,5 +1,6 @@
 import type { DeliveryMethod } from '../enums/delivery-method';
 import type { DonationStatus } from '../enums/donation-status';
+import type { IndividualDonationState } from '../enums/individual-donation-state';
 import type { RecipientCategory } from '../enums/recipient-category';
 
 /** Shared between Donor and Institution apps so a status always reads identically. */
@@ -36,6 +37,19 @@ export const RECIPIENT_CATEGORY_LABEL: Record<RecipientCategory, string> = {
 export const DELIVERY_METHOD_LABEL: Record<DeliveryMethod, string> = {
   Donor_Delivers: '🚗 Doador entrega',
   Pickup_Required: '📦 Necessita recolha',
+};
+
+/** RC1 RECEBER — Admin-facing label for the computed People-category state. */
+export const INDIVIDUAL_DONATION_STATE_LABEL: Record<IndividualDonationState, string> = {
+  Available: 'Disponível',
+  Reserved: 'Reservado',
+  Delivered: 'Recebido',
+};
+
+export const INDIVIDUAL_DONATION_STATE_TONE: Record<IndividualDonationState, 'warning' | 'info' | 'success'> = {
+  Available: 'info',
+  Reserved: 'warning',
+  Delivered: 'success',
 };
 
 type JourneyStatus = Exclude<DonationStatus, 'Pending'>;

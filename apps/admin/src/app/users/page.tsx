@@ -9,7 +9,12 @@ import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
 import { firebaseAuth } from '@/lib/firebase';
 import { ApiError, apiFetch } from '@/lib/api';
 
-const ROLE_LABEL: Record<string, string> = { Donor: 'Doador', Institution: 'Instituição', Admin: 'Admin' };
+const ROLE_LABEL: Record<string, string> = {
+  Donor: 'Doador',
+  Institution: 'Instituição',
+  Admin: 'Admin',
+  Animal_Shelter: 'Abrigo de Animais',
+};
 
 export default function AdminUsersPage() {
   const session = useRequireAdminSession();

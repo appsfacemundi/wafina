@@ -4,8 +4,11 @@ import type {
   AdminDonationView,
   DeliveryMethod,
   Donation,
+  DonationApprovalStatus,
   DonationStatus,
+  IndividualDonationState,
   InstitutionDonationView,
+  ReceberEligibility,
   RecipientCategory,
   SuccessStoryStatus,
 } from '@wafina/shared';
@@ -49,7 +52,113 @@ function rowToDonation(row: Record<string, string>): Donation {
     Expected_Collection_Date: row.Expected_Collection_Date || null,
     Expected_Delivery_Date: row.Expected_Delivery_Date || null,
     Corporate_Account_ID: row.Corporate_Account_ID || null,
+    // RC1 RECEBER — blank means this row predates the approval gate; treated
+    // as 'Approved' so every already-in-flight donation keeps working exactly
+    // as it did before this shipped (see the field comment on the shared type).
+    Approval_Status: (row.Approval_Status || 'Approved') as DonationApprovalStatus,
+    Approval_Rejection_Reason: row.Approval_Rejection_Reason || null,
+    Reserved_By_User_ID: row.Reserved_By_User_ID || null,
+    Reserved_At: row.Reserved_At || null,
+    Individual_Delivered_At: row.Individual_Delivered_At || null,
   };
+}
+
+/** RC1 RECEBER — a reservation older than this is treated as expired and released back to available. */
+const RESERVATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+function isReservationActive(row: { Reserved_By_User_ID?: string | null; Reserved_At?: string | null }): boolean {
+  if (!row.Reserved_By_User_ID || !row.Reserved_At) return false;
+  return Date.now() - new Date(row.Reserved_At).getTime() < RESERVATION_WINDOW_MS;
+}
+
+/**
+ * RC1 RECEBER — the single predicate every recipient-facing list (Institution,
+ * Animal Shelter, individual RECEBER) filters through: Admin must have
+ * approved it, it must still be Pending (not already claimed/reserved away),
+ * and it must be intended for the caller's own recipient category. Operates
+ * on raw sheet rows (same blank-defaults-to-Approved rule as rowToDonation)
+ * so callers can filter before paying for the full row->Donation conversion.
+ * Kept as one function so a future change to the approval rule can't drift
+ * between the three callers.
+ */
+function isVisibleForRecipients(row: Record<string, string>, category: RecipientCategory): boolean {
+  const approvalStatus = row.Approval_Status || 'Approved';
+  return row.Status === 'Pending' && approvalStatus === 'Approved' && row.Recipient_Category === category;
+}
+
+/** RC1 RECEBER — Admin-facing computed state for People-category donations only; see the shared enum's doc comment. */
+function computeIndividualState(row: Donation): IndividualDonationState | null {
+  if (row.Recipient_Category !== 'People') return null;
+  if (row.Status === 'Delivered') return 'Delivered';
+  if (isReservationActive(row)) return 'Reserved';
+  return 'Available';
+}
+
+/**
+ * RC1 RECEBER — a confirmed receipt makes a Pessoa ineligible to reserve
+ * again for this long. Starts from Individual_Delivered_At (set only by
+ * confirmIndividualPickup), never from Reserved_At — an expired or cancelled
+ * reservation never sets that field, so it can't trigger this window.
+ * Changed from 30 to 3 days, 2026-08-10 (product decision).
+ */
+const RECEBER_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
+
+/**
+ * Scans Donations directly rather than adding a Users-sheet column — a
+ * confirmed individual receipt is already fully recorded here
+ * (Reserved_By_User_ID + Status='Delivered' + Individual_Delivered_At), so a
+ * second source of truth would only risk drifting out of sync with it.
+ */
+async function getActiveReservationForUser(userId: string): Promise<Donation | null> {
+  const rows = await getRows(SHEET_TABS.donations);
+  const active = rows.find(
+    (row) => row.Reserved_By_User_ID === userId && row.Status === 'Pending' && isReservationActive(row),
+  );
+  return active ? rowToDonation(active) : null;
+}
+
+/** Most recent confirmed-receipt timestamp for this Pessoa, or null if they've never confirmed one. */
+async function getLastReceberReceiptAt(userId: string): Promise<Date | null> {
+  const rows = await getRows(SHEET_TABS.donations);
+  const receipts = rows
+    .filter(
+      (row) =>
+        row.Reserved_By_User_ID === userId && row.Status === 'Delivered' && row.Recipient_Category === 'People',
+    )
+    .map((row) => new Date(row.Individual_Delivered_At || 0).getTime())
+    .filter((t) => Number.isFinite(t) && t > 0);
+  if (receipts.length === 0) return null;
+  return new Date(Math.max(...receipts));
+}
+
+/**
+ * RC1 RECEBER — the single authority both reserveDonationForIndividual (write
+ * path) and GET /donations/receber-status (read path, what the app checks
+ * before ever showing the swipe stack) call, so the two can't drift apart.
+ * Order matters: an active reservation is checked first since it's the more
+ * specific, currently-actionable state (resume pickup) — the cooldown only
+ * applies once there's no reservation in flight.
+ */
+export async function checkReceberEligibility(userId: string): Promise<ReceberEligibility> {
+  const activeReservation = await getActiveReservationForUser(userId);
+  if (activeReservation) {
+    return { eligible: false, reason: 'active_reservation', activeReservation, nextEligibleAt: null };
+  }
+
+  const lastReceiptAt = await getLastReceberReceiptAt(userId);
+  if (lastReceiptAt) {
+    const eligibleAgainAt = lastReceiptAt.getTime() + RECEBER_COOLDOWN_MS;
+    if (Date.now() < eligibleAgainAt) {
+      return {
+        eligible: false,
+        reason: 'cooldown',
+        activeReservation: null,
+        nextEligibleAt: new Date(eligibleAgainAt).toISOString(),
+      };
+    }
+  }
+
+  return { eligible: true, reason: null, activeReservation: null, nextEligibleAt: null };
 }
 
 /**
@@ -196,6 +305,13 @@ export async function createDonation(
     Expected_Collection_Date: '',
     Expected_Delivery_Date: '',
     Corporate_Account_ID: corporateAccountId ?? '',
+    // RC1 RECEBER — every new donation now needs explicit Admin approval
+    // before it's visible to any recipient channel (see isVisibleForRecipients).
+    Approval_Status: 'Pending_Review',
+    Approval_Rejection_Reason: '',
+    Reserved_By_User_ID: '',
+    Reserved_At: '',
+    Individual_Delivered_At: '',
   };
 
   await appendRow(SHEET_TABS.donations, row);
@@ -205,6 +321,152 @@ export async function createDonation(
 export async function getDonation(donationId: string): Promise<Donation | null> {
   const row = await findRow(SHEET_TABS.donations, (r) => r.Donation_ID === donationId);
   return row ? rowToDonation(row) : null;
+}
+
+async function getDonationOrThrow(donationId: string): Promise<Donation> {
+  const donation = await getDonation(donationId);
+  if (!donation) throw new ValidationError('Doação não encontrada');
+  return donation;
+}
+
+/**
+ * RC1 RECEBER — Admin's new quality gate. Mirrors approveSuccessStory's
+ * pattern exactly (status guard, updateRow, notify the donor) — see
+ * success-stories.ts. This is the moment a donation becomes visible to any
+ * recipient channel via isVisibleForRecipients.
+ */
+export async function approveDonation(donationId: string): Promise<Donation> {
+  const existing = await getDonationOrThrow(donationId);
+  if (existing.Approval_Status !== 'Pending_Review') {
+    throw new ValidationError('Só é possível aprovar uma doação pendente de revisão');
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
+    Approval_Status: 'Approved',
+    Approval_Rejection_Reason: '',
+  });
+  const updated = await getDonationOrThrow(donationId);
+
+  await createNotification({
+    recipientUserId: updated.Donor_ID,
+    notificationType: 'donation_approved',
+    entityType: 'Donation',
+    entityId: updated.Donation_ID,
+    message: `A sua doação de ${updated.Item_Type} foi aprovada e já está visível para receção.`,
+  });
+
+  return updated;
+}
+
+/** RC1 RECEBER — Admin rejects outright; the donor is notified with the reason. */
+export async function rejectDonation(donationId: string, reason: string): Promise<Donation> {
+  if (!reason || !reason.trim()) throw new ValidationError('O motivo de rejeição é obrigatório');
+
+  const existing = await getDonationOrThrow(donationId);
+  if (existing.Approval_Status !== 'Pending_Review') {
+    throw new ValidationError('Só é possível rejeitar uma doação pendente de revisão');
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
+    Approval_Status: 'Rejected',
+    Approval_Rejection_Reason: reason.trim(),
+  });
+  const updated = await getDonationOrThrow(donationId);
+
+  await createNotification({
+    recipientUserId: updated.Donor_ID,
+    notificationType: 'donation_rejected',
+    entityType: 'Donation',
+    entityId: updated.Donation_ID,
+    message: `A sua doação de ${updated.Item_Type} foi rejeitada. Motivo: ${reason.trim()}`,
+  });
+
+  return updated;
+}
+
+/**
+ * RC1 RECEBER — Admin asks the donor to fix something instead of an outright
+ * rejection. Reuses the same Rejected+reason shape as rejectDonation (so the
+ * donor sees exactly what to fix), but the donor can act on it: editDonation
+ * (still available while Status stays 'Pending') followed by resubmitDonation
+ * puts it back in the review queue. Mirrors the Institution resubmission
+ * precedent in institutions.ts.
+ */
+export async function requestDonationCorrection(donationId: string, reason: string): Promise<Donation> {
+  if (!reason || !reason.trim()) throw new ValidationError('O motivo é obrigatório');
+
+  const existing = await getDonationOrThrow(donationId);
+  if (existing.Approval_Status !== 'Pending_Review') {
+    throw new ValidationError('Só é possível pedir correção a uma doação pendente de revisão');
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
+    Approval_Status: 'Rejected',
+    Approval_Rejection_Reason: reason.trim(),
+  });
+  const updated = await getDonationOrThrow(donationId);
+
+  await createNotification({
+    recipientUserId: updated.Donor_ID,
+    notificationType: 'donation_correction_requested',
+    entityType: 'Donation',
+    entityId: updated.Donation_ID,
+    message: `A sua doação de ${updated.Item_Type} precisa de uma correção antes de ser aprovada: ${reason.trim()}`,
+  });
+
+  return updated;
+}
+
+/** RC1 RECEBER — donor resubmits after a rejection/correction request, sending it back to the review queue. */
+export async function resubmitDonation(donorId: string, donationId: string): Promise<Donation> {
+  const existing = await getDonationOrThrow(donationId);
+  if (existing.Donor_ID !== donorId) throw new ValidationError('Esta doação não é sua');
+  if (existing.Approval_Status !== 'Rejected') {
+    throw new ValidationError('Só é possível reenviar uma doação rejeitada');
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
+    Approval_Status: 'Pending_Review',
+    Approval_Rejection_Reason: '',
+  });
+  return getDonationOrThrow(donationId);
+}
+
+/** RC1 RECEBER — Admin pulls an inappropriate individual donation out of RECEBER; also releases any active reservation. */
+export async function removeIndividualDonation(donationId: string, reason: string): Promise<Donation> {
+  if (!reason || !reason.trim()) throw new ValidationError('O motivo é obrigatório');
+
+  const existing = await getDonationOrThrow(donationId);
+  if (existing.Recipient_Category !== 'People') {
+    throw new ValidationError('Esta ação só se aplica a doações destinadas a Pessoas');
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
+    Approval_Status: 'Rejected',
+    Approval_Rejection_Reason: reason.trim(),
+    Reserved_By_User_ID: '',
+    Reserved_At: '',
+  });
+  const updated = await getDonationOrThrow(donationId);
+
+  await createNotification({
+    recipientUserId: updated.Donor_ID,
+    notificationType: 'donation_rejected',
+    entityType: 'Donation',
+    entityId: updated.Donation_ID,
+    message: `A sua doação de ${updated.Item_Type} foi removida do Receber. Motivo: ${reason.trim()}`,
+  });
+
+  return updated;
+}
+
+/** RC1 RECEBER — Admin's review queue: every donation still awaiting Approve/Reject. */
+export async function listPendingReviewDonations(): Promise<AdminDonationView[]> {
+  const rows = await getRows(SHEET_TABS.donations);
+  const filtered = rows
+    .filter((row) => (row.Approval_Status || 'Approved') === 'Pending_Review')
+    .sort((a, b) => parseSheetDate(a.Date_Submitted) - parseSheetDate(b.Date_Submitted));
+  return toAdminDonationViews(filtered);
 }
 
 export async function listDonationsByDonor(donorId: string): Promise<Donation[]> {
@@ -311,27 +573,106 @@ async function toInstitutionDonationViews(
 }
 
 /**
- * "Available Donations" browse for verified institutions (spec 9.2). Phase 3A
- * Module 1: scoped to the claiming institution's own operating country
- * (Institutions.Country_ID) — an Angola institution has no reason to see, and
- * shouldn't see, a donation submitted in Portugal. Institution-side scoping
- * uses the institution's Country_ID rather than a personal Active Country,
- * since an institution's operating country is a fixed operational fact, not
- * something the browsing user should toggle.
+ * Admin Web App — shared enrichment behind every Admin donation list
+ * (in-flight, all, pending-review): resolves the claiming institution's
+ * identity, the linked Success Story's moderation status, and (RC1 RECEBER)
+ * the computed Available/Reserved/Delivered state for People-category rows.
+ * Centralized so the three admin list functions can't drift from each other.
  */
-export async function listAvailableDonations(countryId?: string): Promise<InstitutionDonationView[]> {
+async function toAdminDonationViews(rows: Record<string, string>[]): Promise<AdminDonationView[]> {
+  const views = await toInstitutionDonationViews(rows);
+  const institutionRows = await getRows(SHEET_TABS.institutions);
+  const institutionById = new Map(institutionRows.map((r) => [r.Institution_ID, r]));
+  const successStoryRows = await getRows(SHEET_TABS.successStories);
+  const storyStatusByDonationId = buildStoryStatusByDonationId(successStoryRows);
+
+  return views.map((view) => {
+    const institution = view.Claimed_By_Institution_ID
+      ? institutionById.get(view.Claimed_By_Institution_ID)
+      : undefined;
+    const storyStatus = storyStatusByDonationId.get(view.Donation_ID) ?? null;
+    return {
+      ...view,
+      Claimed_By_Institution_Name: institution?.Name || null,
+      Claimed_By_Institution_Logo: toProxiedUrl(institution?.Logo),
+      Has_Success_Story: storyStatus !== null,
+      Success_Story_Status: storyStatus,
+      Individual_State: computeIndividualState(view),
+    };
+  });
+}
+
+/**
+ * "Available Donations" browse for verified institutions and animal shelters
+ * (spec 9.2). Phase 3A Module 1: scoped to the claiming org's own operating
+ * country (Institutions.Country_ID) — an Angola institution has no reason to
+ * see, and shouldn't see, a donation submitted in Portugal. Institution-side
+ * scoping uses the institution's Country_ID rather than a personal Active
+ * Country, since an institution's operating country is a fixed operational
+ * fact, not something the browsing user should toggle.
+ *
+ * RC1 RECEBER — `category` selects which Recipient_Category this org may see
+ * ('Institutions' or 'Animal_Shelters'); combined with the Admin approval
+ * gate via isVisibleForRecipients, replacing the old Status-only filter.
+ */
+export async function listAvailableDonations(
+  category: RecipientCategory,
+  countryId?: string,
+): Promise<InstitutionDonationView[]> {
   const rows = await getRows(SHEET_TABS.donations);
   // Pilot feedback, 2026-08-05: unsorted — same missing-sort pattern already
   // fixed on listDonationsByDonor and listDonationsClaimedByInstitution, but
   // never caught here. Newest-submitted first, matching every sibling list.
   const filtered = rows
-    .filter((row) => row.Status === 'Pending' && (!countryId || row.Country_ID === countryId))
+    .filter((row) => isVisibleForRecipients(row, category) && (!countryId || row.Country_ID === countryId))
     .sort(
       (a, b) =>
         parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted) ||
         sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
     );
   return toInstitutionDonationViews(filtered);
+}
+
+/**
+ * RC1 RECEBER — the RECEBER browse list for individuals: same approval +
+ * Recipient_Category='People' gate as listAvailableDonations, plus excludes
+ * anything currently reserved by someone else (lazy expiry — a reservation
+ * older than 24h is simply not counted as active here, no separate release
+ * job needed). Not scoped by country: RC1 has limited collection points and
+ * the spec doesn't ask for individual-side country scoping the way the
+ * Institution flow has.
+ */
+export async function listAvailableDonationsForIndividuals(): Promise<Donation[]> {
+  const rows = await getRows(SHEET_TABS.donations);
+  return rows
+    .filter((row) => isVisibleForRecipients(row, 'People') && !isReservationActive(row))
+    .sort(
+      (a, b) =>
+        parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted) ||
+        sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
+    )
+    .map(rowToDonation);
+}
+
+/**
+ * RC1 RECEBER — a reserved item drops out of listAvailableDonationsForIndividuals
+ * (it's no longer "available"), so without this there was no way for
+ * ReceberScreen to find it again after a re-render, app backgrounding, or
+ * navigating away before tapping "Confirmar recebimento". Scoped to this
+ * caller's own active reservations only — mirrors listDonationsClaimedByInstitution's
+ * "my in-flight items" role for the individual-recipient side.
+ */
+export async function listDonationsReservedByIndividual(userId: string): Promise<Donation[]> {
+  const rows = await getRows(SHEET_TABS.donations);
+  return rows
+    // Status==='Pending' excludes a reservation already confirmed via
+    // confirmIndividualPickup (Status flips to 'Delivered' there, but
+    // Reserved_By_User_ID/Reserved_At are deliberately left in place as a
+    // completion record) — without this check a just-completed pickup kept
+    // reading as "still reserved" here for up to 24h.
+    .filter((row) => row.Status === 'Pending' && row.Reserved_By_User_ID === userId && isReservationActive(row))
+    .sort((a, b) => parseSheetDate(b.Reserved_At) - parseSheetDate(a.Reserved_At))
+    .map(rowToDonation);
 }
 
 /** "Claimed by Me" (spec 9.2) — includes both Claimed and Delivered so history isn't lost. */
@@ -367,26 +708,7 @@ export async function listInFlightDonationsForAdmin(): Promise<AdminDonationView
         parseSheetDate(b.Date_Claimed) - parseSheetDate(a.Date_Claimed) ||
         sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
     );
-
-  const views = await toInstitutionDonationViews(filtered);
-  const institutionRows = await getRows(SHEET_TABS.institutions);
-  const institutionById = new Map(institutionRows.map((r) => [r.Institution_ID, r]));
-  const successStoryRows = await getRows(SHEET_TABS.successStories);
-  const storyStatusByDonationId = buildStoryStatusByDonationId(successStoryRows);
-
-  return views.map((view) => {
-    const institution = view.Claimed_By_Institution_ID
-      ? institutionById.get(view.Claimed_By_Institution_ID)
-      : undefined;
-    const storyStatus = storyStatusByDonationId.get(view.Donation_ID) ?? null;
-    return {
-      ...view,
-      Claimed_By_Institution_Name: institution?.Name || null,
-      Claimed_By_Institution_Logo: toProxiedUrl(institution?.Logo),
-      Has_Success_Story: storyStatus !== null,
-      Success_Story_Status: storyStatus,
-    };
-  });
+  return toAdminDonationViews(filtered);
 }
 
 /**
@@ -407,26 +729,7 @@ export async function listAllDonationsForAdmin(): Promise<AdminDonationView[]> {
       parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted) ||
       sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
   );
-
-  const views = await toInstitutionDonationViews(sorted);
-  const institutionRows = await getRows(SHEET_TABS.institutions);
-  const institutionById = new Map(institutionRows.map((r) => [r.Institution_ID, r]));
-  const successStoryRows = await getRows(SHEET_TABS.successStories);
-  const storyStatusByDonationId = buildStoryStatusByDonationId(successStoryRows);
-
-  return views.map((view) => {
-    const institution = view.Claimed_By_Institution_ID
-      ? institutionById.get(view.Claimed_By_Institution_ID)
-      : undefined;
-    const storyStatus = storyStatusByDonationId.get(view.Donation_ID) ?? null;
-    return {
-      ...view,
-      Claimed_By_Institution_Name: institution?.Name || null,
-      Claimed_By_Institution_Logo: toProxiedUrl(institution?.Logo),
-      Has_Success_Story: storyStatus !== null,
-      Success_Story_Status: storyStatus,
-    };
-  });
+  return toAdminDonationViews(sorted);
 }
 
 /**
@@ -502,10 +805,30 @@ export async function adminReplaceDonationPhoto(donationId: string, photoUrl: st
  * check-then-write has a small race window if two institutions claim at the
  * same instant — accepted as a known V1 limitation given expected launch scale.
  */
-export async function claimDonation(institutionId: string, donationId: string): Promise<Donation> {
+export async function claimDonation(
+  institutionId: string,
+  donationId: string,
+  expectedCategory: RecipientCategory,
+): Promise<Donation> {
   const existing = await getDonation(donationId);
   if (!existing) throw new ValidationError('Doação não encontrada');
   if (existing.Status !== 'Pending') throw new ValidationError('A doação já não está disponível');
+  // RC1 RECEBER — defense in depth: listAvailableDonations already hides
+  // anything not Approved, so an institution should never have this ID in
+  // the first place, but claiming must never succeed on an unapproved
+  // donation even if the ID leaked some other way (e.g. a stale link).
+  if (existing.Approval_Status !== 'Approved') {
+    throw new ValidationError('Esta doação ainda não foi aprovada pela equipa Wafina');
+  }
+  // RC1 audit fix, 2026-08-10 — same defense-in-depth reasoning as the
+  // Approval_Status check above: listAvailableDonations already scopes each
+  // caller to their own Recipient_Category, but claiming itself must never
+  // succeed cross-category (e.g. an Institution claiming a People-only
+  // RECEBER donation) even if the ID leaked some other way. Confirmed via
+  // live audit that this was previously unchecked here.
+  if (existing.Recipient_Category !== expectedCategory) {
+    throw new ValidationError('Esta doação não está disponível para esta instituição');
+  }
 
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
     Status: 'Claimed',
@@ -525,6 +848,100 @@ export async function claimDonation(institutionId: string, donationId: string): 
     message: `A sua doação de ${updated.Item_Type} foi aceite por uma instituição. Método de entrega: ${
       updated.Delivery_Method ? DELIVERY_METHOD_LABEL[updated.Delivery_Method] : 'não especificado'
     }`,
+  });
+
+  return updated;
+}
+
+/**
+ * RC1 RECEBER — a Pessoa reserves an approved, People-category donation for
+ * themselves. Same accepted check-then-write race window as claimDonation
+ * (documented above); the reservation itself is what prevents a second
+ * person winning the race in practice — expired reservations (see
+ * isReservationActive) are treated as free, so this also doubles as the
+ * "auto-release after 24h" mechanism with no background job required.
+ * Status stays 'Pending' throughout the reservation — only confirmIndividual
+ * Pickup moves it to 'Delivered'.
+ */
+export async function reserveDonationForIndividual(userId: string, donationId: string): Promise<Donation> {
+  // RC1 RECEBER eligibility rule — checked first and freshly on every
+  // attempt (never trusts a client-side "you're eligible" flag): one active
+  // reservation at a time, and a cooldown (RECEBER_COOLDOWN_MS) after a
+  // confirmed receipt.
+  // Same small accepted race window as the double-reservation check below —
+  // proportionate to this Sheets-backed, non-high-concurrency system.
+  const eligibility = await checkReceberEligibility(userId);
+  if (!eligibility.eligible) {
+    if (eligibility.reason === 'active_reservation') {
+      throw new ValidationError('Já tem uma doação reservada. Conclua ou aguarde a expiração dessa reserva primeiro.');
+    }
+    throw new ValidationError(
+      `Já recebeu uma doação recentemente. Pode reservar novamente a partir de ${new Date(eligibility.nextEligibleAt!).toLocaleDateString('pt-PT')}.`,
+    );
+  }
+
+  const existing = await getDonation(donationId);
+  if (!existing) throw new ValidationError('Doação não encontrada');
+  if (existing.Status !== 'Pending' || existing.Approval_Status !== 'Approved') {
+    throw new ValidationError('A doação já não está disponível');
+  }
+  if (existing.Recipient_Category !== 'People') {
+    throw new ValidationError('Esta doação não está disponível para receção individual');
+  }
+  if (isReservationActive(existing)) {
+    throw new ValidationError('Esta doação já está reservada por outra pessoa');
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
+    Reserved_By_User_ID: userId,
+    Reserved_At: nowIso(),
+  });
+
+  const updated = await getDonation(donationId);
+  if (!updated) throw new Error('Donation vanished after reservation');
+
+  await createNotification({
+    recipientUserId: updated.Donor_ID,
+    notificationType: 'donation_reserved',
+    entityType: 'Donation',
+    entityId: updated.Donation_ID,
+    message: `A sua doação de ${updated.Item_Type} foi reservada por alguém que precisa dela.`,
+  });
+
+  return updated;
+}
+
+/**
+ * RC1 RECEBER — the Pessoa confirms they physically received the item,
+ * closing out SELECT -> RESERVE 24H -> CONFIRM. Only the person who holds the
+ * still-active reservation may confirm it; reuses the existing 'Delivered'
+ * terminal Status (no new Status value needed) alongside the individual-only
+ * Individual_Delivered_At timestamp.
+ */
+export async function confirmIndividualPickup(userId: string, donationId: string): Promise<Donation> {
+  const existing = await getDonation(donationId);
+  if (!existing) throw new ValidationError('Doação não encontrada');
+  if (existing.Reserved_By_User_ID !== userId) {
+    throw new ValidationError('Esta doação não está reservada para si');
+  }
+  if (!isReservationActive(existing)) {
+    throw new ValidationError('A reserva expirou');
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
+    Status: 'Delivered',
+    Individual_Delivered_At: nowIso(),
+  });
+
+  const updated = await getDonation(donationId);
+  if (!updated) throw new Error('Donation vanished after confirming pickup');
+
+  await createNotification({
+    recipientUserId: updated.Donor_ID,
+    notificationType: 'donation_delivered',
+    entityType: 'Donation',
+    entityId: updated.Donation_ID,
+    message: `A sua doação de ${updated.Item_Type} foi recebida.`,
   });
 
   return updated;

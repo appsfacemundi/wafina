@@ -10,12 +10,14 @@ import {
   type InstitutionDonationView,
   type SuccessStory,
 } from '@wafina/shared';
-import { Badge, Button, Card, CollapsibleGroup, DonationTimeline, EmptyState, Photo, useToast } from '@wafina/ui';
+import { Badge, Button, Card, DonationTimeline, EmptyState, Photo, useToast } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
+
+type StatusFilter = 'all' | 'active' | 'delivered';
 
 export default function ClaimedDonationsPage() {
   const session = useRequireSession();
@@ -27,6 +29,9 @@ export default function ClaimedDonationsPage() {
   const [error, setError] = useState('');
   const [actingId, setActingId] = useState<string | null>(null);
   const [deliveredPrompt, setDeliveredPrompt] = useState<{ donationId: string; code: string } | null>(null);
+  // RC1 UX polish, 2026-08-10 — single-select filter row replacing the
+  // fold/expand groups, matching the mobile-institution equivalent.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   async function load() {
     if (!firebaseUser) return;
@@ -62,26 +67,21 @@ export default function ClaimedDonationsPage() {
     return [...donations].sort((a, b) => parse(b.Date_Claimed) - parse(a.Date_Claimed));
   }, [donations]);
 
-  // Bug fix, 2026-08-08 — this page was a single flat list with no fold/expand
-  // at all, unlike every equivalent Admin list (Donations/Institutions/Users),
-  // making it hard to scan once an institution had many claimed donations.
-  // Grouped the same way as Admin's Donations page: still-moving donations
-  // first, delivered (done, reference only) ones collapsible below.
-  const donationGroups = useMemo(() => {
-    if (!sortedDonations) return [];
-    return [
-      {
-        key: 'in-progress',
-        title: 'Em Curso',
-        items: sortedDonations.filter((d) => d.Status !== 'Delivered'),
-      },
-      {
-        key: 'delivered',
-        title: 'Entregue',
-        items: sortedDonations.filter((d) => d.Status === 'Delivered'),
-      },
-    ];
+  const statusCounts = useMemo(() => {
+    const list = sortedDonations ?? [];
+    return {
+      all: list.length,
+      active: list.filter((d) => d.Status !== 'Delivered').length,
+      delivered: list.filter((d) => d.Status === 'Delivered').length,
+    };
   }, [sortedDonations]);
+
+  const filteredDonations = useMemo(() => {
+    const list = sortedDonations ?? [];
+    if (statusFilter === 'active') return list.filter((d) => d.Status !== 'Delivered');
+    if (statusFilter === 'delivered') return list.filter((d) => d.Status === 'Delivered');
+    return list;
+  }, [sortedDonations, statusFilter]);
 
   const SUCCESS_MESSAGE: Record<'schedule-collection' | 'collect' | 'deliver', string> = {
     'schedule-collection': 'Recolha agendada com sucesso!',
@@ -149,16 +149,44 @@ export default function ClaimedDonationsPage() {
         )}
         {sortedDonations && sortedDonations.length > 0 && (
           <div className="stack">
-            {donationGroups
-              .filter((group) => group.items.length > 0)
-              .map((group) => (
-                <CollapsibleGroup key={group.key} title={group.title} count={group.items.length}>
-                  <div className="stack">
-                    {group.items.map((d) => (
+            <div className="filter-row">
+              {(
+                [
+                  { key: 'all', label: 'Todos', count: statusCounts.all },
+                  { key: 'active', label: 'Em Curso', count: statusCounts.active },
+                  { key: 'delivered', label: 'Entregues', count: statusCounts.delivered },
+                ] as { key: StatusFilter; label: string; count: number }[]
+              ).map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  className={['filter-btn', statusFilter === f.key ? 'filter-btn-active' : ''].join(' ')}
+                  onClick={() => setStatusFilter(f.key)}
+                  aria-pressed={statusFilter === f.key}
+                >
+                  {f.label} ({f.count})
+                </button>
+              ))}
+            </div>
+            {filteredDonations.length === 0 ? (
+              <EmptyState
+                title="Sem doações neste estado"
+                description="Não há doações que correspondam a este filtro."
+                icon="check-circle"
+              />
+            ) : (
+              <div className="stack">
+                {filteredDonations.map((d) => (
               <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
                 <Photo
                   src={d.Photo}
-                  style={{ width: '100%', height: 180, objectFit: 'cover', display: 'flex' }}
+                  style={{
+                    width: '100%',
+                    height: 180,
+                    objectFit: 'contain',
+                    display: 'flex',
+                    background: 'var(--color-surface-2)',
+                  }}
                 />
                 <div className="stack" style={{ padding: 'var(--space-4)', gap: 6 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
@@ -281,10 +309,9 @@ export default function ClaimedDonationsPage() {
                   </div>
                 </div>
               </Card>
-                    ))}
-                  </div>
-                </CollapsibleGroup>
-              ))}
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

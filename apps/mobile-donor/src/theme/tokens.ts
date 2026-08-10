@@ -18,6 +18,13 @@ export const palette = {
   success500: '#22c55e',
   success700: '#15803d',
 
+  // Sampled directly from the Wafina logo mark (wafina-icon-mark.png) —
+  // the RECEBER "Quero Receber" action, 2026-08-10.
+  pink50: '#f9edf3',
+  pink500: '#b50c5e',
+  pink600: '#8d0949',
+  pink700: '#6c0738',
+
   slate25: '#f8fafc',
   slate50: '#f1f5f9',
   slate100: '#e2e8f0',
@@ -65,6 +72,12 @@ export const colors = {
   dangerSoft: palette.danger100,
   success: palette.success500,
   successSoft: palette.success100,
+  // "Quero Receber" only — the logo's pink, kept distinct from success
+  // (green) and cta/coral (Doar agora) so each action reads as its own.
+  receive: palette.pink500,
+  receiveHover: palette.pink600,
+  receiveSoft: palette.pink50,
+  receiveText: '#ffffff',
   warning: palette.warning500,
   warningSoft: palette.warning100,
   info: palette.info500,

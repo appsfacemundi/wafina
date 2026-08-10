@@ -124,7 +124,7 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
           />
 
           {photo ? (
-            <Image source={{ uri: photo.uri }} style={styles.preview} />
+            <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" />
           ) : (
             <Pressable style={styles.uploadWell} onPress={onPickPhoto}>
               <Text style={styles.uploadText}>Escolha uma fotografia</Text>
@@ -200,6 +200,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: radius.md,
+    backgroundColor: colors.surface2,
   },
   checkboxRow: {
     flexDirection: 'row',

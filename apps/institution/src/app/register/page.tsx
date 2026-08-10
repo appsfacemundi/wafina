@@ -1,10 +1,10 @@
 'use client';
 
 import type { GeoRegion } from '@wafina/shared';
-import { detectSupportedCountryFromCoords } from '@wafina/shared';
-import { Button, Card, Input, Select } from '@wafina/ui';
+import { ANIMAL_SHELTER_TYPES, detectSupportedCountryFromCoords, INSTITUTION_TYPES } from '@wafina/shared';
+import { Button, Card, Input, Photo, Select } from '@wafina/ui';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
 
@@ -14,9 +14,17 @@ export default function RegisterInstitutionPage() {
   const session = useRequireSession();
   const { firebaseUser } = useAuth();
   const router = useRouter();
+  const isShelter = session?.role === 'Animal_Shelter';
+  const typeOptions = isShelter ? ANIMAL_SHELTER_TYPES : INSTITUTION_TYPES;
 
   const [name, setName] = useState('');
-  const [type, setType] = useState('');
+  // Registration UX fix, 2026-08-10 — prefilled dropdown (never blank) instead
+  // of free text; 'Outro' reveals customType below for anything not listed.
+  const [type, setType] = useState<string>(INSTITUTION_TYPES[0]);
+  const [customType, setCustomType] = useState('');
+  const [logo, setLogo] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [needsList, setNeedsList] = useState('');
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('capturing');
   const [lat, setLat] = useState('');
@@ -26,11 +34,28 @@ export default function RegisterInstitutionPage() {
 
   const [countries, setCountries] = useState<GeoRegion[] | null>(null);
   const [countryId, setCountryId] = useState('');
-  const [serviceRadiusKm, setServiceRadiusKm] = useState('');
   const [coverageArea, setCoverageArea] = useState('');
 
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  function onPickLogo(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setLogo(file);
+    setLogoPreview(URL.createObjectURL(file));
+  }
+
+  // Re-defaults the dropdown when the account kind resolves to Animal_Shelter
+  // (session loads after the Institution-list default above is already set),
+  // but only if the user hasn't already picked something from that new list.
+  useEffect(() => {
+    if (!(typeOptions as readonly string[]).includes(type)) {
+      setType(typeOptions[0]);
+      setCustomType('');
+    }
+  }, [isShelter]);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -98,6 +123,14 @@ export default function RegisterInstitutionPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    if (type === 'Outro' && !customType.trim()) {
+      setError('Descreva o tipo no campo "Outro".');
+      return;
+    }
+    if (!logo) {
+      setError(isShelter ? 'Adicione o logótipo do abrigo.' : 'Adicione o logótipo da instituição.');
+      return;
+    }
     if (!hasValidLocation) {
       setError('É necessária uma localização válida. Ative o GPS ou confirme a sua morada.');
       return;
@@ -109,19 +142,17 @@ export default function RegisterInstitutionPage() {
     setSubmitting(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
-      await apiFetch('/institutions', {
-        method: 'POST',
-        idToken,
-        body: {
-          Name: name,
-          Type: type,
-          Location: { lat: Number(lat), lng: Number(lng) },
-          Needs_List: needsList || undefined,
-          Country_ID: countryId,
-          Service_Radius_Km: serviceRadiusKm ? Number(serviceRadiusKm) : undefined,
-          Coverage_Area: coverageArea || undefined,
-        },
-      });
+      const form = new FormData();
+      form.append('Name', name);
+      form.append('Type', type === 'Outro' ? customType.trim() : type);
+      form.append('Location_lat', lat);
+      form.append('Location_lng', lng);
+      if (needsList) form.append('Needs_List', needsList);
+      form.append('Country_ID', countryId);
+      if (coverageArea) form.append('Coverage_Area', coverageArea);
+      if (address.trim()) form.append('Address', address.trim());
+      form.append('logo', logo);
+      await apiFetch('/institutions', { method: 'POST', idToken, body: form });
       router.push('/verification-status');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível submeter o registo.');
@@ -135,24 +166,58 @@ export default function RegisterInstitutionPage() {
   return (
     <main className="screen-center">
       <Card className="auth-card stack" style={{ maxWidth: 420 }}>
-        <h1 style={{ fontSize: 22 }}>Registar instituição</h1>
+        <h1 style={{ fontSize: 22 }}>{isShelter ? 'Registar abrigo de animais' : 'Registar instituição'}</h1>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5 }}>
-          Após o envio, a sua instituição fica pendente de verificação pelo Admin.
+          {isShelter
+            ? 'Após o envio, o seu abrigo fica pendente de verificação pelo Admin.'
+            : 'Após o envio, a sua instituição fica pendente de verificação pelo Admin.'}
         </p>
         <form onSubmit={onSubmit} className="stack">
           <Input
-            label="Nome da instituição"
+            label={isShelter ? 'Nome do abrigo' : 'Nome da instituição'}
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <Input
-            label="Tipo"
-            required
-            hint="Ex: ONG, orfanato, igreja, escola, centro comunitário"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-          />
+          <Select label="Tipo" required value={type} onChange={(e) => setType(e.target.value)}>
+            {typeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </Select>
+          {type === 'Outro' && (
+            <Input
+              label="Descreva o tipo"
+              required
+              value={customType}
+              onChange={(e) => setCustomType(e.target.value)}
+            />
+          )}
+
+          <div className="field">
+            <label>{isShelter ? 'Logótipo do abrigo (obrigatório)' : 'Logótipo da instituição (obrigatório)'}</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Photo
+                src={logoPreview}
+                style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover' }}
+              />
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={onPickLogo}
+              />
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+              >
+                {logo ? 'Escolher outro logótipo' : 'Escolher logótipo'}
+              </Button>
+            </div>
+          </div>
           {countries ? (
             <Select label="País" required value={countryId} onChange={(e) => setCountryId(e.target.value)}>
               {countries.map((c) => (
@@ -169,13 +234,6 @@ export default function RegisterInstitutionPage() {
             hint="Ex: Roupas, Alimentos"
             value={needsList}
             onChange={(e) => setNeedsList(e.target.value)}
-          />
-          <Input
-            label="Raio de cobertura em km (opcional)"
-            hint="Ajuda a associar doadores próximos no futuro"
-            type="number"
-            value={serviceRadiusKm}
-            onChange={(e) => setServiceRadiusKm(e.target.value)}
           />
           <Input
             label="Área de cobertura (opcional)"

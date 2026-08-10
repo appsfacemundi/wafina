@@ -94,7 +94,7 @@ export function ImpactScreen() {
         keyExtractor={(item) => item.Success_Story_ID}
         renderItem={({ item }) => (
           <Card style={styles.card}>
-            <Image source={{ uri: item.Image }} style={styles.photo} />
+            <Image source={{ uri: item.Image }} style={styles.photo} resizeMode="contain" />
             <View style={styles.cardBody}>
               <View style={styles.cardHeaderRow}>
                 <Text style={[styles.storyTitle, { flex: 1 }]}>{item.Title}</Text>
@@ -167,6 +167,7 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: 200,
+    backgroundColor: colors.surface2,
   },
   cardBody: {
     padding: spacing[4],

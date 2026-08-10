@@ -13,6 +13,9 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { apiFetch, ApiError } from '@/lib/api';
 import { firebaseAuth } from '@/lib/firebase';
 
+/** This app now hosts two registrable roles (RC1 RECEBER: Instituição vs Abrigo de Animais). */
+type InstitutionAppRole = 'Institution' | 'Animal_Shelter';
+
 interface AuthContextValue {
   firebaseUser: FirebaseUser | null;
   session: AuthenticatedUser | null;
@@ -20,21 +23,33 @@ interface AuthContextValue {
   /** Why the last sign-in attempt didn't reach a session (e.g. suspended account, backend unavailable) — see AuthProvider. */
   sessionError: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, role: InstitutionAppRole) => Promise<void>;
   signOutUser: () => Promise<void>;
   refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * RC1 RECEBER — signUp() only calls Firebase's createUserWithEmailAndPassword,
+ * which carries no role field. The actual /auth/session bootstrap call happens
+ * later and asynchronously, inside the onAuthStateChanged listener below, once
+ * Firebase itself reports the new user. This module-level box is how the role
+ * chosen on the sign-up form survives that gap — set immediately before the
+ * Firebase call, read (and cleared) the first time resolveSession runs.
+ */
+let pendingSignUpRole: InstitutionAppRole | null = null;
+
 async function resolveSession(user: FirebaseUser): Promise<AuthenticatedUser> {
   const idToken = await user.getIdToken();
-  // role is only honored by the API when bootstrapping a brand-new account —
-  // this is the Institution app, so new sign-ups always request the
-  // Institution role (spec 13.3: starts Verified=FALSE, full app block).
+  // role is only honored by the API when bootstrapping a brand-new account.
+  // Defaults to Institution for sign-in / session-refresh calls, where no
+  // pending choice exists and the field is ignored by the API anyway.
+  const requestedRole = pendingSignUpRole ?? 'Institution';
+  pendingSignUpRole = null;
   return apiFetch<AuthenticatedUser>('/auth/session', {
     method: 'POST',
-    body: { idToken, role: 'Institution' },
+    body: { idToken, role: requestedRole },
   });
 }
 
@@ -75,7 +90,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionError,
     async signIn(email, password) {
       setSessionError(null);
-      const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+      // RC1 audit fix, 2026-08-10 — a stray leading/trailing space in the
+      // email field makes Firebase treat it as a different address entirely,
+      // failing with the same generic "wrong credentials" error as a real
+      // typo — for a real account, indistinguishable from "this account
+      // doesn't exist" even though it does.
+      const credential = await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
       try {
         setSession(await resolveSession(credential.user));
       } catch (err) {
@@ -89,8 +109,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw err;
       }
     },
-    async signUp(email, password) {
-      await createUserWithEmailAndPassword(firebaseAuth, email, password);
+    async signUp(email, password, role) {
+      pendingSignUpRole = role;
+      await createUserWithEmailAndPassword(firebaseAuth, email.trim(), password);
     },
     async signOutUser() {
       await signOut(firebaseAuth);

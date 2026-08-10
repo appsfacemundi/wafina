@@ -25,7 +25,7 @@ const MIN_NAME_LENGTH = 2;
  * column reflecting that, we honor it; otherwise fall back to this all-or-
  * nothing default, since the column doesn't exist there yet (spec 5.2 gap).
  */
-const ALL_PROFILE_FIELDS = ['Name', 'Type', 'Location', 'Needs_List', 'Logo'];
+const ALL_PROFILE_FIELDS = ['Name', 'Type', 'Location', 'Needs_List', 'Logo', 'Service_Radius_Km'];
 
 /**
  * Review-history audit trail (RC1, 2026-08-06) — a single JSON-encoded cell

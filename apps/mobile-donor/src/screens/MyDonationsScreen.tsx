@@ -11,10 +11,9 @@ import {
   type Donation,
   type SuccessStory,
 } from '@wafina/shared';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
@@ -28,20 +27,23 @@ import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 type Props = BottomTabScreenProps<AppTabParamList, 'MyDonations'>;
 
+type StatusFilter = 'all' | 'pending' | 'accepted' | 'delivered';
+
 export function MyDonationsScreen({ route }: Props) {
   const { firebaseUser, session } = useAuth();
   const insets = useSafeAreaInsets();
   const highlightId = route.params?.donationId;
-  const listRef = useRef<SectionList<Donation>>(null);
+  const listRef = useRef<FlatList<Donation>>(null);
   const [donations, setDonations] = useState<Donation[] | null>(null);
   const [storiesByDonation, setStoriesByDonation] = useState<Map<string, SuccessStory>>(new Map());
   const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  // Bug fix, 2026-08-08 — this list had no fold/expand at all despite having
-  // the same Pending/Aceites/Entregue stages as every equivalent Admin/
-  // Institution list, which already got this treatment.
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  // RC1 UX polish, 2026-08-10 — replaced the fold/expand sections with a
+  // single-select filter row (TODAS/PENDENTES/ACEITES/ENTREGUES) per the
+  // request; only one status group is shown at a time instead of three
+  // simultaneously-collapsible ones.
+  const [filter, setFilter] = useState<StatusFilter>('all');
 
   // Real-device finding, 2026-08-04: this only ran once on mount, so a
   // donation submitted on the Donate tab never appeared here until the app
@@ -108,67 +110,70 @@ export function MyDonationsScreen({ route }: Props) {
     return result;
   }, [donations, search]);
 
-  // Bug fix, 2026-08-08 — grouped into the same three fold/expand sections as
-  // Admin/Institution-web/Donor-web (Pendentes/Aceites/Entregue), instead of
-  // one long flat list with no way to collapse a stage you don't need right now.
-  const sections = useMemo(() => {
-    const pending = visibleDonations.filter((d) => d.Status === 'Pending');
-    const accepted = visibleDonations.filter(
-      (d) => d.Status === 'Claimed' || d.Status === 'Collection_Scheduled' || d.Status === 'Collected',
-    );
-    const delivered = visibleDonations.filter((d) => d.Status === 'Delivered');
-    // A section a donor previously collapsed shouldn't hide the very item a
-    // notification just deep-linked them to — force that one section open.
-    const isCollapsed = (key: string, items: Donation[]) =>
-      !!collapsedSections[key] && !items.some((d) => d.Donation_ID === highlightId);
-    return [
-      ...(pending.length
-        ? [{ key: 'pending', title: 'Pendentes', count: pending.length, data: isCollapsed('pending', pending) ? [] : pending }]
-        : []),
-      ...(accepted.length
-        ? [{ key: 'accepted', title: 'Aceites', count: accepted.length, data: isCollapsed('accepted', accepted) ? [] : accepted }]
-        : []),
-      ...(delivered.length
-        ? [
-            {
-              key: 'delivered',
-              title: 'Entregue',
-              count: delivered.length,
-              data: isCollapsed('delivered', delivered) ? [] : delivered,
-            },
-          ]
-        : []),
-    ];
-  }, [visibleDonations, collapsedSections, highlightId]);
+  const statusGroups = useMemo(
+    () => ({
+      pending: visibleDonations.filter((d) => d.Status === 'Pending'),
+      accepted: visibleDonations.filter(
+        (d) => d.Status === 'Claimed' || d.Status === 'Collection_Scheduled' || d.Status === 'Collected',
+      ),
+      delivered: visibleDonations.filter((d) => d.Status === 'Delivered'),
+    }),
+    [visibleDonations],
+  );
+
+  const filteredDonations = useMemo(() => {
+    if (filter === 'pending') return statusGroups.pending;
+    if (filter === 'accepted') return statusGroups.accepted;
+    if (filter === 'delivered') return statusGroups.delivered;
+    return visibleDonations;
+  }, [filter, statusGroups, visibleDonations]);
+
+  // A notification deep-links here with a specific donationId — whichever
+  // filter tab that donation actually belongs to must win, otherwise the
+  // donor could land on "Pendentes" while the item they tapped is filed
+  // under "Entregue" and never appears.
+  useEffect(() => {
+    if (!highlightId || !donations) return;
+    const target = donations.find((d) => d.Donation_ID === highlightId);
+    if (!target) return;
+    if (target.Status === 'Pending') setFilter('pending');
+    else if (target.Status === 'Delivered') setFilter('delivered');
+    else setFilter('accepted');
+  }, [highlightId, donations]);
 
   // Real-device finding, 2026-08-07 — deep-linking here from a donation
   // notification always landed at the top of the list with no indication
   // of which item the notification was about. Scroll to it once it's in
-  // the (already-loaded) visible list. SectionList has no onScrollToIndexFailed
-  // retry like FlatList, so this just waits long enough for the first layout
-  // pass to have happened (matching the same pattern already proven on the
-  // Institution app's Claimed-by-me screen).
+  // the (already-loaded, correctly-filtered) list.
   useEffect(() => {
-    if (!highlightId || visibleDonations.length === 0) return;
-    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
-      const itemIndex = sections[sectionIndex].data.findIndex((d) => d.Donation_ID === highlightId);
-      if (itemIndex === -1) continue;
-      const timer = setTimeout(() => {
-        try {
-          listRef.current?.scrollToLocation({ sectionIndex, itemIndex, animated: true, viewOffset: 20 });
-        } catch {
-          // Not measured yet — harmless, list is still usable without the scroll.
-        }
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [highlightId, sections, visibleDonations.length]);
+    if (!highlightId || filteredDonations.length === 0) return;
+    const index = filteredDonations.findIndex((d) => d.Donation_ID === highlightId);
+    if (index === -1) return;
+    const timer = setTimeout(() => {
+      try {
+        listRef.current?.scrollToIndex({ index, animated: true, viewOffset: 20 });
+      } catch {
+        // Not measured yet — harmless, list is still usable without the scroll.
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [highlightId, filteredDonations]);
+
+  const filterChips: { key: StatusFilter; label: string; count: number }[] = [
+    { key: 'all', label: 'Todas', count: visibleDonations.length },
+    { key: 'pending', label: 'Pendentes', count: statusGroups.pending.length },
+    { key: 'accepted', label: 'Aceites', count: statusGroups.accepted.length },
+    { key: 'delivered', label: 'Entregues', count: statusGroups.delivered.length },
+  ];
 
   return (
     <View style={styles.screen}>
-      <SectionList
+      <FlatList
         ref={listRef}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
+        onScrollToIndexFailed={() => {
+          // Item not measured yet — harmless, list is still usable without the scroll.
+        }}
         ListHeaderComponent={
           <>
             <View style={styles.headerRow}>
@@ -197,13 +202,33 @@ export function MyDonationsScreen({ route }: Props) {
             )}
             {!error && donations === null && <Text style={styles.loading}>A carregar…</Text>}
             {donations && donations.length > 0 && (
-              <Input
-                label="Pesquisar"
-                placeholder="Pesquisar por item ou código…"
-                value={search}
-                onChangeText={setSearch}
-                style={{ marginBottom: spacing[4] }}
-              />
+              <>
+                <Input
+                  label="Pesquisar"
+                  placeholder="Pesquisar por item ou código…"
+                  value={search}
+                  onChangeText={setSearch}
+                  style={{ marginBottom: spacing[3] }}
+                />
+                <View style={styles.filterRow}>
+                  {filterChips.map((chip) => {
+                    const active = filter === chip.key;
+                    return (
+                      <Pressable
+                        key={chip.key}
+                        onPress={() => setFilter(chip.key)}
+                        style={[styles.filterBtn, active && styles.filterBtnActive]}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                      >
+                        <Text style={[styles.filterBtnText, active && styles.filterBtnTextActive]}>
+                          {chip.label} ({chip.count})
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
             )}
             {donations?.length === 0 && (
               <EmptyState
@@ -215,33 +240,17 @@ export function MyDonationsScreen({ route }: Props) {
             {donations && donations.length > 0 && visibleDonations.length === 0 && (
               <EmptyState title="Sem resultados" description="Nenhuma doação corresponde à pesquisa." icon="search-outline" />
             )}
+            {donations && donations.length > 0 && visibleDonations.length > 0 && filteredDonations.length === 0 && (
+              <EmptyState
+                title="Sem doações neste estado"
+                description="Não há doações que correspondam a este filtro."
+                icon="filter-outline"
+              />
+            )}
           </>
         }
-        sections={sections}
+        data={filteredDonations}
         keyExtractor={(item) => item.Donation_ID}
-        renderSectionHeader={({ section }) => {
-          const key = section.key ?? '';
-          const collapsed = !!collapsedSections[key];
-          return (
-            <Pressable
-              onPress={() => setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }))}
-              style={[styles.sectionHeader, !collapsed && styles.sectionHeaderExpanded]}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: !collapsed }}
-            >
-              <Ionicons
-                name="chevron-down"
-                size={14}
-                color={collapsed ? colors.textFaint : colors.accent}
-                style={{ transform: [{ rotate: collapsed ? '-90deg' : '0deg' }] }}
-              />
-              <Text style={[styles.sectionHeaderText, !collapsed && styles.sectionHeaderTextExpanded]}>
-                {section.title}
-              </Text>
-              <Text style={styles.sectionHeaderCount}>({section.count})</Text>
-            </Pressable>
-          );
-        }}
         renderItem={({ item }) => {
           const story = storiesByDonation.get(item.Donation_ID);
           return (
@@ -251,7 +260,7 @@ export function MyDonationsScreen({ route }: Props) {
                 item.Donation_ID === highlightId && styles.highlightedCard,
               ]}
             >
-              {item.Photo && <Image source={{ uri: item.Photo }} style={styles.itemPhoto} />}
+              {item.Photo && <Image source={{ uri: item.Photo }} style={styles.itemPhoto} resizeMode="contain" />}
               <View style={styles.donationRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemType}>{item.Item_Type}</Text>
@@ -360,42 +369,37 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 140,
     borderRadius: radius.md,
+    backgroundColor: colors.surface2,
   },
   highlightedCard: {
     borderColor: colors.accent,
     borderWidth: 2,
   },
-  sectionHeader: {
+  filterRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: spacing[2],
-    marginTop: spacing[2],
-    marginBottom: spacing[3],
-    paddingVertical: 10,
+    marginBottom: spacing[4],
+  },
+  filterBtn: {
+    paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: radius.md,
+    borderRadius: radius.full,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
   },
-  sectionHeaderExpanded: {
+  filterBtnActive: {
     backgroundColor: colors.accentSoft,
     borderColor: colors.accent,
   },
-  sectionHeaderText: {
+  filterBtnText: {
     fontFamily: 'Manrope-600',
-    fontSize: 12,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    color: colors.textFaint,
+    fontSize: 12.5,
+    color: colors.textMuted,
   },
-  sectionHeaderTextExpanded: {
+  filterBtnTextActive: {
     color: colors.accent,
-  },
-  sectionHeaderCount: {
-    fontFamily: 'Manrope-600',
-    fontSize: 12,
-    color: colors.textFaint,
   },
   donationRow: {
     flexDirection: 'row',

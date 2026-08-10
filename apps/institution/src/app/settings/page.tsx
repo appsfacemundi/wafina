@@ -1,8 +1,8 @@
 'use client';
 
-import { INSTITUTION_FIELD_LABELS } from '@wafina/shared';
+import { INSTITUTION_FIELD_LABELS, type GeoRegion } from '@wafina/shared';
 import { Badge, Button, Card, Photo, Select, useToast } from '@wafina/ui';
-import { useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
@@ -26,6 +26,22 @@ export default function SettingsPage() {
   const [logoError, setLogoError] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // RC1 addition, 2026-08-10 — show the institution's registered country and
+  // its own ID here (Country_ID only ever resolves via this list).
+  const [countries, setCountries] = useState<GeoRegion[] | null>(null);
+  useEffect(() => {
+    if (!firebaseUser) return;
+    (async () => {
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        setCountries(await apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }));
+      } catch {
+        // Non-critical — the country name just falls back to the raw ID below.
+      }
+    })();
+  }, [firebaseUser]);
+  const countryName = countries?.find((c) => c.Region_ID === institution?.Country_ID)?.Name;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -133,6 +149,10 @@ export default function SettingsPage() {
           )}
           <p style={{ color: 'var(--color-text-muted)' }}>{session.email}</p>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Tipo: {institution?.Type}</p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>País registado: {countryName ?? '—'}</p>
+          <p className="mono" style={{ color: 'var(--color-text-faint)', fontSize: 12.5 }}>
+            ID: {institution?.Institution_ID}
+          </p>
           {institution?.Needs_List && (
             <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>
               Necessidades: {institution.Needs_List}

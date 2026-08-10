@@ -11,11 +11,10 @@ import {
   type InstitutionDonationView,
   type SuccessStory,
 } from '@wafina/shared';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Linking, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
@@ -28,25 +27,27 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { apiFetch, ApiError } from '@/lib/api';
 import type { ClaimedByMeStackParamList } from '@/navigation/RootNavigator';
-import { colors, fonts, radius, spacing } from '@/theme/tokens';
+import { colors, fonts, spacing } from '@/theme/tokens';
 
 type Props = NativeStackScreenProps<ClaimedByMeStackParamList, 'ClaimedByMeList'>;
+type StatusFilter = 'all' | 'active' | 'delivered';
 
 export function ClaimedByMeScreen({ navigation, route }: Props) {
   const { firebaseUser } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const highlightId = route.params?.donationId;
-  const listRef = useRef<SectionList<InstitutionDonationView>>(null);
+  const listRef = useRef<FlatList<InstitutionDonationView>>(null);
   const [donations, setDonations] = useState<InstitutionDonationView[] | null>(null);
   const [storiesByDonation, setStoriesByDonation] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [actingId, setActingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | 'all'>('all');
-  // Bug fix, 2026-08-08 — sections had static, always-expanded headers with no
-  // fold/expand at all, unlike the equivalent Admin/Institution-web lists.
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  // RC1 UX polish, 2026-08-10 — replaced the fold/expand Em Curso/Entregues
+  // sections with a single-select filter row (Todos/Em Curso/Entregues),
+  // matching the donor apps' equivalent lists.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   async function load() {
     if (!firebaseUser) return;
@@ -85,7 +86,7 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
     return byStatus !== 0 ? byStatus : (b.Date_Claimed ?? '').localeCompare(a.Date_Claimed ?? '');
   };
 
-  const sections = useMemo(() => {
+  const searchedAndDeliveryFiltered = useMemo(() => {
     if (!donations) return null;
     const q = search.trim().toLowerCase();
     let visible = q
@@ -99,45 +100,56 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
     if (deliveryFilter !== 'all') {
       visible = visible.filter((d) => d.Delivery_Method === deliveryFilter);
     }
-    const active = visible.filter((d) => d.Status !== 'Delivered').sort(byStage);
-    const delivered = visible.filter((d) => d.Status === 'Delivered').sort(byStage);
-    return [
-      ...(active.length
-        ? [{ key: 'active', title: 'Em Curso', count: active.length, data: collapsedSections.active ? [] : active }]
-        : []),
-      ...(delivered.length
-        ? [
-            {
-              key: 'delivered',
-              title: 'Entregues',
-              count: delivered.length,
-              data: collapsedSections.delivered ? [] : delivered,
-            },
-          ]
-        : []),
-    ];
-  }, [donations, search, deliveryFilter, collapsedSections]);
+    return visible;
+  }, [donations, search, deliveryFilter]);
+
+  const statusCounts = useMemo(() => {
+    const list = searchedAndDeliveryFiltered ?? [];
+    return {
+      all: list.length,
+      active: list.filter((d) => d.Status !== 'Delivered').length,
+      delivered: list.filter((d) => d.Status === 'Delivered').length,
+    };
+  }, [searchedAndDeliveryFiltered]);
+
+  const visibleDonations = useMemo(() => {
+    const list = searchedAndDeliveryFiltered ?? [];
+    const filtered =
+      statusFilter === 'active'
+        ? list.filter((d) => d.Status !== 'Delivered')
+        : statusFilter === 'delivered'
+          ? list.filter((d) => d.Status === 'Delivered')
+          : list;
+    return [...filtered].sort(byStage);
+  }, [searchedAndDeliveryFiltered, statusFilter]);
+
+  // A notification deep-links here with a specific donationId — whichever
+  // filter tab that donation actually belongs to must win, otherwise it
+  // could be filed under a tab the institution isn't currently viewing.
+  useEffect(() => {
+    if (!highlightId || !donations) return;
+    const target = donations.find((d) => d.Donation_ID === highlightId);
+    if (!target) return;
+    setStatusFilter(target.Status === 'Delivered' ? 'delivered' : 'active');
+  }, [highlightId, donations]);
 
   // Real-device finding, 2026-08-07 — deep-linking here from a donation
   // notification always landed at the top of the list with no indication of
-  // which item it was about. Scroll to it once it's in the loaded sections;
-  // SectionList has no onScrollToIndexFailed retry like FlatList, so this
-  // just waits long enough for the first layout pass to have happened.
+  // which item it was about. Scroll to it once it's in the loaded (and
+  // correctly-filtered) list.
   useEffect(() => {
-    if (!highlightId || !sections) return;
-    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
-      const itemIndex = sections[sectionIndex].data.findIndex((d) => d.Donation_ID === highlightId);
-      if (itemIndex === -1) continue;
-      const timer = setTimeout(() => {
-        try {
-          listRef.current?.scrollToLocation({ sectionIndex, itemIndex, animated: true, viewOffset: 20 });
-        } catch {
-          // Not measured yet — harmless, list is still usable without the scroll.
-        }
-      }, 400);
-      return () => clearTimeout(timer);
-    }
-  }, [highlightId, sections]);
+    if (!highlightId || visibleDonations.length === 0) return;
+    const index = visibleDonations.findIndex((d) => d.Donation_ID === highlightId);
+    if (index === -1) return;
+    const timer = setTimeout(() => {
+      try {
+        listRef.current?.scrollToIndex({ index, animated: true, viewOffset: 20 });
+      } catch {
+        // Not measured yet — harmless, list is still usable without the scroll.
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [highlightId, visibleDonations]);
 
   const SUCCESS_MESSAGE: Record<'schedule-collection' | 'collect' | 'deliver', string> = {
     'schedule-collection': 'Recolha agendada com sucesso!',
@@ -190,9 +202,12 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <SectionList
+      <FlatList
         ref={listRef}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
+        onScrollToIndexFailed={() => {
+          // Item not measured yet — harmless, list is still usable without the scroll.
+        }}
         ListHeaderComponent={
           <>
             <View style={styles.headerRow}>
@@ -217,6 +232,27 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                   style={{ marginBottom: spacing[3] }}
                 />
                 <View style={styles.filterRow}>
+                  {(
+                    [
+                      { key: 'all', label: 'Todos', count: statusCounts.all },
+                      { key: 'active', label: 'Em Curso', count: statusCounts.active },
+                      { key: 'delivered', label: 'Entregues', count: statusCounts.delivered },
+                    ] as { key: StatusFilter; label: string; count: number }[]
+                  ).map((f) => (
+                    <Pressable
+                      key={f.key}
+                      onPress={() => setStatusFilter(f.key)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: statusFilter === f.key }}
+                      style={[styles.filterChip, statusFilter === f.key && styles.filterChipActive]}
+                    >
+                      <Text style={[styles.filterChipText, statusFilter === f.key && styles.filterChipTextActive]}>
+                        {f.label} ({f.count})
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <View style={styles.filterRow}>
                   {(['all', ...DELIVERY_METHODS] as const).map((f) => (
                     <Pressable
                       key={f}
@@ -226,7 +262,7 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                       style={[styles.filterChip, deliveryFilter === f && styles.filterChipActive]}
                     >
                       <Text style={[styles.filterChipText, deliveryFilter === f && styles.filterChipTextActive]}>
-                        {f === 'all' ? 'Todos' : DELIVERY_METHOD_LABEL[f]}
+                        {f === 'all' ? 'Todos os métodos' : DELIVERY_METHOD_LABEL[f]}
                       </Text>
                     </Pressable>
                   ))}
@@ -240,39 +276,16 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                 icon="checkmark-circle-outline"
               />
             )}
-            {donations && donations.length > 0 && sections?.length === 0 && (
+            {donations && donations.length > 0 && visibleDonations.length === 0 && (
               <EmptyState title="Sem resultados" description="Nenhuma doação corresponde à pesquisa." icon="search-outline" />
             )}
           </>
         }
-        sections={sections ?? []}
+        data={visibleDonations}
         keyExtractor={(item) => item.Donation_ID}
-        renderSectionHeader={({ section }) => {
-          const key = section.key ?? '';
-          const collapsed = !!collapsedSections[key];
-          return (
-            <Pressable
-              onPress={() => setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }))}
-              style={[styles.sectionHeader, !collapsed && styles.sectionHeaderExpanded]}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: !collapsed }}
-            >
-              <Ionicons
-                name="chevron-down"
-                size={14}
-                color={collapsed ? colors.textFaint : colors.accent}
-                style={{ transform: [{ rotate: collapsed ? '-90deg' : '0deg' }] }}
-              />
-              <Text style={[styles.sectionHeaderText, !collapsed && styles.sectionHeaderTextExpanded]}>
-                {section.title}
-              </Text>
-              <Text style={styles.sectionHeaderCount}>({section.count})</Text>
-            </Pressable>
-          );
-        }}
         renderItem={({ item }) => (
           <Card style={[styles.card, item.Donation_ID === highlightId && styles.highlightedCard]}>
-            <Photo uri={item.Photo} style={styles.photo} />
+            <Photo uri={item.Photo} style={styles.photo} resizeMode="contain" />
             <View style={styles.cardBody}>
               <View style={styles.rowBetween}>
                 <Text style={styles.itemType}>{item.Item_Type}</Text>
@@ -460,42 +473,11 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: 160,
+    backgroundColor: colors.surface2,
   },
   cardBody: {
     padding: spacing[4],
     gap: 6,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-    marginTop: spacing[2],
-    marginBottom: spacing[3],
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  sectionHeaderExpanded: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
-  },
-  sectionHeaderText: {
-    fontFamily: 'Manrope-600',
-    fontSize: 12,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    color: colors.textFaint,
-  },
-  sectionHeaderTextExpanded: {
-    color: colors.accent,
-  },
-  sectionHeaderCount: {
-    fontFamily: 'Manrope-600',
-    fontSize: 12,
-    color: colors.textFaint,
   },
   rowBetween: {
     flexDirection: 'row',

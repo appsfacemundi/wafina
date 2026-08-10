@@ -1,4 +1,4 @@
-import { detectSupportedCountryFromCoords, type GeoRegion } from '@wafina/shared';
+import { ANIMAL_SHELTER_TYPES, detectSupportedCountryFromCoords, INSTITUTION_TYPES, type GeoRegion } from '@wafina/shared';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
@@ -30,11 +30,16 @@ interface Props {
 }
 
 export function RegisterScreen({ onRegistered }: Props) {
-  const { firebaseUser, signOutUser } = useAuth();
+  const { firebaseUser, session, signOutUser } = useAuth();
   const insets = useSafeAreaInsets();
+  const isShelter = session?.role === 'Animal_Shelter';
+  const typeOptions = isShelter ? ANIMAL_SHELTER_TYPES : INSTITUTION_TYPES;
 
   const [name, setName] = useState('');
-  const [type, setType] = useState('');
+  // Registration UX fix, 2026-08-10 — prefilled dropdown (never blank) instead
+  // of free text; 'Outro' reveals customType below for anything not listed.
+  const [type, setType] = useState<string>(typeOptions[0]);
+  const [customType, setCustomType] = useState('');
   const [logo, setLogo] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [needsList, setNeedsList] = useState('');
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('capturing');
@@ -45,7 +50,6 @@ export function RegisterScreen({ onRegistered }: Props) {
 
   const [countries, setCountries] = useState<GeoRegion[] | null>(null);
   const [countryId, setCountryId] = useState('');
-  const [serviceRadiusKm, setServiceRadiusKm] = useState('');
   const [coverageArea, setCoverageArea] = useState('');
 
   const [error, setError] = useState('');
@@ -150,11 +154,15 @@ export function RegisterScreen({ onRegistered }: Props) {
   async function onSubmit() {
     setError('');
     if (!name || !type) {
-      setError('Preencha o nome e o tipo da instituição.');
+      setError(isShelter ? 'Preencha o nome e o tipo do abrigo.' : 'Preencha o nome e o tipo da instituição.');
+      return;
+    }
+    if (type === 'Outro' && !customType.trim()) {
+      setError('Descreva o tipo no campo "Outro".');
       return;
     }
     if (!logo) {
-      setError('Adicione o logótipo da instituição.');
+      setError(isShelter ? 'Adicione o logótipo do abrigo.' : 'Adicione o logótipo da instituição.');
       return;
     }
     if (!hasValidLocation) {
@@ -173,12 +181,11 @@ export function RegisterScreen({ onRegistered }: Props) {
         mimeType: logo.mimeType ?? 'image/jpeg',
         parameters: {
           Name: name,
-          Type: type,
+          Type: type === 'Outro' ? customType.trim() : type,
           Location_lat: lat,
           Location_lng: lng,
           Needs_List: needsList,
           Country_ID: countryId,
-          Service_Radius_Km: serviceRadiusKm,
           Coverage_Area: coverageArea,
           Address: address.trim(),
         },
@@ -195,20 +202,27 @@ export function RegisterScreen({ onRegistered }: Props) {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
         <Card style={{ gap: spacing[4] }}>
-          <Text style={styles.title}>Registar instituição</Text>
+          <Text style={styles.title}>{isShelter ? 'Registar abrigo de animais' : 'Registar instituição'}</Text>
           <Text style={styles.subtitle}>
-            Após o envio, a sua instituição fica pendente de verificação pelo Admin.
+            {isShelter
+              ? 'Após o envio, o seu abrigo fica pendente de verificação pelo Admin.'
+              : 'Após o envio, a sua instituição fica pendente de verificação pelo Admin.'}
           </Text>
-          <Input label="Nome da instituição" autoCapitalize="words" value={name} onChangeText={setName} />
           <Input
-            label="Tipo"
-            hint="Ex: ONG, orfanato, igreja, escola, centro comunitário"
-            value={type}
-            onChangeText={setType}
+            label={isShelter ? 'Nome do abrigo' : 'Nome da instituição'}
+            autoCapitalize="words"
+            value={name}
+            onChangeText={setName}
           />
+          <Select label="Tipo" value={type} onValueChange={setType} options={typeOptions} />
+          {type === 'Outro' && (
+            <Input label="Descreva o tipo" value={customType} onChangeText={setCustomType} />
+          )}
 
           <View style={{ gap: spacing[1] }}>
-            <Text style={styles.label}>Logótipo da instituição (obrigatório)</Text>
+            <Text style={styles.label}>
+              {isShelter ? 'Logótipo do abrigo (obrigatório)' : 'Logótipo da instituição (obrigatório)'}
+            </Text>
             {logo ? (
               <Image source={{ uri: logo.uri }} style={styles.logoPreview} />
             ) : (
@@ -238,13 +252,6 @@ export function RegisterScreen({ onRegistered }: Props) {
             hint="Ex: Roupas, Alimentos"
             value={needsList}
             onChangeText={setNeedsList}
-          />
-          <Input
-            label="Raio de cobertura em km (opcional)"
-            hint="Ajuda a associar doadores próximos no futuro"
-            keyboardType="number-pad"
-            value={serviceRadiusKm}
-            onChangeText={setServiceRadiusKm}
           />
           <Input
             label="Área de cobertura (opcional)"

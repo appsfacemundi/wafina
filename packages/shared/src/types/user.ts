@@ -39,4 +39,11 @@ export interface User {
    * identity, not personal), never gated by this flag.
    */
   Show_Name_To_Institutions: boolean;
+  /**
+   * RC1 RECEBER — permanent recipient identifier, e.g. "WF-PT-000184".
+   * Assigned once, on first profile completion, only for Role === 'Donor'
+   * (the only role eligible for the individual RECEBER flow). Null for every
+   * other role and for Donors who haven't completed their profile yet.
+   */
+  Wafina_ID: string | null;
 }

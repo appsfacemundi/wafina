@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import logoMark from '../../assets/icon-mark.png';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
@@ -38,7 +38,11 @@ export function SignUpScreen({ navigation }: Props) {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.center}>
+      <ScrollView
+        contentContainerStyle={styles.center}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.brand}>
           <Image source={logoMark} style={styles.logo} resizeMode="contain" />
           <Text style={styles.title}>Criar conta</Text>
@@ -60,7 +64,7 @@ export function SignUpScreen({ navigation }: Props) {
             Já tem conta? Entrar
           </Button>
         </Card>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -71,7 +75,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   center: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     padding: spacing[6],
     gap: spacing[8],

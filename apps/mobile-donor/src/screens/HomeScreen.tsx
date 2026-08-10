@@ -15,7 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { apiFetch } from '@/lib/api';
 import type { AppTabParamList, RootStackParamList } from '@/navigation/RootNavigator';
-import { colors, fonts, radius, spacing } from '@/theme/tokens';
+import { colors, fonts, palette, radius, spacing } from '@/theme/tokens';
 
 // Composite because navigating to 'Donate' targets a screen one level up —
 // it lives on RootStack now as a modal sibling of the tab navigator, not on
@@ -174,6 +174,24 @@ export function HomeScreen({ navigation }: Props) {
           </Pressable>
         </View>
 
+        <View style={[styles.ctaCard, styles.receiveCard]}>
+          <View style={styles.ctaCardTop}>
+            <Text style={styles.ctaCardEmoji}>🙏</Text>
+            <View style={styles.ctaCardTextWrap}>
+              <Text style={styles.ctaCardTitle}>{t('home.receiveNow')}</Text>
+              <Text style={styles.ctaCardSubtitle}>{t('home.receiveNowSubtitle')}</Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={() => navigation.navigate('Receber')}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.receiveNow')}
+            style={({ pressed }) => [styles.ctaCardBtn, pressed && styles.ctaCardBtnPressed]}
+          >
+            <Text style={[styles.ctaCardBtnText, { color: colors.receive }]}>{t('home.receiveNowCta')}</Text>
+          </Pressable>
+        </View>
+
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>{t('home.yourImpact')}</Text>
           <Pressable onPress={() => navigation.navigate('MyDonations')} accessibilityRole="button">
@@ -227,7 +245,7 @@ export function HomeScreen({ navigation }: Props) {
         {latestStory && (
           <Pressable onPress={() => navigation.navigate('Impact')} accessibilityRole="button">
             <Card style={styles.storyCard}>
-              <Photo uri={latestStory.Image} style={styles.storyImage} placeholderIcon="❤️" />
+              <Photo uri={latestStory.Image} style={styles.storyImage} placeholderIcon="❤️" resizeMode="contain" />
               <View style={styles.storyTextWrap}>
                 <Text style={styles.storyTitle} numberOfLines={2}>
                   {latestStory.Title}
@@ -398,6 +416,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
   },
+  // RECEBER card — same layout as the DOAR ctaCard above, in the logo's pink
+  // (colors.receive) so "giving" (blue) and "receiving" (pink) stay visually
+  // distinct.
+  receiveCard: {
+    backgroundColor: colors.receive,
+    shadowColor: palette.pink700,
+  },
   ctaCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -513,7 +538,6 @@ const styles = StyleSheet.create({
   storyImage: {
     width: '100%',
     height: 180,
-    resizeMode: 'cover',
   },
   storyTextWrap: {
     padding: spacing[4],

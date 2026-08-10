@@ -17,7 +17,7 @@
   "auth": {
     "badge": "متبرع",
     "welcome": "مرحبًا بك في وافينا",
-    "tagline": "تبرع اليوم، غيّر الغد",
+    "tagline": "تبرّع بحب واستلم بسرور",
     "email": "البريد الإلكتروني",
     "password": "كلمة المرور",
     "signIn": "تسجيل الدخول",
@@ -36,6 +36,9 @@
     "donateNow": "تبرع الآن",
     "donateNowSubtitle": "ساعد شخصًا في أقل من دقيقتين.",
     "donateNowCta": "تبرع الآن ←",
+    "receiveNow": "أريد الاستلام",
+    "receiveNowSubtitle": "اطلب ما تحتاجه في خطوات قليلة.",
+    "receiveNowCta": "عرض المتاح ←",
     "yourImpact": "أثرك",
     "viewAll": "عرض الكل",
     "donationsMade": "التبرعات المقدمة",

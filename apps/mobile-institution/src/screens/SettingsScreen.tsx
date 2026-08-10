@@ -1,6 +1,6 @@
-import { INSTITUTION_FIELD_LABELS } from '@wafina/shared';
+import { INSTITUTION_FIELD_LABELS, type GeoRegion } from '@wafina/shared';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -41,6 +41,23 @@ export function SettingsScreen() {
   const [logoError, setLogoError] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
+
+  // RC1 addition, 2026-08-10 — show the institution's registered country and
+  // its own ID on its own Settings screen (Country_ID only ever resolves via
+  // this list; the institution row has no denormalized country name).
+  const [countries, setCountries] = useState<GeoRegion[] | null>(null);
+  useEffect(() => {
+    if (!firebaseUser) return;
+    (async () => {
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        setCountries(await apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }));
+      } catch {
+        // Non-critical — the country name just falls back to the raw ID below.
+      }
+    })();
+  }, [firebaseUser]);
+  const countryName = countries?.find((c) => c.Region_ID === institution?.Country_ID)?.Name;
 
   // Pilot feedback, 2026-08-05: the Home screen's card had nowhere to show
   // who's actually signed in — Institution's Users.Name was never set by
@@ -211,6 +228,8 @@ export function SettingsScreen() {
           )}
           <Text style={styles.hint}>{session?.email}</Text>
           <Text style={styles.hint}>Tipo: {institution?.Type}</Text>
+          <Text style={styles.hint}>País registado: {countryName ?? '—'}</Text>
+          <Text style={[styles.hint, { fontFamily: fonts.mono }]}>ID: {institution?.Institution_ID}</Text>
           <View style={{ gap: 4 }}>
             <Input label="O seu nome" value={name} onChangeText={setName} placeholder="Ex: Maria Silva" />
             {nameError ? <ErrorBanner message={nameError} /> : null}
@@ -283,7 +302,7 @@ export function SettingsScreen() {
           </Button>
         </Card>
 
-        <Button variant="secondary" onPress={onPressSignOut}>
+        <Button variant="ghostDanger" onPress={onPressSignOut}>
           Sair
         </Button>
       </ScrollView>
