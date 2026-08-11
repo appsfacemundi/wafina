@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { colors, radius, spacing } from '@/theme/tokens';
 
-type Variant = 'primary' | 'cta' | 'secondary' | 'ghost' | 'ghostDanger' | 'danger' | 'receive';
+type Variant = 'primary' | 'cta' | 'secondary' | 'ghost' | 'ghostReceive' | 'ghostDanger' | 'danger' | 'receive';
 type Size = 'default' | 'large';
 
 interface ButtonProps {
@@ -45,7 +45,11 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           color={
-            variant === 'primary' || variant === 'cta' || variant === 'receive' ? colors.accentText : colors.accent
+            variant === 'primary' || variant === 'cta' || variant === 'receive'
+              ? colors.accentText
+              : variant === 'ghostReceive'
+                ? colors.receive
+                : colors.accent
           }
         />
       ) : (
@@ -98,6 +102,9 @@ const variantStyles = StyleSheet.create({
   cta: { backgroundColor: colors.cta },
   secondary: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   ghost: { backgroundColor: 'transparent' },
+  // "Criar conta" on Sign In — kept visually distinct from the "ghost"
+  // Forgot Password link (blue) using the logo's own pink.
+  ghostReceive: { backgroundColor: 'transparent' },
   // Sair/sign-out — red text like a destructive action, but without the
   // solid-fill weight of `danger` (reserved for irreversible actions like
   // deleting the account).
@@ -114,6 +121,7 @@ const textVariantStyles = StyleSheet.create({
   cta: { color: colors.ctaText },
   secondary: { color: colors.text },
   ghost: { color: colors.accent },
+  ghostReceive: { color: colors.receive },
   ghostDanger: { color: colors.danger },
   danger: { color: colors.accentText },
   receive: { color: colors.receiveText },

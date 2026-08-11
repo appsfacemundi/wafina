@@ -18,6 +18,12 @@ export const palette = {
   success500: '#22c55e',
   success700: '#15803d',
 
+  // Sampled directly from the Wafina logo mark (wafina-icon-mark.png),
+  // 2026-08-11 — same values as mobile-donor's tokens.ts.
+  pink50: '#f9edf3',
+  pink500: '#b50c5e',
+  pink600: '#8d0949',
+
   slate25: '#f8fafc',
   slate50: '#f1f5f9',
   slate100: '#e2e8f0',
@@ -65,6 +71,10 @@ export const colors = {
   dangerSoft: palette.danger100,
   success: palette.success500,
   successSoft: palette.success100,
+  // Logo pink — used for brand-accent text (tagline, "Criar conta") only,
+  // kept distinct from accent (blue) and cta (coral).
+  brandPink: palette.pink500,
+  brandPinkSoft: palette.pink50,
   warning: palette.warning500,
   warningSoft: palette.warning100,
   info: palette.info500,

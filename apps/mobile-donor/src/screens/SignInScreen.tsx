@@ -119,7 +119,7 @@ export function SignInScreen({ navigation }: Props) {
           <Button variant="ghost" onPress={onForgotPassword} loading={resetting} fullWidth>
             {t('auth.forgotPassword')}
           </Button>
-          <Button variant="ghost" onPress={() => navigation.navigate('SignUp')} fullWidth>
+          <Button variant="ghostReceive" onPress={() => navigation.navigate('SignUp')} fullWidth>
             {t('auth.noAccount')}
           </Button>
         </Card>
@@ -179,7 +179,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.tagline,
     fontSize: 12.5,
     letterSpacing: 0.4,
-    color: colors.cta,
+    // Logo pink, per brand identity (2026-08-11).
+    color: colors.receive,
     textAlign: 'center',
   },
   card: {
