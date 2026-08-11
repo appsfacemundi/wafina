@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { daysAgoLabel, type Donation, type ReceberEligibility } from '@wafina/shared';
+import { daysAgoLabel, type CollectionPoint, type Donation, type ReceberEligibility } from '@wafina/shared';
+import type * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -10,8 +11,10 @@ import {
   Linking,
   PanResponder,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   type PanResponderGestureState,
 } from 'react-native';
@@ -20,9 +23,10 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Photo } from '@/components/Photo';
+import { ThankYouNoteModal } from '@/components/ThankYouNoteModal';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { apiFetch, ApiError } from '@/lib/api';
+import { apiFetch, uploadFile, ApiError } from '@/lib/api';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
@@ -71,11 +75,15 @@ function SwipeCard({
   isTop,
   pan,
   panHandlers,
+  centerStyle,
+  onMeasureHeight,
 }: {
   donation: Donation;
   isTop: boolean;
   pan: Animated.ValueXY;
   panHandlers: ReturnType<typeof PanResponder.create>['panHandlers'] | Record<string, never>;
+  centerStyle: { top: number } | null;
+  onMeasureHeight?: (height: number) => void;
 }) {
   const rotate = pan.x.interpolate({
     inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
@@ -117,15 +125,25 @@ function SwipeCard({
   return (
     <Animated.View
       {...panHandlers}
+      onLayout={
+        isTop && onMeasureHeight ? (e) => onMeasureHeight(e.nativeEvent.layout.height) : undefined
+      }
       style={[
         styles.cardWrap,
+        centerStyle,
         isTop
           ? { transform: [{ translateX: pan.x }, { translateY: dampedTranslateY }, { rotate }] }
           : { transform: [{ scale: nextCardScale }, { translateY: nextCardTranslateY }] },
       ]}
     >
       <Card style={styles.card}>
-        <Photo uri={donation.Photo} style={styles.photo} placeholderIcon="🎁" resizeMode="contain" />
+        {/* RECEBER UX refinement, 2026-08-11 — 'cover' here deliberately
+            departs from the app-wide 'contain' default (see Photo.tsx):
+            on this card the photo IS the card, per spec ("main visual
+            element... immersive and premium"), so filling the frame edge-
+            to-edge matters more than avoiding a crop. Other Photo call
+            sites (success stories, etc.) are untouched. */}
+        <Photo uri={donation.Photo} style={styles.photo} placeholderIcon="🎁" resizeMode="cover" />
         <View style={styles.availableBadge}>
           <View style={styles.availableDot} />
           <Text style={styles.availableBadgeText}>Disponível</Text>
@@ -135,8 +153,13 @@ function SwipeCard({
         </View>
         {isTop && (
           <>
+            {/* Bug fix, 2026-08-11 — this used to read "QUERO RECEBER" during a
+                raw right-drag, which falsely promised a reservation the
+                gesture no longer makes (see animateCardOut). Only the ❤️
+                button reserves now, so this stamp is relabeled to match what
+                a drag actually does: move to the next card. */}
             <Animated.View style={[styles.stamp, styles.stampLike, { opacity: likeOpacity }]}>
-              <Text style={styles.stampLikeText}>QUERO{'\n'}RECEBER</Text>
+              <Text style={styles.stampLikeText}>PRÓXIMA</Text>
             </Animated.View>
             <Animated.View style={[styles.stamp, styles.stampPass, { opacity: passOpacity }]}>
               <Text style={styles.stampPassText}>PASSAR</Text>
@@ -173,7 +196,7 @@ function SwipeCard({
 }
 
 export function ReceberScreen({ navigation }: Props) {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, session } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
 
@@ -181,9 +204,43 @@ export function ReceberScreen({ navigation }: Props) {
   const [cards, setCards] = useState<Donation[] | null>(null);
   const [error, setError] = useState('');
   const [confirming, setConfirming] = useState(false);
+  // Donation lifecycle emails, 2026-08-11 — the optional thank-you note modal.
+  const [showThankYouModal, setShowThankYouModal] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
+  // Collection-point flow, 2026-08-10 — fetched once per reservation, scoped
+  // server-side to the caller's own country (never invented client-side: a
+  // null response means Wafina genuinely has no collection point configured
+  // for that country yet, and the UI says so instead of showing fake data).
+  const [collectionPoint, setCollectionPoint] = useState<CollectionPoint | null>(null);
+  const [collectionPointFetchFailed, setCollectionPointFetchFailed] = useState(false);
+  const [codeInput, setCodeInput] = useState('');
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [codeError, setCodeError] = useState('');
+
+  // RECEBER UX refinement, 2026-08-11 — shown once immediately after a
+  // successful reserve, before the reserved-donation main screen. Purely a
+  // local presentation gate: the reservation itself is already committed
+  // server-side by the time this is true (see onSelect), so closing the app
+  // here or navigating away loses nothing — the reservation still stands.
+  const [justReserved, setJustReserved] = useState(false);
+  const [moreInfoExpanded, setMoreInfoExpanded] = useState(false);
+
   const pan = useRef(new Animated.ValueXY()).current;
+
+  // Real-device layout fix, 2026-08-11 — measured (not guessed/hardcoded)
+  // so the card centers correctly regardless of screen size or how many
+  // text lines its body ends up wrapping to. Both start null; centerStyle
+  // stays null (falls back to the cardWrap base style, effectively top-left)
+  // for the one frame before both measurements land, which is not visible in
+  // practice — measuring is not itself something a swipe/gesture code review
+  // needs to touch, kept fully separate from the PanResponder logic below.
+  const [stackAreaHeight, setStackAreaHeight] = useState<number | null>(null);
+  const [cardHeight, setCardHeight] = useState<number | null>(null);
+  const centerStyle =
+    stackAreaHeight !== null && cardHeight !== null
+      ? { top: Math.max(0, (stackAreaHeight - cardHeight) / 2) }
+      : null;
 
   const load = useCallback(async () => {
     if (!firebaseUser) return;
@@ -201,22 +258,48 @@ export function ReceberScreen({ navigation }: Props) {
     }
   }, [firebaseUser]);
 
-  // Live regressive countdown for the cooldown screen — ticks every second
-  // only while that screen is actually showing. When it reaches zero, the
-  // server is re-checked (it remains the authority) so the screen advances
-  // to the swipe stack on its own instead of leaving a stale "0s" on screen.
+  // Live regressive countdown for the cooldown AND active-reservation
+  // screens — ticks every second only while one of those is actually
+  // showing. When either reaches zero, the server is re-checked (it remains
+  // the sole authority on expiry — see isReservationActive server-side) so
+  // the screen advances on its own instead of leaving a stale "0s" on screen.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (status?.reason !== 'cooldown') return;
+    if (status?.reason !== 'cooldown' && status?.reason !== 'active_reservation') return;
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
   }, [status?.reason]);
+
+  const reservationExpiresAtIso =
+    status?.reason === 'active_reservation' && status.activeReservation?.Reserved_At
+      ? new Date(new Date(status.activeReservation.Reserved_At).getTime() + 24 * 60 * 60 * 1000).toISOString()
+      : null;
+  const reservationCountdown = reservationExpiresAtIso ? countdownParts(reservationExpiresAtIso, now) : null;
 
   useEffect(() => {
     if (status?.reason === 'cooldown' && status.nextEligibleAt && countdownParts(status.nextEligibleAt, now).expired) {
       load();
     }
+    if (reservationCountdown?.expired) {
+      load();
+    }
   }, [now, status, load]);
+
+  // Collection-point flow, 2026-08-10 — fetched once per active reservation,
+  // never invented client-side when Wafina has no point configured for this
+  // country yet (null response — see getCollectionPointForCountry).
+  useEffect(() => {
+    if (status?.reason !== 'active_reservation' || !firebaseUser) return;
+    setCollectionPointFetchFailed(false);
+    (async () => {
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        setCollectionPoint(await apiFetch<CollectionPoint | null>('/donations/collection-point', { idToken }));
+      } catch {
+        setCollectionPointFetchFailed(true);
+      }
+    })();
+  }, [status?.reason, firebaseUser]);
 
   useFocusEffect(
     useCallback(() => {
@@ -242,8 +325,8 @@ export function ReceberScreen({ navigation }: Props) {
       // The real reservation call — the card animation is purely visual; this
       // request is what actually decides whether the item is theirs.
       await apiFetch<Donation>(`/donations/${donation.Donation_ID}/reserve`, { method: 'POST', idToken });
-      showToast('Reservado! Tem 24 horas para ir buscar.');
       removeTopCard();
+      setJustReserved(true);
       await load();
     } catch (err) {
       // Someone else won the race, or the item was pulled — never leave the
@@ -253,7 +336,18 @@ export function ReceberScreen({ navigation }: Props) {
     }
   }
 
-  function forceSwipe(direction: 'left' | 'right', donation: Donation) {
+  // Bug fix, 2026-08-11 — a raw right-drag gesture used to fall through to
+  // the exact same `forceSwipe('right', ...)` the ❤️ button calls, which
+  // unconditionally reserved the donation on completion. That meant simply
+  // dragging a card past the threshold (no button tap at all) called
+  // POST /donations/:id/reserve, generated a Collection_Code, and started
+  // the 24h window — with zero explicit intent from the user. Per the fix
+  // below, the raw gesture (both directions) now ONLY ever plays the fly-off
+  // animation and removes the card (`onPass`) — it can never reserve. The
+  // ❤️ "Quero Receber" button is the one and only path that can call
+  // `onSelect` (the real reservation). The X button and a left-drag were
+  // already pass-only and are unchanged in behavior.
+  function animateCardOut(direction: 'left' | 'right', onDone: () => void) {
     if (isAnimating) return;
     setIsAnimating(true);
     // PanResponder's own move handler must stay JS-driven (see below) — an
@@ -267,8 +361,7 @@ export function ReceberScreen({ navigation }: Props) {
     }).start(() => {
       pan.setValue({ x: 0, y: 0 });
       setIsAnimating(false);
-      if (direction === 'right') onSelect(donation);
-      else onPass();
+      onDone();
     });
   }
 
@@ -302,27 +395,73 @@ export function ReceberScreen({ navigation }: Props) {
         onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
         onPanResponderRelease: (_evt, g: PanResponderGestureState) => {
           if (!topDonation) return;
-          if (g.dx > SWIPE_THRESHOLD) forceSwipe('right', topDonation);
-          else if (g.dx < -SWIPE_THRESHOLD) forceSwipe('left', topDonation);
+          // Gesture-driven release NEVER reserves, in either direction — see
+          // animateCardOut's doc comment. Only the explicit ❤️ button (below,
+          // in the JSX) is allowed to call onSelect.
+          if (g.dx > SWIPE_THRESHOLD) animateCardOut('right', onPass);
+          else if (g.dx < -SWIPE_THRESHOLD) animateCardOut('left', onPass);
           else resetPosition();
         },
       }),
     [isAnimating, topDonation],
   );
 
-  async function onConfirmReceived() {
+  // Collection-point flow, 2026-08-10 — entering the correct code only
+  // unlocks Confirmar recebimento (via Collection_Code_Verified_At on the
+  // refetched donation); it never calls confirm-received itself and never
+  // starts the 3-day cooldown, which only begins at an actual confirmed
+  // receipt — see verifyCollectionCode's server-side doc comment.
+  async function onVerifyCode() {
+    if (!status?.activeReservation || !codeInput.trim()) return;
+    setCodeError('');
+    setVerifyingCode(true);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch(`/donations/${status.activeReservation.Donation_ID}/verify-collection-code`, {
+        method: 'POST',
+        idToken,
+        body: { code: codeInput.trim() },
+      });
+      setCodeInput('');
+      showToast('Código confirmado! Já pode confirmar a receção.');
+      await load();
+    } catch (err) {
+      setCodeError(err instanceof ApiError ? err.message : 'Não foi possível confirmar o código.');
+    } finally {
+      setVerifyingCode(false);
+    }
+  }
+
+  // Donation lifecycle emails, 2026-08-11 — "Confirmar recebimento" opens
+  // the optional thank-you note first instead of confirming directly.
+  async function onConfirmReceived(message?: string, photo?: ImagePicker.ImagePickerAsset | null) {
     if (!status?.activeReservation) return;
     setConfirming(true);
     setError('');
     try {
       const idToken = await firebaseUser?.getIdToken();
-      await apiFetch(`/donations/${status.activeReservation.Donation_ID}/confirm-received`, {
-        method: 'POST',
-        idToken,
-      });
+      const donationId = status.activeReservation.Donation_ID;
+      if (photo) {
+        await uploadFile(`/donations/${donationId}/confirm-received`, 'photo', photo.uri, {
+          idToken,
+          mimeType: photo.mimeType ?? 'image/jpeg',
+          parameters: message ? { thankYouMessage: message } : {},
+        });
+      } else {
+        await apiFetch(`/donations/${donationId}/confirm-received`, {
+          method: 'POST',
+          idToken,
+          body: message ? { thankYouMessage: message } : undefined,
+        });
+      }
+      setShowThankYouModal(false);
       showToast('Recebimento confirmado. Obrigado!');
       await load();
     } catch (err) {
+      // Close the modal on failure too, so the screen's own error banner
+      // (rendered behind it) is actually visible instead of hidden by the
+      // modal overlay.
+      setShowThankYouModal(false);
       setError(err instanceof ApiError ? err.message : 'Não foi possível confirmar o recebimento.');
     } finally {
       setConfirming(false);
@@ -358,51 +497,264 @@ export function ReceberScreen({ navigation }: Props) {
     );
   }
 
-  // Reservation already active — resume pickup, never show the stack.
-  if (status.reason === 'active_reservation' && status.activeReservation) {
-    const reserved = status.activeReservation;
+  // Congratulations — shown exactly once, right after a successful reserve,
+  // before the reserved-donation main screen. Never shows the 4-digit code
+  // here (that only appears at the collection point, entered by staff/the
+  // receiver there — see the primary reserved screen below).
+  if (justReserved && status.reason === 'active_reservation' && status.activeReservation) {
     return (
       <View style={styles.screen}>
         {Header}
-        <View style={styles.content}>
-          <View style={styles.reservedBanner}>
-            <Ionicons name="time-outline" size={20} color={colors.warning} />
-            <Text style={styles.reservedBannerText}>
-              Esta doação está reservada para si. Reserva válida durante 24 horas.
+        <View style={styles.congratsWrap}>
+          <View style={styles.congratsIconWrap}>
+            <Text style={styles.congratsIcon}>🎉</Text>
+          </View>
+          <Text style={styles.congratsTitle}>Congratulações!</Text>
+          <Text style={styles.congratsText}>A sua doação foi reservada com sucesso.</Text>
+          <View style={styles.congratsNoticeCard}>
+            <Ionicons name="time-outline" size={18} color={colors.accent} />
+            <Text style={styles.congratsNoticeText}>
+              Esta doação está reservada para si durante 24 horas.
             </Text>
           </View>
+          <Button onPress={() => setJustReserved(false)} fullWidth>
+            Continuar
+          </Button>
+        </View>
+      </View>
+    );
+  }
+
+  // Reservation already active — this screen is the single source of truth
+  // for pickup: everything the recipient needs (countdown, where to go, what
+  // to bring, and the code-gated confirmation) lives here, nothing requires
+  // navigating elsewhere. Never shows the swipe stack while a reservation is active.
+  if (status.reason === 'active_reservation' && status.activeReservation) {
+    const reserved = status.activeReservation;
+    const codeVerified = Boolean(reserved.Collection_Code_Verified_At);
+    const mapsQuery = collectionPoint
+      ? encodeURIComponent([collectionPoint.Address, collectionPoint.City].filter(Boolean).join(', '))
+      : '';
+
+    return (
+      <View style={styles.screen}>
+        {Header}
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.reservedScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* PRIMARY — kept deliberately minimal per spec: title, countdown,
+              code entry, confirm. Everything else lives in "Mais informações". */}
+          <Text style={styles.reservedTitle}>🎁 Doação reservada</Text>
+
+          {reservationCountdown && !reservationCountdown.expired ? (
+            <View style={styles.countdownCard}>
+              <Text style={styles.countdownCardLabel}>Reserva válida por</Text>
+              <View style={styles.countdownRow}>
+                <View style={styles.countdownUnit}>
+                  <Text style={styles.countdownValueLarge}>{pad2(reservationCountdown.hours)}</Text>
+                  <Text style={styles.countdownUnitLabel}>h</Text>
+                </View>
+                <Text style={styles.countdownColonLarge}>:</Text>
+                <View style={styles.countdownUnit}>
+                  <Text style={styles.countdownValueLarge}>{pad2(reservationCountdown.minutes)}</Text>
+                  <Text style={styles.countdownUnitLabel}>m</Text>
+                </View>
+                <Text style={styles.countdownColonLarge}>:</Text>
+                <View style={styles.countdownUnit}>
+                  <Text style={styles.countdownValueLarge}>{pad2(reservationCountdown.seconds)}</Text>
+                  <Text style={styles.countdownUnitLabel}>s</Text>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.countdownCard, styles.countdownCardExpired]}>
+              <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
+              <Text style={styles.countdownExpiredText}>A sua reserva expirou. A atualizar…</Text>
+            </View>
+          )}
+
           {error ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
-          <Card style={styles.card}>
-            <Photo uri={reserved.Photo} style={styles.photo} placeholderIcon="🎁" resizeMode="contain" />
-            <View style={styles.cardBody}>
-              <Text style={styles.itemType}>{reserved.Item_Type}</Text>
-              <Text style={styles.locationText}>
-                Qtd: {reserved.Quantity} · Estado: {reserved.Condition}
-              </Text>
-              {(reserved.City || reserved.Address) && (
-                <View style={styles.metaRow}>
-                  <Text style={styles.locationText}>
-                    📍 {[reserved.Address, reserved.City].filter(Boolean).join(', ')}
-                  </Text>
-                  <Pressable
-                    onPress={() =>
-                      Linking.openURL(`https://www.google.com/maps?q=${reserved.Location.lat},${reserved.Location.lng}`)
-                    }
-                  >
-                    <Text style={styles.mapLink}> Ver no mapa</Text>
-                  </Pressable>
+
+          {/* Receipt confirmation — gated on the code, never immediate */}
+          <View style={styles.sectionCard}>
+            {!codeVerified ? (
+              <>
+                <Text style={styles.sectionTitle}>🔢 Introduza o código de 4 dígitos</Text>
+                <Text style={styles.locationText}>
+                  No local, a equipa Wafina confirma o seu ID e entrega-lhe um código de 4 dígitos.
+                </Text>
+                <TextInput
+                  value={codeInput}
+                  onChangeText={(v) => {
+                    setCodeError('');
+                    setCodeInput(v.replace(/[^0-9]/g, '').slice(0, 4));
+                  }}
+                  placeholder="0000"
+                  placeholderTextColor={colors.textFaint}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  style={styles.codeInput}
+                />
+                {codeError ? <Text style={styles.errorText}>{codeError}</Text> : null}
+                <Button onPress={onVerifyCode} loading={verifyingCode} disabled={codeInput.length !== 4} fullWidth>
+                  Confirmar código
+                </Button>
+              </>
+            ) : (
+              <>
+                <View style={styles.codeVerifiedBanner}>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                  <Text style={styles.codeVerifiedText}>Código confirmado no ponto de recolha.</Text>
                 </View>
-              )}
-              <Button onPress={onConfirmReceived} loading={confirming} fullWidth>
-                Confirmar recebimento
-              </Button>
+                <Button onPress={() => setShowThankYouModal(true)} loading={confirming} fullWidth>
+                  Confirmar recebimento
+                </Button>
+              </>
+            )}
+          </View>
+
+          <Pressable
+            onPress={() => setMoreInfoExpanded((v) => !v)}
+            accessibilityRole="button"
+            style={styles.moreInfoToggle}
+          >
+            <Text style={styles.moreInfoToggleIcon}>{moreInfoExpanded ? '☝️' : '👇'}</Text>
+            <Text style={styles.moreInfoToggleText}>Mais informações</Text>
+            <Ionicons
+              name={moreInfoExpanded ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={colors.accent}
+            />
+          </Pressable>
+
+          {/* SECONDARY — "Mais informações", collapsed by default */}
+          {moreInfoExpanded && (
+            <View style={styles.moreInfoSection}>
+              <Text style={styles.reservedCode}>{reserved.Public_Donation_Code}</Text>
+
+              <View style={styles.reservedItemRow}>
+                <Photo
+                  uri={reserved.Photo}
+                  style={styles.reservedItemPhoto}
+                  placeholderIcon="🎁"
+                  resizeMode="cover"
+                />
+                <View style={styles.reservedItemInfo}>
+                  <Text style={styles.itemType} numberOfLines={2}>
+                    {reserved.Item_Type}
+                  </Text>
+                  <Text style={styles.locationText}>
+                    Qtd: {reserved.Quantity} · Estado: {reserved.Condition}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Collection point — never invented; a null response means Wafina
+                  genuinely has no point configured yet for this country. */}
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>📍 Onde levantar</Text>
+                {collectionPoint ? (
+                  <View style={styles.collectionPointBody}>
+                    <Text style={styles.collectionPointName}>{collectionPoint.Name}</Text>
+                    <Text style={styles.locationText}>{collectionPoint.Address}</Text>
+                    {collectionPoint.City && <Text style={styles.locationText}>{collectionPoint.City}</Text>}
+                    {collectionPoint.Opening_Hours && (
+                      <Text style={styles.locationText}>Horário: {collectionPoint.Opening_Hours}</Text>
+                    )}
+                    {collectionPoint.Phone && (
+                      <Pressable onPress={() => Linking.openURL(`tel:${collectionPoint.Phone}`)}>
+                        <Text style={styles.mapLink}>📞 {collectionPoint.Phone}</Text>
+                      </Pressable>
+                    )}
+                    {collectionPoint.Email && (
+                      <Pressable onPress={() => Linking.openURL(`mailto:${collectionPoint.Email}`)}>
+                        <Text style={styles.mapLink}>✉️ {collectionPoint.Email}</Text>
+                      </Pressable>
+                    )}
+                    {collectionPoint.Phone && (
+                      <Pressable
+                        onPress={() => Linking.openURL(`https://wa.me/${collectionPoint.Phone!.replace(/\D/g, '')}`)}
+                      >
+                        <Text style={styles.mapLink}>💬 Contactar pelo WhatsApp</Text>
+                      </Pressable>
+                    )}
+                    {collectionPoint.Directions && (
+                      <Text style={[styles.locationText, styles.directionsText]}>{collectionPoint.Directions}</Text>
+                    )}
+                    <Pressable
+                      onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${mapsQuery}`)}
+                    >
+                      <Text style={[styles.mapLink, styles.directionsLink]}>Como chegar →</Text>
+                    </Pressable>
+                  </View>
+                ) : collectionPointFetchFailed ? (
+                  <Text style={styles.locationText}>Não foi possível carregar o ponto de recolha. Tente novamente.</Text>
+                ) : (
+                  <Text style={styles.locationText}>
+                    A informação do ponto de recolha ainda não está configurada para o seu país. Contacte o suporte
+                    Wafina para saber onde levantar esta doação.
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>🪪 O que precisa para levantar</Text>
+                <Text style={styles.locationText}>
+                  Apresente o seu ID Wafina no ponto de recolha para verificação.
+                </Text>
+                {session?.wafinaId && (
+                  <View style={styles.wafinaIdWrap}>
+                    <Text style={styles.wafinaIdLabel}>ID Wafina</Text>
+                    <Text style={styles.wafinaIdValue}>{session.wafinaId}</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.progressRow}>
+                <View style={styles.progressStep}>
+                  <View style={[styles.progressDot, styles.progressDotDone]}>
+                    <Ionicons name="checkmark" size={12} color="#ffffff" />
+                  </View>
+                  <Text style={styles.progressLabel}>Reservada</Text>
+                </View>
+                <View style={styles.progressLine} />
+                <View style={styles.progressStep}>
+                  <View style={[styles.progressDot, codeVerified && styles.progressDotDone]}>
+                    {codeVerified ? (
+                      <Ionicons name="checkmark" size={12} color="#ffffff" />
+                    ) : (
+                      <Text style={styles.progressDotPendingText}>2</Text>
+                    )}
+                  </View>
+                  <Text style={styles.progressLabel}>Levantar</Text>
+                </View>
+                <View style={styles.progressLine} />
+                <View style={styles.progressStep}>
+                  <View style={styles.progressDot}>
+                    <Text style={styles.progressDotPendingText}>3</Text>
+                  </View>
+                  <Text style={styles.progressLabel}>Recebida</Text>
+                </View>
+              </View>
+              <Text style={styles.progressExplain}>
+                Dirija-se ao ponto de recolha antes do fim da reserva. Depois de receber fisicamente a doação,
+                confirme o recebimento na aplicação.
+              </Text>
             </View>
-          </Card>
-        </View>
+          )}
+        </ScrollView>
+        <ThankYouNoteModal
+          visible={showThankYouModal}
+          submitting={confirming}
+          onSkip={() => onConfirmReceived()}
+          onSubmit={(message, photo) => onConfirmReceived(message, photo)}
+        />
       </View>
     );
   }
@@ -470,12 +822,17 @@ export function ReceberScreen({ navigation }: Props) {
           </View>
         ) : null}
 
-        <View style={styles.stackArea}>
+        <View style={styles.stackArea} onLayout={(e) => setStackAreaHeight(e.nativeEvent.layout.height)}>
           {stackCards.length === 0 ? (
             <EmptyState
-              title="Sem doações disponíveis"
-              description="Não há doações disponíveis para si neste momento. Volte a verificar mais tarde."
+              title="Chegou ao fim da lista"
+              description="Reviu todas as doações disponíveis. Passar não as remove — pode vê-las novamente."
               icon="gift-outline"
+              action={
+                <Button variant="receive" onPress={load}>
+                  Ver novamente
+                </Button>
+              }
             />
           ) : (
             stackCards
@@ -490,6 +847,8 @@ export function ReceberScreen({ navigation }: Props) {
                     isTop={isTop}
                     pan={pan}
                     panHandlers={isTop ? panResponder.panHandlers : {}}
+                    centerStyle={centerStyle}
+                    onMeasureHeight={setCardHeight}
                   />
                 );
               })
@@ -497,9 +856,9 @@ export function ReceberScreen({ navigation }: Props) {
         </View>
 
         {stackCards.length > 0 && topDonation && (
-          <View style={styles.actionRow}>
+          <View style={[styles.actionRow, { paddingBottom: insets.bottom + spacing[5] }]}>
             <Pressable
-              onPress={() => forceSwipe('left', topDonation)}
+              onPress={() => animateCardOut('left', onPass)}
               accessibilityRole="button"
               accessibilityLabel="Passar"
               style={[styles.actionBtn, styles.passBtn]}
@@ -507,7 +866,9 @@ export function ReceberScreen({ navigation }: Props) {
               <Ionicons name="close" size={28} color={colors.danger} />
             </Pressable>
             <Pressable
-              onPress={() => forceSwipe('right', topDonation)}
+              // The ONLY path in this screen allowed to call onSelect — see
+              // animateCardOut's doc comment for why the gesture path can't.
+              onPress={() => animateCardOut('right', () => onSelect(topDonation))}
               accessibilityRole="button"
               accessibilityLabel="Quero Receber"
               style={[styles.actionBtn, styles.selectBtn]}
@@ -576,15 +937,22 @@ const styles = StyleSheet.create({
   stackArea: {
     flex: 1,
     alignItems: 'center',
-    // Anchored to the bottom of the available space (not centered) so the
-    // PASSAR/QUERO RECEBER buttons sit close under the card instead of
-    // leaving a large empty gap on taller screens.
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
   },
   cardWrap: {
+    // Real-device finding, 2026-08-11 — an absolutely positioned card with no
+    // explicit inset does NOT reliably inherit the parent's justifyContent on
+    // every Android device (it was observed landing near the top instead of
+    // centering/bottom-anchoring), so vertical position can't be left
+    // implicit. Rather than pin to one edge (which just moves the leftover
+    // space to the other side instead of removing it), the actual rendered
+    // card height is measured once via onLayout (see the SwipeCard
+    // component's onMeasureHeight) and used to compute an explicit `top`
+    // that centers it — see centerStyle in ReceberScreen.
     position: 'absolute',
     width: '100%',
     maxWidth: 380,
+    alignSelf: 'center',
   },
   card: {
     padding: 0,
@@ -830,5 +1198,265 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: colors.textFaint,
     marginBottom: 12,
+  },
+  // RECEBER UX refinement, 2026-08-11 — the countdown is now the single most
+  // prominent element on the simplified primary screen (spec: "Large
+  // prominent live countdown"), larger than the original inline value.
+  countdownValueLarge: {
+    fontFamily: fonts.display,
+    fontSize: 36,
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  countdownColonLarge: {
+    fontFamily: fonts.display,
+    fontSize: 30,
+    color: colors.textFaint,
+    marginBottom: 14,
+  },
+  moreInfoToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing[3],
+  },
+  moreInfoToggleIcon: {
+    fontSize: 15,
+  },
+  moreInfoToggleText: {
+    fontFamily: 'Manrope-700',
+    fontSize: 13.5,
+    color: colors.accent,
+  },
+  moreInfoSection: {
+    gap: spacing[4],
+  },
+  congratsWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing[6],
+    gap: spacing[3],
+  },
+  congratsIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: radius.full,
+    backgroundColor: colors.receiveSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[2],
+  },
+  congratsIcon: {
+    fontSize: 44,
+  },
+  congratsTitle: {
+    fontFamily: fonts.display,
+    fontSize: 24,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  congratsText: {
+    fontFamily: 'Manrope-400',
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing[2],
+  },
+  congratsNoticeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing[4],
+    marginBottom: spacing[4],
+  },
+  congratsNoticeText: {
+    flex: 1,
+    fontFamily: 'Manrope-600',
+    fontSize: 13.5,
+    color: colors.text,
+  },
+  reservedScrollContent: {
+    gap: spacing[4],
+    paddingBottom: spacing[10],
+  },
+  reservedTitle: {
+    fontFamily: fonts.display,
+    fontSize: 19,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: spacing[2],
+  },
+  reservedCode: {
+    fontFamily: 'Manrope-700',
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: -spacing[2],
+  },
+  countdownCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[6],
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  countdownCardLabel: {
+    fontFamily: 'Manrope-600',
+    fontSize: 12,
+    color: colors.textFaint,
+    textTransform: 'uppercase',
+  },
+  countdownCardExpired: {
+    flexDirection: 'row',
+    backgroundColor: colors.dangerSoft,
+    borderColor: colors.danger,
+  },
+  countdownExpiredText: {
+    fontFamily: 'Manrope-600',
+    fontSize: 13,
+    color: colors.danger,
+    flex: 1,
+  },
+  reservedItemRow: {
+    flexDirection: 'row',
+    gap: spacing[3],
+    alignItems: 'center',
+  },
+  // RECEBER UX refinement, 2026-08-11 — enlarged per feedback that the
+  // "Saiba mais" item photo was too small to read at a glance (was 64x64).
+  reservedItemPhoto: {
+    width: 96,
+    height: 96,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface2,
+  },
+  reservedItemInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  sectionCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing[4],
+    gap: spacing[2],
+  },
+  sectionTitle: {
+    fontFamily: fonts.display,
+    fontSize: 15.5,
+    color: colors.text,
+  },
+  collectionPointBody: {
+    gap: 4,
+  },
+  collectionPointName: {
+    fontFamily: 'Manrope-700',
+    fontSize: 14,
+    color: colors.text,
+  },
+  directionsLink: {
+    marginTop: 4,
+  },
+  directionsText: {
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
+  wafinaIdWrap: {
+    marginTop: 2,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface2,
+    borderRadius: radius.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  wafinaIdLabel: {
+    fontFamily: 'Manrope-600',
+    fontSize: 10,
+    color: colors.textFaint,
+    textTransform: 'uppercase',
+  },
+  wafinaIdValue: {
+    fontFamily: fonts.mono,
+    fontSize: 14,
+    color: colors.text,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing[2],
+  },
+  progressStep: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  progressDot: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface2,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressDotDone: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+  },
+  progressDotPendingText: {
+    fontFamily: 'Manrope-700',
+    fontSize: 11,
+    color: colors.textFaint,
+  },
+  progressLine: {
+    flex: 1,
+    height: 1.5,
+    backgroundColor: colors.border,
+    marginHorizontal: 4,
+    marginBottom: 18,
+  },
+  progressLabel: {
+    fontFamily: 'Manrope-600',
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  progressExplain: {
+    fontFamily: 'Manrope-400',
+    fontSize: 12.5,
+    color: colors.textMuted,
+    lineHeight: 18,
+  },
+  codeInput: {
+    fontFamily: fonts.display,
+    fontSize: 28,
+    letterSpacing: 8,
+    textAlign: 'center',
+    color: colors.text,
+    backgroundColor: colors.surface2,
+    borderRadius: radius.md,
+    paddingVertical: spacing[3],
+    marginVertical: spacing[2],
+  },
+  codeVerifiedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginBottom: spacing[2],
+  },
+  codeVerifiedText: {
+    fontFamily: 'Manrope-600',
+    fontSize: 13,
+    color: colors.success,
+    flex: 1,
   },
 });

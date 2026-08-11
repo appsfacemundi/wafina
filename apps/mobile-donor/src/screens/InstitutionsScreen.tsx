@@ -1,9 +1,10 @@
 import type { GeoRegion } from '@wafina/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
+import { Input } from '@/components/Input';
 import { Photo } from '@/components/Photo';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
@@ -26,6 +27,7 @@ export function InstitutionsScreen() {
   const [institutions, setInstitutions] = useState<PublicInstitution[] | null>(null);
   const [countries, setCountries] = useState<GeoRegion[]>([]);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -48,6 +50,18 @@ export function InstitutionsScreen() {
     return countries.find((c) => c.Region_ID === countryId)?.Name ?? '';
   }
 
+  // UX fix, 2026-08-11 — the list previously rendered in raw API order and
+  // had no way to find a specific institution by name. Alphabetical order +
+  // a name/type search, same pattern as MyDonationsScreen's search.
+  const visibleInstitutions = useMemo(() => {
+    const sorted = [...(institutions ?? [])].sort((a, b) => a.Name.localeCompare(b.Name, 'pt'));
+    const q = search.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter(
+      (inst) => inst.Name.toLowerCase().includes(q) || inst.Type.toLowerCase().includes(q),
+    );
+  }, [institutions, search]);
+
   return (
     <View style={styles.screen}>
       <FlatList
@@ -68,9 +82,25 @@ export function InstitutionsScreen() {
                 icon="business-outline"
               />
             )}
+            {institutions && institutions.length > 0 && (
+              <Input
+                label="Pesquisar"
+                placeholder="Pesquisar por nome ou tipo…"
+                value={search}
+                onChangeText={setSearch}
+                style={{ marginBottom: spacing[3] }}
+              />
+            )}
+            {institutions && institutions.length > 0 && visibleInstitutions.length === 0 && (
+              <EmptyState
+                title="Sem resultados"
+                description="Nenhuma instituição corresponde à pesquisa."
+                icon="search-outline"
+              />
+            )}
           </>
         }
-        data={institutions ?? []}
+        data={visibleInstitutions}
         keyExtractor={(item) => item.Institution_ID}
         renderItem={({ item }) => (
           <Card style={styles.card}>

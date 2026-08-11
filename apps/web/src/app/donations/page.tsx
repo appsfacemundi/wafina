@@ -3,8 +3,8 @@
 import {
   DELIVERY_METHOD_LABEL,
   daysAgoLabel,
-  DONATION_STATUS_LABEL,
-  DONATION_STATUS_TONE,
+  donorDonationStatusLabel,
+  donorDonationStatusTone,
   formatDateLabel,
   RECIPIENT_CATEGORY_LABEL,
   type CorporateAccount,
@@ -186,8 +186,8 @@ export default function DonationsPage() {
                         {d.Public_Donation_Code} · Qtd {d.Quantity}
                       </p>
                     </div>
-                    <Badge tone={DONATION_STATUS_TONE[d.Status]}>
-                      {DONATION_STATUS_LABEL[d.Status]}
+                    <Badge tone={donorDonationStatusTone(d)}>
+                      {donorDonationStatusLabel(d)}
                     </Badge>
                   </div>
                   <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>

@@ -1,4 +1,5 @@
 import type { DeliveryMethod } from '../enums/delivery-method';
+import type { DonationApprovalStatus } from '../enums/donation-approval-status';
 import type { DonationStatus } from '../enums/donation-status';
 import type { IndividualDonationState } from '../enums/individual-donation-state';
 import type { RecipientCategory } from '../enums/recipient-category';
@@ -26,6 +27,39 @@ export const DONATION_STATUS_TONE: Record<DonationStatus, 'warning' | 'info' | '
   Collected: 'info',
   Delivered: 'success',
 };
+
+/**
+ * Bug fix, 2026-08-11 — DONATION_STATUS_LABEL above reads Status alone, which
+ * stays 'Pending' both before AND after Admin approval (Status only tracks
+ * claim/delivery progress; Approval_Status is a separate dimension — see
+ * isVisibleForRecipients). A donor viewing their own donation therefore saw
+ * the identical "Pendente" label whether Admin had reviewed it yet or not,
+ * which read as "my approved donation is stuck." This donor-facing wrapper
+ * makes the Approval_Status distinction visible instead of collapsing it:
+ * still-under-review and rejected donations get their own label, so once
+ * Admin approves, "Pendente" starts meaning something new to the donor
+ * (listed, waiting for a recipient) instead of looking unchanged.
+ * Institution/mobile-institution screens intentionally keep using
+ * DONATION_STATUS_LABEL directly — they only ever see already-Approved
+ * donations (isVisibleForRecipients), so this distinction doesn't apply there.
+ */
+export function donorDonationStatusLabel(donation: {
+  Status: DonationStatus;
+  Approval_Status: DonationApprovalStatus;
+}): string {
+  if (donation.Approval_Status === 'Pending_Review') return 'Em análise pela equipa Wafina';
+  if (donation.Approval_Status === 'Rejected') return 'Rejeitada';
+  return DONATION_STATUS_LABEL[donation.Status];
+}
+
+export function donorDonationStatusTone(donation: {
+  Status: DonationStatus;
+  Approval_Status: DonationApprovalStatus;
+}): 'warning' | 'info' | 'success' | 'neutral' | 'danger' {
+  if (donation.Approval_Status === 'Pending_Review') return 'info';
+  if (donation.Approval_Status === 'Rejected') return 'danger';
+  return DONATION_STATUS_TONE[donation.Status];
+}
 
 /** Epic 0.6, 2026-08-06 — same Record<EnumType, string> pattern as DONATION_STATUS_LABEL above. */
 export const RECIPIENT_CATEGORY_LABEL: Record<RecipientCategory, string> = {

@@ -16,8 +16,10 @@ import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetLatLong, nowIso, parseSheetDate, sequenceSuffix, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
+import { sendEmail } from './email';
 import { getRegionById } from './geo-regions';
 import { createNotification } from './notifications';
+import { findUserById } from './users';
 import { ValidationError } from './validation-error';
 
 /**
@@ -59,8 +61,105 @@ function rowToDonation(row: Record<string, string>): Donation {
     Approval_Rejection_Reason: row.Approval_Rejection_Reason || null,
     Reserved_By_User_ID: row.Reserved_By_User_ID || null,
     Reserved_At: row.Reserved_At || null,
+    // Collection_Code itself deliberately never appears here — only
+    // AdminDonationView (built separately in toAdminDonationViews) exposes
+    // it, so donor-facing routes can never leak it via this shared mapper.
+    Collection_Code_Verified_At: row.Collection_Code_Verified_At || null,
     Individual_Delivered_At: row.Individual_Delivered_At || null,
+    Receiver_Thank_You_Message: row.Receiver_Thank_You_Message || null,
+    Receiver_Thank_You_Photo: toProxiedUrl(row.Receiver_Thank_You_Photo),
   };
+}
+
+/** Donation lifecycle emails, 2026-08-11 — the thank-you message is receiver-authored free text, unlike Item_Type (a fixed picklist); escaped before interpolating into email HTML. */
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Donation lifecycle emails, 2026-08-11 — Email #1: sent to the donor the
+ * moment their donation is claimed (Institution/Shelter) or reserved
+ * (Pessoa via RECEBER) — "someone is going to receive your item". Gated by
+ * the donor's own Email_Notifications_Enabled, same as the existing
+ * impact-story email (see success-stories.ts's sendImpactStoryEmail).
+ * Swallows its own failures so a missing/misconfigured provider never turns
+ * a successful claim/reservation into a failed request.
+ */
+async function sendDonationClaimedEmail(donorId: string, itemType: string): Promise<void> {
+  try {
+    const donor = await findUserById(donorId);
+    if (!donor?.Email || donor.Email_Notifications_Enabled === 'FALSE') return;
+    await sendEmail({
+      to: donor.Email,
+      subject: 'Wafina — A sua doação foi doada a alguém que precisa',
+      html: `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+          <h2 style="color: #ff5a36;">A sua doação foi doada! 🎁</h2>
+          <p style="color: #475569; line-height: 1.5;">
+            Boas notícias — a sua doação de <strong>${escapeHtml(itemType)}</strong> foi aceite e vai chegar a
+            quem precisa dela.
+          </p>
+          <p style="color: #475569; line-height: 1.5;">
+            Assim que a receção for confirmada, enviamos-lhe outra mensagem a agradecer o seu gesto.
+          </p>
+          <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">
+            Recebeu este email porque tem as notificações por email ativadas nas definições da sua conta Wafina.
+          </p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('sendDonationClaimedEmail failed (swallowed, does not fail the caller\'s action):', err);
+  }
+}
+
+/**
+ * Donation lifecycle emails, 2026-08-11 — Email #2: sent to the donor once
+ * final receipt is confirmed (confirmDelivery for Institution/Shelter,
+ * confirmIndividualPickup for a Pessoa). Personalized with the receiver's
+ * optional thank-you note/photo when they left one (see Receiver_Thank_You_*
+ * on the shared Donation type); falls back to generic congratulations copy
+ * when they didn't, since the note is explicitly optional.
+ */
+async function sendDonationReceivedEmail(
+  donorId: string,
+  itemType: string,
+  thankYouMessage: string | null,
+  thankYouPhoto: string | null,
+): Promise<void> {
+  try {
+    const donor = await findUserById(donorId);
+    if (!donor?.Email || donor.Email_Notifications_Enabled === 'FALSE') return;
+    await sendEmail({
+      to: donor.Email,
+      subject: 'Wafina — Obrigado! A sua doação foi recebida',
+      html: `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+          <h2 style="color: #ff5a36;">Obrigado pelo seu gesto! ❤️</h2>
+          <p style="color: #475569; line-height: 1.5;">
+            A sua doação de <strong>${escapeHtml(itemType)}</strong> foi recebida com sucesso. Fez a diferença na
+            vida de alguém.
+          </p>
+          ${thankYouPhoto ? `<img src="${thankYouPhoto}" alt="" style="width: 100%; border-radius: 8px; margin: 16px 0;" />` : ''}
+          ${
+            thankYouMessage
+              ? `<p style="color: #1e293b; line-height: 1.6; font-style: italic; background: #f8fafc; border-radius: 8px; padding: 14px;">"${escapeHtml(thankYouMessage)}"</p>`
+              : ''
+          }
+          <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">
+            Recebeu este email porque tem as notificações por email ativadas nas definições da sua conta Wafina.
+          </p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('sendDonationReceivedEmail failed (swallowed, does not fail the caller\'s action):', err);
+  }
 }
 
 /** RC1 RECEBER — a reservation older than this is treated as expired and released back to available. */
@@ -75,15 +174,32 @@ function isReservationActive(row: { Reserved_By_User_ID?: string | null; Reserve
  * RC1 RECEBER — the single predicate every recipient-facing list (Institution,
  * Animal Shelter, individual RECEBER) filters through: Admin must have
  * approved it, it must still be Pending (not already claimed/reserved away),
- * and it must be intended for the caller's own recipient category. Operates
- * on raw sheet rows (same blank-defaults-to-Approved rule as rowToDonation)
- * so callers can filter before paying for the full row->Donation conversion.
- * Kept as one function so a future change to the approval rule can't drift
- * between the three callers.
+ * it must be intended for the caller's own recipient category, AND it must
+ * belong to the caller's own country. Operates on raw sheet rows (same
+ * blank-defaults-to-Approved rule as rowToDonation) so callers can filter
+ * before paying for the full row->Donation conversion. Kept as one function
+ * so a future change to the approval/routing rule can't drift between the
+ * three callers.
+ *
+ * Country-routing fix, 2026-08-10 — `countryId` is now mandatory, not
+ * optional: every recipient channel (Institution, Animal Shelter, and now
+ * individual RECEBER) must be scoped to a country, keyed purely off
+ * Donation.Country_ID vs the caller's own Country_ID — no country name or
+ * ID is ever hardcoded, so this works unmodified for any future country
+ * the platform adds.
  */
-function isVisibleForRecipients(row: Record<string, string>, category: RecipientCategory): boolean {
+function isVisibleForRecipients(
+  row: Record<string, string>,
+  category: RecipientCategory,
+  countryId: string,
+): boolean {
   const approvalStatus = row.Approval_Status || 'Approved';
-  return row.Status === 'Pending' && approvalStatus === 'Approved' && row.Recipient_Category === category;
+  return (
+    row.Status === 'Pending' &&
+    approvalStatus === 'Approved' &&
+    row.Recipient_Category === category &&
+    row.Country_ID === countryId
+  );
 }
 
 /** RC1 RECEBER — Admin-facing computed state for People-category donations only; see the shared enum's doc comment. */
@@ -182,6 +298,19 @@ async function generatePublicDonationCode(countryId: string): Promise<string> {
     return Number.isFinite(num) && num > max ? num : max;
   }, 0);
   return `${prefix}${String(maxSeq + 1).padStart(6, '0')}`;
+}
+
+/**
+ * Collection-point flow, 2026-08-10 — the code isn't a security boundary on
+ * its own (the actual control is Wafina staff checking the recipient's
+ * Wafina ID in person); it's a lightweight "yes, they actually showed up and
+ * were verified" signal that unlocks Confirmar recebimento. Random each
+ * reservation — no need for the uniqueness/collision handling
+ * generatePublicDonationCode needs, since it only ever has to be unique
+ * against the one currently-active reservation it belongs to.
+ */
+function generateCollectionCode(): string {
+  return String(Math.floor(1000 + Math.random() * 9000));
 }
 
 function assertValidLocation(location: { lat: number; lng: number }): void {
@@ -585,12 +714,25 @@ async function toAdminDonationViews(rows: Record<string, string>[]): Promise<Adm
   const institutionById = new Map(institutionRows.map((r) => [r.Institution_ID, r]));
   const successStoryRows = await getRows(SHEET_TABS.successStories);
   const storyStatusByDonationId = buildStoryStatusByDonationId(successStoryRows);
+  // Collection-point flow, 2026-08-10 — the raw row is the only place
+  // Collection_Code survives; rowToDonation deliberately omits it (see that
+  // function's comment) so it can never leak through a donor-facing route.
+  const rawByDonationId = new Map(rows.map((r) => [r.Donation_ID, r]));
+  // Admin collection-code visibility, 2026-08-10 — the RECEIVER's identity
+  // (Reserved_By_User_ID), distinct from the donor identity resolved above.
+  // Staff verifying a Wafina ID in person needs the real name/ID here — this
+  // is an operational admin view, not a donor-facing one, so it's never
+  // gated behind Show_Name_To_Institutions (that flag only governs what an
+  // *institution* sees about a *donor*).
+  const userRows = await getRows(SHEET_TABS.users);
+  const userById = new Map(userRows.map((u) => [u.User_ID, u]));
 
   return views.map((view) => {
     const institution = view.Claimed_By_Institution_ID
       ? institutionById.get(view.Claimed_By_Institution_ID)
       : undefined;
     const storyStatus = storyStatusByDonationId.get(view.Donation_ID) ?? null;
+    const receiver = view.Reserved_By_User_ID ? userById.get(view.Reserved_By_User_ID) : undefined;
     return {
       ...view,
       Claimed_By_Institution_Name: institution?.Name || null,
@@ -598,6 +740,9 @@ async function toAdminDonationViews(rows: Record<string, string>[]): Promise<Adm
       Has_Success_Story: storyStatus !== null,
       Success_Story_Status: storyStatus,
       Individual_State: computeIndividualState(view),
+      Collection_Code: rawByDonationId.get(view.Donation_ID)?.Collection_Code || null,
+      Reserved_By_Wafina_ID: receiver?.Wafina_ID || null,
+      Reserved_By_Name: receiver?.Name || null,
     };
   });
 }
@@ -617,14 +762,14 @@ async function toAdminDonationViews(rows: Record<string, string>[]): Promise<Adm
  */
 export async function listAvailableDonations(
   category: RecipientCategory,
-  countryId?: string,
+  countryId: string,
 ): Promise<InstitutionDonationView[]> {
   const rows = await getRows(SHEET_TABS.donations);
   // Pilot feedback, 2026-08-05: unsorted — same missing-sort pattern already
   // fixed on listDonationsByDonor and listDonationsClaimedByInstitution, but
   // never caught here. Newest-submitted first, matching every sibling list.
   const filtered = rows
-    .filter((row) => isVisibleForRecipients(row, category) && (!countryId || row.Country_ID === countryId))
+    .filter((row) => isVisibleForRecipients(row, category, countryId))
     .sort(
       (a, b) =>
         parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted) ||
@@ -638,14 +783,18 @@ export async function listAvailableDonations(
  * Recipient_Category='People' gate as listAvailableDonations, plus excludes
  * anything currently reserved by someone else (lazy expiry — a reservation
  * older than 24h is simply not counted as active here, no separate release
- * job needed). Not scoped by country: RC1 has limited collection points and
- * the spec doesn't ask for individual-side country scoping the way the
- * Institution flow has.
+ * job needed).
+ *
+ * Country-routing fix, 2026-08-10 — `countryId` (the caller's own
+ * Active_Country_ID) is now required and enforced via isVisibleForRecipients,
+ * exactly mirroring how listAvailableDonations already scopes Institutions/
+ * Animal_Shelters to the claiming org's own country. A donation submitted in
+ * one country must never appear in another country's RECEBER pool.
  */
-export async function listAvailableDonationsForIndividuals(): Promise<Donation[]> {
+export async function listAvailableDonationsForIndividuals(countryId: string): Promise<Donation[]> {
   const rows = await getRows(SHEET_TABS.donations);
   return rows
-    .filter((row) => isVisibleForRecipients(row, 'People') && !isReservationActive(row))
+    .filter((row) => isVisibleForRecipients(row, 'People', countryId) && !isReservationActive(row))
     .sort(
       (a, b) =>
         parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted) ||
@@ -809,6 +958,7 @@ export async function claimDonation(
   institutionId: string,
   donationId: string,
   expectedCategory: RecipientCategory,
+  expectedCountryId: string,
 ): Promise<Donation> {
   const existing = await getDonation(donationId);
   if (!existing) throw new ValidationError('Doação não encontrada');
@@ -828,6 +978,12 @@ export async function claimDonation(
   // live audit that this was previously unchecked here.
   if (existing.Recipient_Category !== expectedCategory) {
     throw new ValidationError('Esta doação não está disponível para esta instituição');
+  }
+  // Country-routing fix, 2026-08-10 — same defense-in-depth reasoning: the
+  // list is already scoped to the institution's own Country_ID, but claiming
+  // must never succeed cross-country either, even via a leaked/stale ID.
+  if (existing.Country_ID !== expectedCountryId) {
+    throw new ValidationError('Esta doação não está disponível no seu país');
   }
 
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
@@ -849,6 +1005,9 @@ export async function claimDonation(
       updated.Delivery_Method ? DELIVERY_METHOD_LABEL[updated.Delivery_Method] : 'não especificado'
     }`,
   });
+  // Donation lifecycle emails, 2026-08-11 — Email #1 ("o seu item foi doado"),
+  // fires at claim time per spec (not at submission).
+  await sendDonationClaimedEmail(updated.Donor_ID, updated.Item_Type);
 
   return updated;
 }
@@ -863,7 +1022,11 @@ export async function claimDonation(
  * Status stays 'Pending' throughout the reservation — only confirmIndividual
  * Pickup moves it to 'Delivered'.
  */
-export async function reserveDonationForIndividual(userId: string, donationId: string): Promise<Donation> {
+export async function reserveDonationForIndividual(
+  userId: string,
+  donationId: string,
+  expectedCountryId: string,
+): Promise<Donation> {
   // RC1 RECEBER eligibility rule — checked first and freshly on every
   // attempt (never trusts a client-side "you're eligible" flag): one active
   // reservation at a time, and a cooldown (RECEBER_COOLDOWN_MS) after a
@@ -888,6 +1051,13 @@ export async function reserveDonationForIndividual(userId: string, donationId: s
   if (existing.Recipient_Category !== 'People') {
     throw new ValidationError('Esta doação não está disponível para receção individual');
   }
+  // Country-routing fix, 2026-08-10 — same defense-in-depth reasoning as
+  // claimDonation's equivalent check: the RECEBER list is already scoped to
+  // the caller's own Country_ID, but reserving must never succeed
+  // cross-country either, even via a leaked/stale donation ID.
+  if (existing.Country_ID !== expectedCountryId) {
+    throw new ValidationError('Esta doação não está disponível no seu país');
+  }
   if (isReservationActive(existing)) {
     throw new ValidationError('Esta doação já está reservada por outra pessoa');
   }
@@ -895,6 +1065,12 @@ export async function reserveDonationForIndividual(userId: string, donationId: s
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
     Reserved_By_User_ID: userId,
     Reserved_At: nowIso(),
+    // Collection-point flow, 2026-08-10 — freshly generated (and the prior
+    // verification cleared) on every new reservation, so a donation that
+    // expired and got re-reserved by someone else never inherits a stale
+    // code or an already-verified state from the previous attempt.
+    Collection_Code: generateCollectionCode(),
+    Collection_Code_Verified_At: '',
   });
 
   const updated = await getDonation(donationId);
@@ -907,7 +1083,42 @@ export async function reserveDonationForIndividual(userId: string, donationId: s
     entityId: updated.Donation_ID,
     message: `A sua doação de ${updated.Item_Type} foi reservada por alguém que precisa dela.`,
   });
+  // Donation lifecycle emails, 2026-08-11 — same Email #1 as claimDonation,
+  // fired at reservation time for the RECEBER individual path.
+  await sendDonationClaimedEmail(updated.Donor_ID, updated.Item_Type);
 
+  return updated;
+}
+
+/**
+ * Collection-point flow, 2026-08-10 — the recipient types the 4-digit code
+ * Wafina staff gave them in person (after checking their Wafina ID) at the
+ * collection point. Success only sets Collection_Code_Verified_At — it is
+ * deliberately NOT the same action as confirmIndividualPickup and never
+ * touches Individual_Delivered_At, so entering the code can never start the
+ * 3-day cooldown; only an actual confirmed receipt does that.
+ */
+export async function verifyCollectionCode(userId: string, donationId: string, code: string): Promise<Donation> {
+  const existing = await getDonation(donationId);
+  if (!existing) throw new ValidationError('Doação não encontrada');
+  if (existing.Reserved_By_User_ID !== userId) {
+    throw new ValidationError('Esta doação não está reservada para si');
+  }
+  if (!isReservationActive(existing)) {
+    throw new ValidationError('A reserva expirou');
+  }
+
+  const row = await findRow(SHEET_TABS.donations, (r) => r.Donation_ID === donationId);
+  if (!row || row.Collection_Code !== code.trim()) {
+    throw new ValidationError('Código incorreto. Confirme o código com a equipa no ponto de recolha.');
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
+    Collection_Code_Verified_At: nowIso(),
+  });
+
+  const updated = await getDonation(donationId);
+  if (!updated) throw new Error('Donation vanished after verifying collection code');
   return updated;
 }
 
@@ -918,7 +1129,13 @@ export async function reserveDonationForIndividual(userId: string, donationId: s
  * terminal Status (no new Status value needed) alongside the individual-only
  * Individual_Delivered_At timestamp.
  */
-export async function confirmIndividualPickup(userId: string, donationId: string): Promise<Donation> {
+export async function confirmIndividualPickup(
+  userId: string,
+  donationId: string,
+  /** Donation lifecycle emails, 2026-08-11 — optional, private, email-only (see the shared type's field comment). */
+  thankYouMessage?: string,
+  thankYouPhoto?: string,
+): Promise<Donation> {
   const existing = await getDonation(donationId);
   if (!existing) throw new ValidationError('Doação não encontrada');
   if (existing.Reserved_By_User_ID !== userId) {
@@ -927,10 +1144,20 @@ export async function confirmIndividualPickup(userId: string, donationId: string
   if (!isReservationActive(existing)) {
     throw new ValidationError('A reserva expirou');
   }
+  // Collection-point flow, 2026-08-10 — never a rubber stamp: the recipient
+  // must have already entered the 4-digit code Wafina staff gave them after
+  // checking their Wafina ID in person at the collection point. Confirming
+  // is the LAST step, not the first — this is the server-side gate the UI's
+  // disabled button mirrors, never trust the client to enforce this alone.
+  if (!existing.Collection_Code_Verified_At) {
+    throw new ValidationError('Confirme o código de recolha antes de concluir a receção.');
+  }
 
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
     Status: 'Delivered',
     Individual_Delivered_At: nowIso(),
+    Receiver_Thank_You_Message: thankYouMessage?.trim() ?? '',
+    Receiver_Thank_You_Photo: thankYouPhoto ?? '',
   });
 
   const updated = await getDonation(donationId);
@@ -943,6 +1170,14 @@ export async function confirmIndividualPickup(userId: string, donationId: string
     entityId: updated.Donation_ID,
     message: `A sua doação de ${updated.Item_Type} foi recebida.`,
   });
+  // Donation lifecycle emails, 2026-08-11 — Email #2 ("obrigado pelo seu
+  // gesto"), fires only now, at actual confirmed receipt.
+  await sendDonationReceivedEmail(
+    updated.Donor_ID,
+    updated.Item_Type,
+    updated.Receiver_Thank_You_Message,
+    updated.Receiver_Thank_You_Photo,
+  );
 
   return updated;
 }
@@ -992,7 +1227,13 @@ export async function markCollected(institutionId: string, donationId: string): 
   return updated;
 }
 
-export async function confirmDelivery(institutionId: string, donationId: string): Promise<Donation> {
+export async function confirmDelivery(
+  institutionId: string,
+  donationId: string,
+  /** Donation lifecycle emails, 2026-08-11 — optional, private, email-only (see the shared type's field comment). */
+  thankYouMessage?: string,
+  thankYouPhoto?: string,
+): Promise<Donation> {
   const existing = await getDonation(donationId);
   if (!existing) throw new ValidationError('Doação não encontrada');
   if (existing.Status !== 'Collected') throw new ValidationError('A doação não está no estado Recolhida');
@@ -1003,6 +1244,8 @@ export async function confirmDelivery(institutionId: string, donationId: string)
   await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
     Status: 'Delivered',
     Date_Delivered: nowIso(),
+    Receiver_Thank_You_Message: thankYouMessage?.trim() ?? '',
+    Receiver_Thank_You_Photo: thankYouPhoto ?? '',
   });
 
   const updated = await getDonation(donationId);
@@ -1016,6 +1259,14 @@ export async function confirmDelivery(institutionId: string, donationId: string)
     entityId: updated.Donation_ID,
     message: `A sua doação de ${updated.Item_Type} foi entregue.`,
   });
+  // Donation lifecycle emails, 2026-08-11 — Email #2 ("obrigado pelo seu
+  // gesto"), fires only now, at actual confirmed delivery.
+  await sendDonationReceivedEmail(
+    updated.Donor_ID,
+    updated.Item_Type,
+    updated.Receiver_Thank_You_Message,
+    updated.Receiver_Thank_You_Photo,
+  );
 
   return updated;
 }

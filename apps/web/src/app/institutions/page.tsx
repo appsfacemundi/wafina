@@ -1,7 +1,7 @@
 'use client';
 
 import type { GeoRegion } from '@wafina/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, EmptyState, Photo } from '@wafina/ui';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireSession } from '@/context/AuthContext';
@@ -24,6 +24,7 @@ export default function InstitutionsPage() {
   const [institutions, setInstitutions] = useState<PublicInstitution[] | null>(null);
   const [countries, setCountries] = useState<GeoRegion[]>([]);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -46,6 +47,17 @@ export default function InstitutionsPage() {
     return countries.find((c) => c.Region_ID === countryId)?.Name ?? '';
   }
 
+  // UX fix, 2026-08-11 — parity with mobile-donor: alphabetical order + a
+  // name/type search, previously raw API order with no way to find one.
+  const visibleInstitutions = useMemo(() => {
+    const sorted = [...(institutions ?? [])].sort((a, b) => a.Name.localeCompare(b.Name, 'pt'));
+    const q = search.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter(
+      (inst) => inst.Name.toLowerCase().includes(q) || inst.Type.toLowerCase().includes(q),
+    );
+  }, [institutions, search]);
+
   if (!session) return null;
 
   return (
@@ -64,8 +76,20 @@ export default function InstitutionsPage() {
           />
         )}
         {institutions && institutions.length > 0 && (
+          <input
+            className="input"
+            placeholder="Pesquisar por nome ou tipo…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Pesquisar instituições"
+          />
+        )}
+        {institutions && institutions.length > 0 && visibleInstitutions.length === 0 && (
+          <EmptyState title="Sem resultados" description="Nenhuma instituição corresponde à pesquisa." />
+        )}
+        {institutions && institutions.length > 0 && (
           <div className="stack">
-            {institutions.map((inst) => (
+            {visibleInstitutions.map((inst) => (
               <Card key={inst.Institution_ID} className="institution-card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <Photo

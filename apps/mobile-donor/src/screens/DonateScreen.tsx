@@ -129,7 +129,6 @@ export function DonateScreen({ navigation }: Props) {
   const [condition, setCondition] = useState<string>(CONDITIONS[0]);
   const [recipientCategory, setRecipientCategory] = useState<RecipientCategory>(RECIPIENT_CATEGORIES[0]);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(DELIVERY_METHODS[0]);
-  const [city, setCity] = useState('');
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
   const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
@@ -149,6 +148,12 @@ export function DonateScreen({ navigation }: Props) {
 
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Bug fix, 2026-08-11 — a fast double-tap could call onSubmit() twice
+  // before the `submitting` state update actually re-renders the Button as
+  // disabled (React state isn't synchronous), firing two overlapping photo
+  // uploads. A ref updates immediately, in the same tick, so this closes the
+  // race window `setSubmitting` alone couldn't.
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (!firebaseUser || !session?.corporateAccountId) return;
@@ -263,6 +268,8 @@ export function DonateScreen({ navigation }: Props) {
   }
 
   async function onSubmit() {
+    if (submittingRef.current) return;
+
     setError('');
     setPhotoMissing(false);
     setQuantityInvalid(false);
@@ -285,6 +292,7 @@ export function DonateScreen({ navigation }: Props) {
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
@@ -297,7 +305,6 @@ export function DonateScreen({ navigation }: Props) {
           Condition: condition,
           Recipient_Category: recipientCategory,
           Delivery_Method: deliveryMethod,
-          City: city,
           Address: address,
           Location_lat: lat,
           Location_lng: lng,
@@ -316,6 +323,7 @@ export function DonateScreen({ navigation }: Props) {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Não foi possível submeter a doação.');
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
@@ -487,21 +495,16 @@ export function DonateScreen({ navigation }: Props) {
             </View>
           )}
 
-          <View style={{ gap: spacing[2] }}>
-            <SectionHeader n={corporateAccount ? 7 : 6} title="Cidade (opcional)" />
-            <Input label="Cidade" hideLabel placeholder="Ex: Luanda" value={city} onChangeText={setCity} />
-          </View>
-
           <View ref={photoSectionRef} style={{ gap: spacing[2] }}>
             <View style={styles.photoHeaderRow}>
-              <SectionHeader n={corporateAccount ? 8 : 7} title="Fotografia da doação" />
+              <SectionHeader n={corporateAccount ? 7 : 6} title="Fotografia da doação" />
               <View style={styles.requiredPill}>
                 <Text style={styles.requiredPillText}>Obrigatória</Text>
               </View>
             </View>
             {photo ? (
               <Pressable onPress={onPickPhoto} style={styles.previewWrap}>
-                <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" />
+                <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="cover" />
                 <Pressable
                   style={styles.removePhotoBtn}
                   onPress={() => setPhoto(null)}
@@ -811,9 +814,13 @@ const styles = StyleSheet.create({
   previewWrap: {
     position: 'relative',
   },
+  // Bug fix, 2026-08-11 — 'contain' inside a fixed 200px-tall box let a
+  // portrait photo render as a small centered strip with large empty
+  // margins (see the RECEBER card fix for the same pattern). 'cover' + a
+  // taller box fills the frame edge-to-edge for portrait photos too.
   preview: {
     width: '100%',
-    height: 200,
+    height: 280,
     borderRadius: radius.md,
     backgroundColor: colors.surface2,
   },

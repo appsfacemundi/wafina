@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { colors, radius, spacing } from '@/theme/tokens';
 
-type Variant = 'primary' | 'cta' | 'secondary' | 'ghost' | 'ghostDanger' | 'danger';
+type Variant = 'primary' | 'cta' | 'secondary' | 'ghost' | 'ghostDanger' | 'danger' | 'receive';
 type Size = 'default' | 'large';
 
 interface ButtonProps {
@@ -43,7 +43,11 @@ export function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' || variant === 'cta' ? colors.accentText : colors.accent} />
+        <ActivityIndicator
+          color={
+            variant === 'primary' || variant === 'cta' || variant === 'receive' ? colors.accentText : colors.accent
+          }
+        />
       ) : (
         <Text style={[styles.text, size === 'large' && styles.textLarge, textVariantStyles[variant]]}>
           {children}
@@ -99,6 +103,10 @@ const variantStyles = StyleSheet.create({
   // deleting the account).
   ghostDanger: { backgroundColor: 'transparent' },
   danger: { backgroundColor: colors.danger },
+  // RECEBER-specific CTA (e.g. "Ver novamente") — matches the pink already
+  // used for the swipe stack's own QUERO RECEBER action, so the receiving
+  // flow reads as one consistent color, distinct from primary/cta.
+  receive: { backgroundColor: colors.receive },
 });
 
 const textVariantStyles = StyleSheet.create({
@@ -108,4 +116,5 @@ const textVariantStyles = StyleSheet.create({
   ghost: { color: colors.accent },
   ghostDanger: { color: colors.danger },
   danger: { color: colors.accentText },
+  receive: { color: colors.receiveText },
 });

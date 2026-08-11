@@ -18,4 +18,12 @@ export const SHEET_TABS = {
   invitationCodes: 'Invitation_Codes',
   /** Launch-critical, 2026-08-08 — "Our Partners" section. See packages/shared/src/types/partner.ts. */
   partners: 'Partners',
+  /**
+   * RECEBER collection-point flow, 2026-08-10 — one row per country, the
+   * physical Wafina-run location where People-category recipients collect a
+   * reserved donation. Country_ID-keyed (never a country name/code
+   * conditional), matching the same pattern the rest of the country-routing
+   * work already established.
+   */
+  collectionPoints: 'Collection_Points',
 } as const;

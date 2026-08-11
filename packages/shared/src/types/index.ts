@@ -13,3 +13,4 @@ export * from './admin-dashboard-stats';
 export * from './admin-insights';
 export * from './invitation-code';
 export * from './partner';
+export * from './collection-point';

@@ -1,9 +1,11 @@
 'use client';
 
 import {
+  countryFlagEmoji,
   formatDateTimeLabel,
   RECIPIENT_CATEGORY_LABEL,
   type AdminDonationView,
+  type GeoRegion,
 } from '@wafina/shared';
 import { Badge, Button, Card, EmptyState, Photo, useToast } from '@wafina/ui';
 import { useEffect, useState } from 'react';
@@ -26,6 +28,11 @@ export default function ApproveDonationsPage() {
   const { showToast } = useToast();
 
   const [donations, setDonations] = useState<AdminDonationView[] | null>(null);
+  // Country-routing fix, 2026-08-10 — fetched so each card can show the
+  // donation's distribution country (Country_ID) as a flag + name, making it
+  // immediately obvious where approval will route it (not just which
+  // recipient category).
+  const [countries, setCountries] = useState<GeoRegion[]>([]);
   const [error, setError] = useState('');
   const [actionId, setActionId] = useState<string | null>(null);
   const [reasonFormId, setReasonFormId] = useState<string | null>(null);
@@ -36,7 +43,12 @@ export default function ApproveDonationsPage() {
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
-      setDonations(await apiFetch<AdminDonationView[]>('/donations/pending-review', { idToken }));
+      const [pending, countryList] = await Promise.all([
+        apiFetch<AdminDonationView[]>('/donations/pending-review', { idToken }),
+        apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }),
+      ]);
+      setDonations(pending);
+      setCountries(countryList);
     } catch {
       setError('Não foi possível carregar as doações pendentes de aprovação.');
     }
@@ -122,9 +134,21 @@ export default function ApproveDonationsPage() {
                   <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--warning-700, #92400e)' }}>
                     ⏳ Pendente de Aprovação
                   </span>
-                  <Badge tone="warning">
-                    {d.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[d.Recipient_Category] : 'Destinatário não definido'}
-                  </Badge>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {/* Country-routing fix, 2026-08-10 — the distribution country
+                        (Donation.Country_ID), shown alongside recipient category so
+                        Admin sees at a glance exactly which country+category pool
+                        approval will route this donation into. */}
+                    <Badge tone="neutral">
+                      {(() => {
+                        const country = countries.find((c) => c.Region_ID === d.Country_ID);
+                        return country ? `${countryFlagEmoji(country.ISO_Code)} ${country.Name}` : d.Country_ID;
+                      })()}
+                    </Badge>
+                    <Badge tone="warning">
+                      {d.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[d.Recipient_Category] : 'Destinatário não definido'}
+                    </Badge>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12, padding: 'var(--space-4)' }}>
                   <Photo

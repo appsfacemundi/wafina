@@ -26,7 +26,9 @@ import {
   resubmitDonation,
   scheduleCollection,
   setExpectedDates,
+  verifyCollectionCode,
 } from '../services/donations';
+import { getCollectionPointForCountry } from '../services/collection-points';
 import { getInstitutionByUserId } from '../services/institutions';
 import { ValidationError } from '../services/validation-error';
 import type { Institution } from '@wafina/shared';
@@ -157,7 +159,10 @@ donationsRouter.post(
     // RC1 audit fix, 2026-08-10 — same role-derived category as GET /donations/available,
     // so claiming can never succeed cross-category (see claimDonation's Recipient_Category check).
     const category = req.user!.role === 'Animal_Shelter' ? 'Animal_Shelters' : 'Institutions';
-    res.json(await claimDonation(institution.Institution_ID, req.params.id, category));
+    // Country-routing fix, 2026-08-10 — same country the institution's own
+    // browse list is already scoped to (institution.Country_ID), so claiming
+    // can never succeed cross-country either.
+    res.json(await claimDonation(institution.Institution_ID, req.params.id, category, institution.Country_ID));
   }),
 );
 
@@ -185,14 +190,32 @@ donationsRouter.post(
   }),
 );
 
+/**
+ * Donation lifecycle emails, 2026-08-11 — photo/message are both optional
+ * (per spec: the receiver's thank-you note is a private, optional add-on,
+ * never required to confirm delivery). Multipart only because the photo
+ * upload reuses the same Drive path as donation creation; `thankYouMessage`
+ * comes through as an ordinary form field alongside it.
+ */
 donationsRouter.post(
   '/donations/:id/deliver',
   requireAuth,
   requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
+  upload.single('photo'),
   asyncHandler(async (req, res) => {
     const institution = await requireOwnInstitution(req.user!.userId);
-    res.json(await confirmDelivery(institution.Institution_ID, req.params.id));
+    const thankYouPhoto = req.file
+      ? await uploadPhoto(req.file.buffer, `${Date.now()}-${req.file.originalname}`, req.file.mimetype)
+      : undefined;
+    res.json(
+      await confirmDelivery(
+        institution.Institution_ID,
+        req.params.id,
+        req.body.thankYouMessage as string | undefined,
+        thankYouPhoto,
+      ),
+    );
   }),
 );
 
@@ -273,13 +296,23 @@ donationsRouter.post(
   }),
 );
 
-/** RC1 RECEBER — the individual browse list: approved + People-category + not currently reserved. */
+/**
+ * RC1 RECEBER — the individual browse list: approved + People-category +
+ * caller's own country + not currently reserved.
+ *
+ * Country-routing fix, 2026-08-10 — scoped to the caller's own
+ * activeCountryId, the same session field createDonation already trusts as
+ * the source of truth for a user's country (never client-supplied).
+ */
 donationsRouter.get(
   '/donations/available-for-me',
   requireAuth,
   requireRole('Donor'),
-  asyncHandler(async (_req, res) => {
-    res.json(await listAvailableDonationsForIndividuals());
+  asyncHandler(async (req, res) => {
+    if (!req.user!.activeCountryId) {
+      throw new ValidationError('Complete o seu perfil (incluindo o país) antes de usar o Receber');
+    }
+    res.json(await listAvailableDonationsForIndividuals(req.user!.activeCountryId));
   }),
 );
 
@@ -312,15 +345,69 @@ donationsRouter.post(
   requireAuth,
   requireRole('Donor'),
   asyncHandler(async (req, res) => {
-    res.json(await reserveDonationForIndividual(req.user!.userId, req.params.id));
+    if (!req.user!.activeCountryId) {
+      throw new ValidationError('Complete o seu perfil (incluindo o país) antes de usar o Receber');
+    }
+    res.json(await reserveDonationForIndividual(req.user!.userId, req.params.id, req.user!.activeCountryId));
   }),
 );
 
+/**
+ * Donation lifecycle emails, 2026-08-11 — same optional photo/message
+ * pattern as /donations/:id/deliver above.
+ */
 donationsRouter.post(
   '/donations/:id/confirm-received',
   requireAuth,
   requireRole('Donor'),
+  upload.single('photo'),
   asyncHandler(async (req, res) => {
-    res.json(await confirmIndividualPickup(req.user!.userId, req.params.id));
+    const thankYouPhoto = req.file
+      ? await uploadPhoto(req.file.buffer, `${Date.now()}-${req.file.originalname}`, req.file.mimetype)
+      : undefined;
+    res.json(
+      await confirmIndividualPickup(
+        req.user!.userId,
+        req.params.id,
+        req.body.thankYouMessage as string | undefined,
+        thankYouPhoto,
+      ),
+    );
+  }),
+);
+
+/**
+ * Collection-point flow, 2026-08-10 — the recipient types the 4-digit code
+ * Wafina staff gave them at the collection point after verifying their
+ * Wafina ID. Success only unlocks Confirmar recebimento; it never touches
+ * the 3-day cooldown (see verifyCollectionCode's doc comment).
+ */
+donationsRouter.post(
+  '/donations/:id/verify-collection-code',
+  requireAuth,
+  requireRole('Donor'),
+  asyncHandler(async (req, res) => {
+    const code = req.body?.code as string | undefined;
+    if (!code) throw new ValidationError('O código é obrigatório');
+    res.json(await verifyCollectionCode(req.user!.userId, req.params.id, code));
+  }),
+);
+
+/**
+ * Collection-point flow, 2026-08-10 — where the recipient's active
+ * reservation can be physically collected. Scoped to the caller's own
+ * Active_Country_ID (same field every other country-routing check already
+ * trusts) — never the donation's Country_ID directly, though by the country
+ * isolation invariant they're always identical for an active reservation.
+ */
+donationsRouter.get(
+  '/donations/collection-point',
+  requireAuth,
+  requireRole('Donor'),
+  asyncHandler(async (req, res) => {
+    if (!req.user!.activeCountryId) {
+      throw new ValidationError('Complete o seu perfil (incluindo o país) antes de usar o Receber');
+    }
+    res.json(await getCollectionPointForCountry(req.user!.activeCountryId));
   }),
 );

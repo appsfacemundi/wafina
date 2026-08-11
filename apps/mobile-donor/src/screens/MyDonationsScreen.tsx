@@ -2,8 +2,8 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import {
   DELIVERY_METHOD_LABEL,
   daysAgoLabel,
-  DONATION_STATUS_LABEL,
-  DONATION_STATUS_TONE,
+  donorDonationStatusLabel,
+  donorDonationStatusTone,
   DONATION_STATUSES,
   RECIPIENT_CATEGORY_LABEL,
   formatDateLabel,
@@ -260,7 +260,7 @@ export function MyDonationsScreen({ route }: Props) {
                 item.Donation_ID === highlightId && styles.highlightedCard,
               ]}
             >
-              {item.Photo && <Image source={{ uri: item.Photo }} style={styles.itemPhoto} resizeMode="contain" />}
+              {item.Photo && <Image source={{ uri: item.Photo }} style={styles.itemPhoto} resizeMode="cover" />}
               <View style={styles.donationRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemType}>{item.Item_Type}</Text>
@@ -268,7 +268,7 @@ export function MyDonationsScreen({ route }: Props) {
                     {item.Public_Donation_Code} · Qtd {item.Quantity}
                   </Text>
                 </View>
-                <Badge tone={DONATION_STATUS_TONE[item.Status]}>{DONATION_STATUS_LABEL[item.Status]}</Badge>
+                <Badge tone={donorDonationStatusTone(item)}>{donorDonationStatusLabel(item)}</Badge>
               </View>
               <Text style={styles.donationId}>
                 {item.Corporate_Account_ID
@@ -365,9 +365,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.danger,
   },
+  // Bug fix, 2026-08-11 — same 'contain'-in-a-small-box issue as the
+  // DonateScreen upload preview: switched to 'cover' so the donor's own
+  // photo fills the card instead of rendering as a tiny letterboxed strip.
   itemPhoto: {
     width: '100%',
-    height: 140,
+    height: 180,
     borderRadius: radius.md,
     backgroundColor: colors.surface2,
   },

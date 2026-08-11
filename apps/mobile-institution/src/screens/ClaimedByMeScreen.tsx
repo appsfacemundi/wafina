@@ -13,6 +13,7 @@ import {
 } from '@wafina/shared';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import type * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,9 +24,10 @@ import { DonationTimeline } from '@/components/DonationTimeline';
 import { EmptyState } from '@/components/EmptyState';
 import { Input } from '@/components/Input';
 import { Photo } from '@/components/Photo';
+import { ThankYouNoteModal } from '@/components/ThankYouNoteModal';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { apiFetch, ApiError } from '@/lib/api';
+import { apiFetch, uploadFile, ApiError } from '@/lib/api';
 import type { ClaimedByMeStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
@@ -42,6 +44,10 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
   const [storiesByDonation, setStoriesByDonation] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [actingId, setActingId] = useState<string | null>(null);
+  // Donation lifecycle emails, 2026-08-11 — "Confirmar entrega" opens this
+  // optional note first instead of calling the API directly; holds the
+  // donation being delivered while the modal is open.
+  const [deliverModalDonationId, setDeliverModalDonationId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | 'all'>('all');
   // RC1 UX polish, 2026-08-10 — replaced the fold/expand Em Curso/Entregues
@@ -198,6 +204,67 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
     } finally {
       setActingId(null);
     }
+  }
+
+  /**
+   * Donation lifecycle emails, 2026-08-11 — same "deliver" endpoint and
+   * success flow as onAction above, but from the ThankYouNoteModal, where a
+   * message and/or photo may have been left. Kept separate from onAction
+   * rather than folding a conditional multipart branch into it — the two
+   * request shapes (multipart-with-photo vs plain JSON) are different enough
+   * that sharing the function would obscure both call sites more than the
+   * small duplication here does.
+   */
+  async function onDeliverWithNote(donationId: string, message: string, photo: ImagePicker.ImagePickerAsset | null) {
+    const publicCode = donations?.find((d) => d.Donation_ID === donationId)?.Public_Donation_Code ?? '';
+    setActingId(donationId);
+    setError('');
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      if (photo) {
+        await uploadFile(`/donations/${donationId}/deliver`, 'photo', photo.uri, {
+          idToken,
+          mimeType: photo.mimeType ?? 'image/jpeg',
+          parameters: message ? { thankYouMessage: message } : {},
+        });
+      } else {
+        await apiFetch(`/donations/${donationId}/deliver`, {
+          method: 'POST',
+          idToken,
+          body: message ? { thankYouMessage: message } : undefined,
+        });
+      }
+      await load();
+      setError('');
+      setDeliverModalDonationId(null);
+      showToast(SUCCESS_MESSAGE.deliver);
+      Alert.alert(
+        'Parabéns! 🎉',
+        'A doação foi entregue com sucesso. Gostaria de criar uma História de Impacto agora?',
+        [
+          { text: 'Mais tarde', style: 'cancel' },
+          {
+            text: 'Criar História',
+            onPress: () => navigation.navigate('NewSuccessStory', { donationId, publicCode }),
+          },
+        ],
+      );
+    } catch (err) {
+      // Close the modal on failure too, so the screen's own error banner
+      // (rendered behind it) is actually visible instead of hidden by the
+      // modal overlay.
+      setDeliverModalDonationId(null);
+      setError(err instanceof ApiError ? err.message : 'Não foi possível confirmar a entrega.');
+    } finally {
+      setActingId(null);
+    }
+  }
+
+  function onSkipDeliver() {
+    if (!deliverModalDonationId) return;
+    const id = deliverModalDonationId;
+    setDeliverModalDonationId(null);
+    onAction(id, 'deliver', 'Não foi possível confirmar a entrega.');
   }
 
   return (
@@ -358,7 +425,7 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                 {item.Status === 'Collected' && (
                   <Button
                     variant="secondary"
-                    onPress={() => onAction(item.Donation_ID, 'deliver', 'Não foi possível confirmar a entrega.')}
+                    onPress={() => setDeliverModalDonationId(item.Donation_ID)}
                     disabled={actingId === item.Donation_ID}
                   >
                     {actingId === item.Donation_ID ? 'A confirmar…' : 'Confirmar entrega'}
@@ -395,6 +462,12 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
             </View>
           </Card>
         )}
+      />
+      <ThankYouNoteModal
+        visible={deliverModalDonationId !== null}
+        submitting={actingId === deliverModalDonationId}
+        onSkip={onSkipDeliver}
+        onSubmit={(message, photo) => deliverModalDonationId && onDeliverWithNote(deliverModalDonationId, message, photo)}
       />
     </View>
   );

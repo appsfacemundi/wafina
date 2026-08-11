@@ -18,6 +18,7 @@ import {
   suspendCorporateAccount,
   updateCorporateAccount,
 } from '../services/corporate-accounts';
+import { listCollectionPoints } from '../services/collection-points';
 import { adminReplaceDonationPhoto, listAllDonationsForAdmin } from '../services/donations';
 import { listAllOpenDisputes, resolveDispute } from '../services/disputes';
 import { createCountry, listAllCountries, setCountryActive } from '../services/geo-regions';
@@ -169,6 +170,22 @@ adminRouter.get(
   requireRole('Admin'),
   asyncHandler(async (_req, res) => {
     res.json(await listAllDonationsForAdmin());
+  }),
+);
+
+/**
+ * Admin collection-code visibility, 2026-08-10 — every configured
+ * collection point across every country, so the donations page can resolve
+ * "where does this reservation get collected" without an N+1 lookup per
+ * card. Unlike the donor-facing GET /donations/collection-point (scoped to
+ * the caller's own country), Admin needs to see every country at once.
+ */
+adminRouter.get(
+  '/admin/collection-points',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (_req, res) => {
+    res.json(await listCollectionPoints());
   }),
 );
 

@@ -109,8 +109,29 @@ export interface Donation {
    */
   Reserved_By_User_ID: string | null;
   Reserved_At: string | null;
+  /**
+   * RECEBER collection-point flow, 2026-08-10 — set once the recipient
+   * enters the correct 4-digit code given by Wafina staff at the collection
+   * point (after verifying the recipient's Wafina ID in person). Gates
+   * "Confirmar recebimento" — see confirmIndividualPickup. Deliberately on
+   * the donor-visible Donation type (unlike the code itself, which only ever
+   * appears on AdminDonationView): the app needs to know whether to show the
+   * code-entry step or the unlocked confirm button, but never the code value.
+   */
+  Collection_Code_Verified_At: string | null;
   /** RC1 RECEBER — set when the individual recipient self-confirms pickup (Status becomes 'Delivered' at the same time). */
   Individual_Delivered_At: string | null;
+  /**
+   * Donation lifecycle emails, 2026-08-11 — an optional private note the
+   * receiver (Institution/Shelter via confirmDelivery, or a Pessoa via
+   * confirmIndividualPickup) may leave at the moment of final confirmation.
+   * Used only to personalize the donor's "your gift was received" email —
+   * never public, never tied to the separate (Admin-moderated, feed-visible)
+   * Success Story system. Null when the receiver skipped it.
+   */
+  Receiver_Thank_You_Message: string | null;
+  /** Same note as Receiver_Thank_You_Message — optional, email-only, not the Success Story photo. */
+  Receiver_Thank_You_Photo: string | null;
 }
 
 /**
@@ -155,6 +176,25 @@ export interface AdminDonationView extends InstitutionDonationView {
   Success_Story_Status: SuccessStoryStatus | null;
   /** RC1 RECEBER — null unless Recipient_Category === 'People'; see enums/individual-donation-state.ts. */
   Individual_State: IndividualDonationState | null;
+  /**
+   * RECEBER collection-point flow, 2026-08-10 — the actual 4-digit code, so
+   * Admin/staff at the collection point can read it back to the recipient
+   * after checking their Wafina ID. Deliberately ONLY on this admin-facing
+   * view — never on the base Donation type, which is what donor-facing
+   * routes (available-for-me, reserved-by-me, reserve) return. Null unless
+   * Recipient_Category === 'People' and a reservation is/was active.
+   */
+  Collection_Code: string | null;
+  /**
+   * Admin collection-code visibility, 2026-08-10 — the RECEIVING individual's
+   * own identity (resolved from Reserved_By_User_ID), so staff can match the
+   * person standing in front of them against the reservation without
+   * searching elsewhere. Distinct from Donor_Display_Name/Donor_Phone above,
+   * which describe the donor, not the recipient. Null unless a reservation
+   * is/was active on this donation.
+   */
+  Reserved_By_Wafina_ID: string | null;
+  Reserved_By_Name: string | null;
 }
 
 /**
