@@ -209,7 +209,7 @@ export default function SettingsPage() {
           </a>
         </Card>
 
-        <Button variant="secondary" onClick={() => signOutUser()}>
+        <Button variant="ghost-danger" onClick={() => signOutUser()}>
           Sair
         </Button>
       </div>

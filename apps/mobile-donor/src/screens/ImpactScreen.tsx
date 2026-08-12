@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useFocusEffect } from '@react-navigation/native';
 import { formatDateTimeLabel, type SuccessStory } from '@wafina/shared';
 import * as Sharing from 'expo-sharing';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { FlatList, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,17 +63,19 @@ export function ImpactScreen() {
   const captureViewRef = useRef<View>(null);
   const imageLoadResolveRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    if (!firebaseUser) return;
-    (async () => {
-      try {
-        const idToken = await firebaseUser.getIdToken();
-        setStories(await apiFetch<SuccessStory[]>('/donor/success-stories', { idToken }));
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : t('impact.loadError'));
-      }
-    })();
-  }, [firebaseUser, t]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!firebaseUser) return;
+      (async () => {
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          setStories(await apiFetch<SuccessStory[]>('/donor/success-stories', { idToken }));
+        } catch (err) {
+          setError(err instanceof ApiError ? err.message : t('impact.loadError'));
+        }
+      })();
+    }, [firebaseUser, t]),
+  );
 
   async function handleShareStory(story: SuccessStory) {
     try {

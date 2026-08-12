@@ -33,7 +33,7 @@ export default function VerificationStatusPage() {
             </p>
           </>
         )}
-        <Button variant="secondary" onClick={() => signOutUser()}>
+        <Button variant="ghost-danger" onClick={() => signOutUser()}>
           Sair
         </Button>
       </Card>
