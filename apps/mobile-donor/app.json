@@ -2,7 +2,7 @@
   "expo": {
     "name": "Wafina Doador",
     "slug": "wafina-donor",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -26,7 +26,7 @@
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
-        "backgroundColor": "#710f44"
+        "backgroundColor": "#B50C5E"
       }
     },
     "extra": {
@@ -42,7 +42,7 @@
           "image": "./assets/splash-mark.png",
           "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#0057D9",
+          "backgroundColor": "#B50C5E",
           "dark": {
             "image": "./assets/splash-mark.png",
             "backgroundColor": "#0F172A"

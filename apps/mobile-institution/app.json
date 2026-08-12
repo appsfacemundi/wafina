@@ -2,7 +2,7 @@
   "expo": {
     "name": "Wafina Instituição",
     "slug": "wafina-institution",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -27,7 +27,7 @@
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
-        "backgroundColor": "#710f44"
+        "backgroundColor": "#0057D9"
       }
     },
     "owner": "zuinder",
