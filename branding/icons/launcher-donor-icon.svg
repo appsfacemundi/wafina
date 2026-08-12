@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Wafina Doador launcher icon — RC1 App Identity (approved).
+       Wafina Pink field + Doar (heart) glyph. Flat fill only, full-bleed
+       square source; platform masking is applied by iOS/Android, not baked
+       in here. See branding/WAFINA_BRAND_GUIDE.md "RC1 App Identity". -->
+  <rect width="1024" height="1024" fill="#B50C5E"/>
+  <path
+    fill="#FFFFFF"
+    transform="translate(240,265.5) scale(17)"
+    d="M16,29 C16,29 0,18.4 0,8.9 C0,3.5 4.1,0 8.6,0 C11.9,0 14.6,2 16,5 C17.4,2 20.2,0 23.5,0 C28,0 32,3.5 32,8.9 C32,18.4 16,29 16,29 Z"
+  />
+</svg>

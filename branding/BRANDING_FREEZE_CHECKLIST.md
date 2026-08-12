@@ -2,6 +2,14 @@
 
 **Date:** 2026-08-03. This is the final verification pass before Version 1.0 branding is treated as frozen.
 
+> **2026-08-12 update:** the launcher icons documented below (maroon `#710f44` field, D/I/A badge) are
+> **superseded**. Both apps now ship the RC1 App Identity icons — Wafina Pink `#B50C5E` + heart (Doador),
+> Wafina Blue `#0057D9` + people mark (Instituição) — documented in `WAFINA_BRAND_GUIDE.md` §0. The
+> verification methodology below (pixel-diff composite check, mask rendering, alpha-channel check) was
+> re-run in full against the new icons with equivalent results; see §0 for the new numbers. Everything else
+> in this checklist (favicons, wordmark, feature graphics, store descriptions) is unaffected and still
+> current.
+
 ---
 
 ## 1. Rendering Verification — Method & Results

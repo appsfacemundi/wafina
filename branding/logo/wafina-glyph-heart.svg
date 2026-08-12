@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Wafina "Doar" glyph — simplified heart, derived from the master logo's
+       existing Doar badge. Single flat white fill, no stroke, no effects.
+       Centered on a 1024x1024 canvas; occupies the Android adaptive-icon
+       safe zone (inner 66.7%) with margin — see FINAL_ICON_QA in
+       branding/BRANDING_FREEZE_CHECKLIST.md for the verified measurements. -->
+  <path
+    fill="#FFFFFF"
+    transform="translate(240,265.5) scale(17)"
+    d="M16,29 C16,29 0,18.4 0,8.9 C0,3.5 4.1,0 8.6,0 C11.9,0 14.6,2 16,5 C17.4,2 20.2,0 23.5,0 C28,0 32,3.5 32,8.9 C32,18.4 16,29 16,29 Z"
+  />
+</svg>

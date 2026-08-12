@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Wafina "Conectar" glyph — simplified two-person mark, derived from the
+       master logo's existing Conectar badge. Single flat white fill, no
+       stroke, no effects. Centered on a 1024x1024 canvas; every circle stays
+       inside the Android adaptive-icon safe zone (inner 66.7%) with margin —
+       see FINAL_ICON_QA in branding/BRANDING_FREEZE_CHECKLIST.md. -->
+  <!-- back figure -->
+  <path fill="#FFFFFF" d="M272.3,481.4 A117,117 0 0 1 506.3,481.4 L506.3,598.4 L272.3,598.4 Z"/>
+  <circle fill="#FFFFFF" cx="389.3" cy="386.9" r="61.3"/>
+  <!-- front figure -->
+  <path fill="#FFFFFF" d="M426.8,535.9 A162.5,162.5 0 0 1 751.8,535.9 L751.8,698.4 L426.8,698.4 Z"/>
+  <circle fill="#FFFFFF" cx="589.3" cy="404.6" r="85"/>
+</svg>

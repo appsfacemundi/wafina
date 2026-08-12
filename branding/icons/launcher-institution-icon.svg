@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Wafina Instituição launcher icon — RC1 App Identity (approved).
+       Wafina Blue field + Conectar (people) glyph. Flat fill only,
+       full-bleed square source; platform masking is applied by iOS/Android,
+       not baked in here. See branding/WAFINA_BRAND_GUIDE.md "RC1 App Identity". -->
+  <rect width="1024" height="1024" fill="#0057D9"/>
+  <!-- back figure -->
+  <path fill="#FFFFFF" d="M272.3,481.4 A117,117 0 0 1 506.3,481.4 L506.3,598.4 L272.3,598.4 Z"/>
+  <circle fill="#FFFFFF" cx="389.3" cy="386.9" r="61.3"/>
+  <!-- front figure -->
+  <path fill="#FFFFFF" d="M426.8,535.9 A162.5,162.5 0 0 1 751.8,535.9 L751.8,698.4 L426.8,698.4 Z"/>
+  <circle fill="#FFFFFF" cx="589.3" cy="404.6" r="85"/>
+</svg>

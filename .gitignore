@@ -16,6 +16,7 @@ out/
 # Service account credentials — never commit
 *service-account*.json
 credentials/
+credentials.json
 
 # Personal/local tool permissions, not shared config
 .claude/settings.local.json
@@ -30,3 +31,6 @@ reference-screenshots/
 *.ipa
 *.apk
 *.aab
+
+# Local build artifacts — never commit
+local-build-output/

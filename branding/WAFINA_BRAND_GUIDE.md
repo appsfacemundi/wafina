@@ -1,11 +1,68 @@
 # Wafina Brand Guide
 
-**Status: UNFROZEN — 2026-08-07 (stakeholder decision).** This guide documented the identity that was frozen
-2026-08-03 through 2026-08-07. The stakeholder has explicitly lifted that freeze to begin a full Brand
-Identity redesign phase (logo, colors, typography, splash screen, authentication screens, navigation, icons,
-design system) — this is not a reopening for a technical fix, it's a deliberate visual overhaul. Everything
-below describes the *previous, now-superseded* identity; treat it as a historical reference, not a current
-constraint, until a new guide replaces it.
+**Status: PARTIALLY RE-FROZEN — 2026-08-12.** The 2026-08-07 redesign (logo, colors, typography, splash,
+auth, navigation) is still the current identity for everything *except* the app launcher icons, which this
+update now closes out — see **§0, RC1 App Identity**, the current, authoritative source for both mobile
+apps' launcher icons. Everything from §1 onward below that point (Master Logo, Badge System D/I/A,
+`#710f44` as the shared master color) describes the identity that was frozen 2026-08-03 and explicitly
+superseded 2026-08-07; it remains historical reference only, not a current constraint, and is not restored
+by this update.
+
+---
+
+## §0. RC1 App Identity — Launcher Icons (current, approved 2026-08-12)
+
+Two color-differentiated launcher icons, both derived directly from the existing master logo's own
+simplified badge iconography (the small "Doar" / "Conectar" / "Transformar" glyph row beneath the full
+Wafina mark) — not a new symbol system, and not the maroon/badge system in §1-9 below.
+
+| App | Field color | Glyph | Source |
+|---|---|---|---|
+| **Wafina Doador** | Wafina Pink `#B50C5E` | White heart (solid) | The master logo's own "Doar" badge glyph |
+| **Wafina Instituição** | Wafina Blue `#0057D9` | White two-person mark (solid) | The master logo's own "Conectar" badge glyph |
+
+**Why this pair, not a shared shape recolored:** distinction comes from *silhouette and color together*
+(heart vs. people), not color alone on an identical shape — legible even in greyscale, and immediately
+distinguishable side by side without reading the app name. Both still read as one Wafina product because
+both glyphs come from the same source (the logo's own badge row), both are flat white on a solid brand
+color, and both follow the same construction rules below.
+
+**Rules (binding for both apps):**
+- Flat fill only. No gradients, bevels, drop shadows, or 3D effects on the glyph or field.
+- No letters, no text, no corner badges.
+- Full-bleed 1024×1024 square source, uncropped, unmasked — iOS/Android apply their own masking.
+- Every glyph element stays inside Android's adaptive-icon safe zone (inner ~66.7% of the canvas, radius
+  ≈341.5px from center at 1024×1024) — verified by direct coordinate check for every shape, not estimated.
+- `#710f44` (Bougainvillea 700, the old shared master color) is retired **from the launcher icon only** —
+  it is not used anywhere in either app's `icon.png`, `adaptive-icon-foreground.png`, or
+  `adaptiveIcon.backgroundColor`. It may still appear elsewhere in the codebase outside icon assets; this
+  guide does not assert anything about non-icon usage.
+
+**Source files:**
+- `branding/logo/wafina-glyph-heart.svg` — heart glyph alone, white on transparent
+- `branding/logo/wafina-glyph-people.svg` — two-person glyph alone, white on transparent
+- `branding/icons/launcher-donor-icon.svg` — full composite (pink field + heart)
+- `branding/icons/launcher-institution-icon.svg` — full composite (blue field + people)
+
+**Wired assets (both apps):**
+- `assets/icon.png` — 1024×1024, flat composite, **no alpha channel** (Apple requirement)
+- `assets/adaptive-icon-foreground.png` — 1024×1024, glyph only, **alpha channel preserved**
+- `app.json` → `android.adaptiveIcon.backgroundColor` — `#B50C5E` (Doador) / `#0057D9` (Instituição)
+- `branding/store-assets/play-store-icon-{donor,institution}-512.png` — 512×512, no alpha
+- `branding/store-assets/app-store-icon-{donor,institution}-1024.png` — 1024×1024, no alpha
+
+**Verified, not assumed (2026-08-12):**
+- Pixel-diffed the Android adaptive-icon composite (background color + foreground layer, rendered exactly
+  as Android renders it) against the flat fallback `icon.png` — max channel difference of 1/255 (rounding
+  noise only) across all 4,194,304 pixels, both apps. Effectively identical.
+- Rendered both icons under a full circular mask (Play Store listing presentation) — no clipping, comfortable
+  margin on every element.
+- Confirmed via direct coordinate math that every circle/path element in both glyphs stays inside the
+  341.5px safe-zone radius, with the tightest margin at ~38px (institution glyph) and ~20px (donor glyph).
+- Confirmed `icon.png` has no alpha channel on both apps (`sips -g hasAlpha` → `no`) — the exact defect
+  the 2026-08-03 freeze had previously caught and fixed on the old icon; not reintroduced here.
+
+---
 
 **Honesty note, consistent with how this whole process has worked:** everything in this guide is
 code-producible (SVG shapes, flat color, `sharp`-rasterized PNGs). There is no image-generation tool in
@@ -15,6 +72,13 @@ actual running app), that's flagged explicitly below as still needing a design t
 guide does not pretend otherwise.
 
 ---
+
+## §1-9 — Historical (superseded 2026-08-07; launcher icons specifically closed out by §0 above)
+
+**Everything from here to the end of this document describes the identity frozen 2026-08-03.** It is kept
+for historical reference only. In particular: §1's "master circle," §5's D/I/A badge system, and §3's
+`#710f44` master color are **not** the current launcher icon — see §0. Do not use anything below to justify
+reverting the launcher icon, and do not treat it as still-binding without checking §0 first.
 
 ## 1. Master Logo
 
