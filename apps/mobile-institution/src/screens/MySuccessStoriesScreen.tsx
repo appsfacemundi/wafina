@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/Badge';
 import { ErrorBanner } from '@/components/Banner';
 import { Card } from '@/components/Card';
@@ -11,10 +12,10 @@ import { useAuth } from '@/context/AuthContext';
 import { apiFetch, ApiError } from '@/lib/api';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
-const STATUS_LABEL: Record<SuccessStoryStatus, string> = {
-  Approved: 'Publicada',
-  Pending: 'Pendente de aprovação',
-  Rejected: 'Rejeitada',
+const STATUS_LABEL_KEY: Record<SuccessStoryStatus, string> = {
+  Approved: 'successStory.statusApproved',
+  Pending: 'successStory.statusPending',
+  Rejected: 'successStory.statusRejected',
 };
 
 const STATUS_TONE: Record<SuccessStoryStatus, 'success' | 'warning' | 'danger'> = {
@@ -27,6 +28,7 @@ type Filter = 'all' | SuccessStoryStatus;
 const FILTERS: Filter[] = ['all', 'Approved', 'Pending', 'Rejected'];
 
 export function MySuccessStoriesScreen() {
+  const { t } = useTranslation();
   const { firebaseUser } = useAuth();
   const insets = useSafeAreaInsets();
   const [stories, setStories] = useState<SuccessStory[] | null>(null);
@@ -43,7 +45,7 @@ export function MySuccessStoriesScreen() {
           const idToken = await firebaseUser.getIdToken();
           setStories(await apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }));
         } catch (err) {
-          setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as histórias.');
+          setError(err instanceof ApiError ? err.message : t('successStory.loadError'));
         }
       })();
     }, [firebaseUser]),
@@ -61,7 +63,7 @@ export function MySuccessStoriesScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
-            <Text style={styles.title}>Histórias de Impacto</Text>
+            <Text style={styles.title}>{t('successStory.listTitle')}</Text>
             <View style={styles.filterRow}>
               {FILTERS.map((f) => (
                 <Pressable
@@ -70,17 +72,17 @@ export function MySuccessStoriesScreen() {
                   style={[styles.filterChip, filter === f && styles.filterChipActive]}
                 >
                   <Text style={[styles.filterChipText, filter === f && styles.filterChipTextActive]}>
-                    {f === 'all' ? 'Todas' : STATUS_LABEL[f]}
+                    {f === 'all' ? t('successStory.filterAll') : t(STATUS_LABEL_KEY[f])}
                   </Text>
                 </Pressable>
               ))}
             </View>
             {error ? <ErrorBanner message={error} /> : null}
-            {!error && stories === null && <Text style={styles.loading}>A carregar…</Text>}
+            {!error && stories === null && <Text style={styles.loading}>{t('common.loading')}</Text>}
             {filtered?.length === 0 && (
               <EmptyState
-                title="Sem histórias"
-                description="Publique uma história de impacto a partir de uma doação entregue."
+                title={t('successStory.emptyTitle')}
+                description={t('successStory.emptyDescription')}
                 icon="heart-outline"
               />
             )}
@@ -94,14 +96,18 @@ export function MySuccessStoriesScreen() {
             <View style={styles.cardBody}>
               <View style={styles.rowBetween}>
                 <Text style={styles.storyTitle}>{item.Title}</Text>
-                <Badge tone={STATUS_TONE[item.Status]}>{STATUS_LABEL[item.Status]}</Badge>
+                <Badge tone={STATUS_TONE[item.Status]}>{t(STATUS_LABEL_KEY[item.Status])}</Badge>
               </View>
               <Text style={styles.description}>{item.Description}</Text>
               {item.Status === 'Rejected' && item.Rejection_Reason && (
-                <Text style={styles.rejectionReason}>Motivo da rejeição: {item.Rejection_Reason}</Text>
+                <Text style={styles.rejectionReason}>
+                  {t('successStory.rejectionReason', { reason: item.Rejection_Reason })}
+                </Text>
               )}
               <Text style={styles.dateLabel}>
-                {item.Status === 'Approved' ? 'Publicada' : 'Enviada'} em {formatDateTimeLabel(item.Date_Published)}
+                {item.Status === 'Approved'
+                  ? t('successStory.publishedOn', { date: formatDateTimeLabel(item.Date_Published) })
+                  : t('successStory.sentOn', { date: formatDateTimeLabel(item.Date_Published) })}
               </Text>
             </View>
           </Card>

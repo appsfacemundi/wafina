@@ -1,4 +1,4 @@
-import { INSTITUTION_FIELD_LABELS, type GeoRegion } from '@wafina/shared';
+import { INSTITUTION_FIELD_LABEL_KEYS, institutionFieldLabelKey, type GeoRegion } from '@wafina/shared';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import {
@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/Badge';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
@@ -27,6 +28,7 @@ import { ApiError, apiFetch, uploadFile } from '@/lib/api';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
 export function SettingsScreen() {
+  const { t } = useTranslation();
   const { session, firebaseUser, signOutUser, refreshSession } = useAuth();
   const { institution, loading, refetch } = useOwnInstitution();
   const { showToast } = useToast();
@@ -70,7 +72,7 @@ export function SettingsScreen() {
   async function onSaveName() {
     setNameError('');
     if (!name.trim()) {
-      setNameError('Indique o seu nome.');
+      setNameError(t('settings.errors.nameRequired'));
       return;
     }
     setSavingName(true);
@@ -78,9 +80,9 @@ export function SettingsScreen() {
       const idToken = await firebaseUser?.getIdToken();
       await apiFetch('/users/me/name', { method: 'PATCH', idToken, body: { name: name.trim() } });
       await refreshSession();
-      showToast('Nome atualizado com sucesso!');
+      showToast(t('settings.toastNameUpdated'));
     } catch (err) {
-      setNameError(err instanceof ApiError ? err.message : 'Não foi possível guardar o nome.');
+      setNameError(err instanceof ApiError ? err.message : t('settings.errors.saveName'));
     } finally {
       setSavingName(false);
     }
@@ -97,9 +99,9 @@ export function SettingsScreen() {
       });
       setLogoLoadFailed(false);
       await refetch();
-      showToast('Logótipo atualizado com sucesso!');
+      showToast(t('settings.toastLogoUpdated'));
     } catch (err) {
-      setLogoError(err instanceof ApiError ? err.message : 'Não foi possível enviar o logótipo.');
+      setLogoError(err instanceof ApiError ? err.message : t('settings.errors.logoUpload'));
     } finally {
       setUploadingLogo(false);
     }
@@ -109,7 +111,7 @@ export function SettingsScreen() {
     setLogoError('');
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      setLogoError('É necessário acesso à câmara para tirar uma fotografia.');
+      setLogoError(t('settings.errors.cameraPermission'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
@@ -120,7 +122,7 @@ export function SettingsScreen() {
     setLogoError('');
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      setLogoError('É necessário acesso às fotografias para escolher um logótipo.');
+      setLogoError(t('settings.errors.libraryPermission'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
@@ -131,10 +133,10 @@ export function SettingsScreen() {
   // with a camera option — Institution's success-story photo and Donor's
   // donation photo both already had this.
   function onPickLogo() {
-    Alert.alert('Logótipo', undefined, [
-      { text: 'Tirar fotografia', onPress: onPickLogoFromCamera },
-      { text: 'Escolher da galeria', onPress: onPickLogoFromLibrary },
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t('settings.logoPickerTitle'), undefined, [
+      { text: t('register.takePhoto'), onPress: onPickLogoFromCamera },
+      { text: t('register.chooseFromGallery'), onPress: onPickLogoFromLibrary },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   }
 
@@ -149,9 +151,9 @@ export function SettingsScreen() {
   const logoLocked = (institution?.Locked_Fields.includes('Logo') ?? false) && Boolean(institution?.Logo);
 
   function onPressSignOut() {
-    Alert.alert('Sair', 'Tem a certeza que quer sair?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sair', style: 'destructive', onPress: () => signOutUser() },
+    Alert.alert(t('settings.signOutConfirmTitle'), t('settings.signOutConfirmBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.signOut'), style: 'destructive', onPress: () => signOutUser() },
     ]);
   }
 
@@ -159,17 +161,18 @@ export function SettingsScreen() {
     setError('');
     setSuccess(false);
     if (!field) {
-      setError('Escolha o campo que pretende alterar.');
+      setError(t('settings.errors.fieldRequired'));
       return;
     }
     if (reason.trim().length < 5) {
-      setError('Explique o motivo com pelo menos 5 caracteres.');
+      setError(t('settings.errors.reasonTooShort'));
       return;
     }
     setSubmitting(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
-      const fieldLabel = INSTITUTION_FIELD_LABELS[field] ?? field;
+      const fieldLabelKey = institutionFieldLabelKey(field);
+      const fieldLabel = fieldLabelKey ? t(fieldLabelKey) : field;
       await apiFetch('/change-requests', {
         method: 'POST',
         idToken,
@@ -178,9 +181,9 @@ export function SettingsScreen() {
       setSuccess(true);
       setField('');
       setReason('');
-      showToast(`O seu pedido de alteração de "${fieldLabel}" foi enviado ao Admin.`);
+      showToast(t('settings.changeRequestToast', { field: fieldLabel }));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível enviar o pedido.');
+      setError(err instanceof ApiError ? err.message : t('settings.errors.request'));
     } finally {
       setSubmitting(false);
     }
@@ -189,14 +192,17 @@ export function SettingsScreen() {
   if (loading) return null;
 
   const fieldOptions = [
-    { label: 'Selecione…', value: '' },
-    ...(institution?.Locked_Fields ?? []).map((f) => ({ label: INSTITUTION_FIELD_LABELS[f] ?? f, value: f })),
+    { label: t('settings.selectPlaceholder'), value: '' },
+    ...(institution?.Locked_Fields ?? []).map((f) => ({
+      label: INSTITUTION_FIELD_LABEL_KEYS[f] ? t(INSTITUTION_FIELD_LABEL_KEYS[f]) : f,
+      value: f,
+    })),
   ];
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
-        <Text style={styles.title}>Definições</Text>
+        <Text style={styles.title}>{t('settings.title')}</Text>
 
         <Card style={{ gap: spacing[2] }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
@@ -208,47 +214,56 @@ export function SettingsScreen() {
               />
             ) : (
               <View style={[styles.logo, styles.logoPlaceholder]}>
-                <Text style={styles.logoPlaceholderText}>Sem{'\n'}logótipo</Text>
+                <Text style={styles.logoPlaceholderText}>{t('settings.noLogo')}</Text>
               </View>
             )}
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={styles.name}>{institution?.Name}</Text>
-              {institution?.Verified && <Badge tone="success">Verificado</Badge>}
+              {institution?.Verified && <Badge tone="success">{t('settings.verified')}</Badge>}
             </View>
           </View>
           {logoLocked ? (
-            <Text style={styles.hint}>O logótipo está bloqueado. Peça uma alteração abaixo para o mudar.</Text>
+            <Text style={styles.hint}>{t('settings.logoLockedHint')}</Text>
           ) : (
             <>
               <Button variant="secondary" onPress={onPickLogo} loading={uploadingLogo}>
-                {institution?.Logo ? 'Alterar logótipo' : 'Adicionar logótipo'}
+                {institution?.Logo ? t('settings.changeLogo') : t('settings.addLogo')}
               </Button>
               {logoError ? <ErrorBanner message={logoError} /> : null}
             </>
           )}
           <Text style={styles.hint}>{session?.email}</Text>
-          <Text style={styles.hint}>Tipo: {institution?.Type}</Text>
-          <Text style={styles.hint}>País registado: {countryName ?? '—'}</Text>
-          <Text style={[styles.hint, { fontFamily: fonts.mono }]}>ID: {institution?.Institution_ID}</Text>
+          <Text style={styles.hint}>{t('settings.typeLabel', { type: institution?.Type })}</Text>
+          <Text style={styles.hint}>{t('settings.countryLabel', { country: countryName ?? '—' })}</Text>
+          <Text style={[styles.hint, { fontFamily: fonts.mono }]}>
+            {t('settings.idLabel', { id: institution?.Institution_ID })}
+          </Text>
           <View style={{ gap: 4 }}>
-            <Input label="O seu nome" value={name} onChangeText={setName} placeholder="Ex: Maria Silva" />
+            <Input
+              label={t('settings.nameLabel')}
+              value={name}
+              onChangeText={setName}
+              placeholder={t('settings.namePlaceholder')}
+            />
             {nameError ? <ErrorBanner message={nameError} /> : null}
             <Button variant="secondary" onPress={onSaveName} loading={savingName}>
-              Guardar nome
+              {t('settings.saveName')}
             </Button>
           </View>
-          {institution?.Address && <Text style={styles.hint}>Morada: {institution.Address}</Text>}
-          {institution?.Needs_List && <Text style={styles.hint}>Necessidades: {institution.Needs_List}</Text>}
+          {institution?.Address && (
+            <Text style={styles.hint}>{t('settings.addressLabel', { address: institution.Address })}</Text>
+          )}
+          {institution?.Needs_List && (
+            <Text style={styles.hint}>{t('settings.needsLabel', { needs: institution.Needs_List })}</Text>
+          )}
         </Card>
 
         <Card style={{ gap: spacing[3] }}>
-          <Text style={styles.cardTitle}>Solicitar alteração</Text>
-          <Text style={styles.hint}>
-            O seu perfil está bloqueado após a verificação. Para alterar um campo, peça ao Admin.
-          </Text>
-          <Select label="Campo" value={field} onValueChange={setField} options={fieldOptions} />
+          <Text style={styles.cardTitle}>{t('settings.requestChangeTitle')}</Text>
+          <Text style={styles.hint}>{t('settings.requestChangeHint')}</Text>
+          <Select label={t('settings.fieldLabel')} value={field} onValueChange={setField} options={fieldOptions} />
           <View style={{ gap: 4 }}>
-            <Text style={styles.label}>Motivo</Text>
+            <Text style={styles.label}>{t('settings.reasonLabel')}</Text>
             <TextInput
               style={styles.textarea}
               value={reason}
@@ -260,31 +275,26 @@ export function SettingsScreen() {
             />
           </View>
           {error ? <ErrorBanner message={error} /> : null}
-          {success && <Text style={styles.successText}>Pedido enviado ao Admin.</Text>}
+          {success && <Text style={styles.successText}>{t('settings.requestSent')}</Text>}
           <Button onPress={onSubmit} loading={submitting} fullWidth>
-            Enviar pedido
+            {t('settings.sendRequest')}
           </Button>
         </Card>
 
         <Card style={{ gap: spacing[3] }}>
-          <Text style={styles.cardTitle}>Eliminar conta</Text>
-          <Text style={styles.hint}>
-            Para solicitar a eliminação da sua conta e dos dados associados, consulte a nossa página
-            de eliminação de conta.
-          </Text>
+          <Text style={styles.cardTitle}>{t('settings.deleteAccountTitle')}</Text>
+          <Text style={styles.hint}>{t('settings.deleteAccountHint')}</Text>
           <Button
             variant="secondary"
             onPress={() => Linking.openURL('https://wafina-donor-web.onrender.com/delete-account')}
           >
-            Solicitar eliminação de conta
+            {t('settings.deleteAccountButton')}
           </Button>
         </Card>
 
         <Card style={{ gap: spacing[3] }}>
-          <Text style={styles.cardTitle}>Sobre</Text>
-          <Text style={styles.hint}>
-            A Wafina é desenvolvida e operada por <Text style={styles.hintBold}>ZUINDER</Text>.
-          </Text>
+          <Text style={styles.cardTitle}>{t('settings.aboutTitle')}</Text>
+          <Text style={styles.hint}>{t('settings.aboutText')}</Text>
           <Button variant="secondary" onPress={() => Linking.openURL('https://www.zuinder.com')}>
             www.zuinder.com
           </Button>
@@ -292,18 +302,18 @@ export function SettingsScreen() {
             variant="secondary"
             onPress={() => Linking.openURL('https://wafina-donor-web.onrender.com/privacy')}
           >
-            Política de Privacidade
+            {t('settings.privacyPolicy')}
           </Button>
           <Button
             variant="secondary"
             onPress={() => Linking.openURL('https://wafina-donor-web.onrender.com/terms')}
           >
-            Termos de Utilização
+            {t('settings.termsOfUse')}
           </Button>
         </Card>
 
         <Button variant="ghostDanger" onPress={onPressSignOut}>
-          Sair
+          {t('common.signOut')}
         </Button>
       </ScrollView>
     </KeyboardAvoidingView>

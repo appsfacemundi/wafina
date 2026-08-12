@@ -3,6 +3,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
@@ -12,6 +13,7 @@ import { colors, fonts, spacing } from '@/theme/tokens';
 type Props = BottomTabScreenProps<AppTabParamList, 'Notifications'>;
 
 export function NotificationsScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { firebaseUser } = useAuth();
   const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState<Notification[] | null>(null);
@@ -24,10 +26,10 @@ export function NotificationsScreen({ navigation }: Props) {
         const idToken = await firebaseUser.getIdToken();
         setNotifications(await apiFetch<Notification[]>('/notifications', { idToken }));
       } catch {
-        setError('Não foi possível carregar as notificações.');
+        setError(t('notifications.loadError'));
       }
     })();
-  }, [firebaseUser]);
+  }, [firebaseUser, t]);
 
   // Phase 3A Module 2 — real per-notification deep-linking, using Entity_Type
   // now that it exists, instead of always navigating to the same fixed screen.
@@ -72,17 +74,17 @@ export function NotificationsScreen({ navigation }: Props) {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
-            <Text style={styles.title}>Notificações</Text>
+            <Text style={styles.title}>{t('notifications.title')}</Text>
             {error && (
               <View style={styles.errorBanner}>
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
-            {!error && notifications === null && <Text style={styles.loading}>A carregar…</Text>}
+            {!error && notifications === null && <Text style={styles.loading}>{t('common.loading')}</Text>}
             {notifications?.length === 0 && (
               <EmptyState
-                title="Sem notificações"
-                description="Quando houver novidades sobre as suas doações, aparecem aqui."
+                title={t('notifications.emptyTitle')}
+                description={t('notifications.emptyDescription')}
                 icon="notifications-outline"
               />
             )}

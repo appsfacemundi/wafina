@@ -1,4 +1,5 @@
 import { Alert, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -7,15 +8,16 @@ import { useOwnInstitution } from '@/hooks/useOwnInstitution';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
 export function VerificationStatusScreen() {
+  const { t } = useTranslation();
   const { signOutUser } = useAuth();
   const { institution, loading } = useOwnInstitution();
 
   if (loading) return null;
 
   function onPressSignOut() {
-    Alert.alert('Sair', 'Tem a certeza que quer sair?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sair', style: 'destructive', onPress: () => signOutUser() },
+    Alert.alert(t('settings.signOutConfirmTitle'), t('settings.signOutConfirmBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.signOut'), style: 'destructive', onPress: () => signOutUser() },
     ]);
   }
 
@@ -23,31 +25,26 @@ export function VerificationStatusScreen() {
     <View style={styles.screen}>
       <View style={styles.center}>
         <Card style={{ gap: spacing[4] }}>
-          <Text style={styles.title}>Estado de verificação</Text>
+          <Text style={styles.title}>{t('verification.title')}</Text>
           {institution?.Verified ? (
             <>
-              <Badge tone="success">Verificado</Badge>
-              <Text style={styles.hint}>A sua instituição foi verificada.</Text>
+              <Badge tone="success">{t('settings.verified')}</Badge>
+              <Text style={styles.hint}>{t('verification.verifiedHint')}</Text>
             </>
           ) : institution?.Rejection_Reason ? (
             <>
-              <Badge tone="danger">Rejeitado</Badge>
+              <Badge tone="danger">{t('verification.rejectedBadge')}</Badge>
               <Text style={styles.hint}>{institution.Rejection_Reason}</Text>
-              <Text style={styles.hint}>
-                Se acredita que esta decisão foi um erro ou gostaria de fornecer informação
-                adicional, contacte-nos em wafina@zuinder.com.
-              </Text>
+              <Text style={styles.hint}>{t('verification.rejectedContactHint')}</Text>
             </>
           ) : (
             <>
-              <Badge tone="warning">Por verificar</Badge>
-              <Text style={styles.hint}>
-                O seu registo está a aguardar aprovação do Admin. Isto demora normalmente entre 24 a 48 horas.
-              </Text>
+              <Badge tone="warning">{t('verification.pendingBadge')}</Badge>
+              <Text style={styles.hint}>{t('verification.pendingHint')}</Text>
             </>
           )}
           <Button variant="secondary" onPress={onPressSignOut}>
-            Sair
+            {t('common.signOut')}
           </Button>
         </Card>
       </View>

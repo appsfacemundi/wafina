@@ -1,8 +1,8 @@
 import {
   daysAgoLabel,
-  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHOD_LABEL_KEY,
   DELIVERY_METHODS,
-  RECIPIENT_CATEGORY_LABEL,
+  RECIPIENT_CATEGORY_LABEL_KEY,
   type DeliveryMethod,
   type GeoRegion,
   type InstitutionDonationView,
@@ -10,6 +10,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
@@ -22,6 +23,7 @@ import { apiFetch, ApiError } from '@/lib/api';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
 export function AvailableDonationsScreen() {
+  const { t } = useTranslation();
   const { firebaseUser } = useAuth();
   const { institution } = useOwnInstitution();
   const { showToast } = useToast();
@@ -39,7 +41,7 @@ export function AvailableDonationsScreen() {
       const idToken = await firebaseUser.getIdToken();
       setDonations(await apiFetch<InstitutionDonationView[]>('/donations/available', { idToken }));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as doações.');
+      setError(err instanceof ApiError ? err.message : t('donations.available.loadError'));
     }
   }
 
@@ -82,9 +84,9 @@ export function AvailableDonationsScreen() {
       const idToken = await firebaseUser?.getIdToken();
       await apiFetch(`/donations/${donationId}/claim`, { method: 'POST', idToken });
       await load();
-      showToast('Doação aceite com sucesso! Já pode agendar a recolha em "Doações Aceites".');
+      showToast(t('donations.available.claimSuccess'));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível aceitar a doação.');
+      setError(err instanceof ApiError ? err.message : t('donations.available.claimError'));
     } finally {
       setClaimingId(null);
     }
@@ -96,10 +98,15 @@ export function AvailableDonationsScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
-            <Text style={styles.title}>Disponíveis</Text>
+            <Text style={styles.title}>{t('donations.available.title')}</Text>
             {donations && donations.length > 0 && (
               <>
-                <Input label="Filtrar" placeholder="Tipo ou estado…" value={query} onChangeText={setQuery} />
+                <Input
+                  label={t('donations.available.filterLabel')}
+                  placeholder={t('donations.available.filterPlaceholder')}
+                  value={query}
+                  onChangeText={setQuery}
+                />
                 <View style={styles.filterRow}>
                   {(['all', ...DELIVERY_METHODS] as const).map((f) => (
                     <Pressable
@@ -110,7 +117,7 @@ export function AvailableDonationsScreen() {
                       style={[styles.filterChip, deliveryFilter === f && styles.filterChipActive]}
                     >
                       <Text style={[styles.filterChipText, deliveryFilter === f && styles.filterChipTextActive]}>
-                        {f === 'all' ? 'Todos' : DELIVERY_METHOD_LABEL[f]}
+                        {f === 'all' ? t('donations.available.filterAll') : t(DELIVERY_METHOD_LABEL_KEY[f])}
                       </Text>
                     </Pressable>
                   ))}
@@ -122,16 +129,20 @@ export function AvailableDonationsScreen() {
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
-            {!error && donations === null && <Text style={styles.loading}>A carregar…</Text>}
+            {!error && donations === null && <Text style={styles.loading}>{t('common.loading')}</Text>}
             {donations?.length === 0 && (
               <EmptyState
-                title="Sem doações disponíveis"
-                description="Quando houver doações pendentes, aparecem aqui."
+                title={t('donations.available.emptyNoneTitle')}
+                description={t('donations.available.emptyNoneDescription')}
                 icon="gift-outline"
               />
             )}
             {donations && donations.length > 0 && filtered?.length === 0 && (
-              <EmptyState title="Sem resultados" description="Nenhuma doação corresponde ao filtro." icon="search-outline" />
+              <EmptyState
+                title={t('donations.available.emptyNoResultsTitle')}
+                description={t('donations.available.emptyNoResultsDescription')}
+                icon="search-outline"
+              />
             )}
           </>
         }
@@ -146,12 +157,12 @@ export function AvailableDonationsScreen() {
                 <Text style={styles.mono}>{item.Public_Donation_Code}</Text>
               </View>
               <Text style={styles.meta}>
-                Qtd: {item.Quantity} · Estado: {item.Condition}
+                {t('donations.available.qtyCondition', { qty: item.Quantity, condition: item.Condition })}
               </Text>
               <Text style={styles.meta}>
-                {item.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[item.Recipient_Category] : '—'}
+                {item.Recipient_Category ? t(RECIPIENT_CATEGORY_LABEL_KEY[item.Recipient_Category]) : '—'}
                 {' · '}
-                {item.Delivery_Method ? DELIVERY_METHOD_LABEL[item.Delivery_Method] : '—'}
+                {item.Delivery_Method ? t(DELIVERY_METHOD_LABEL_KEY[item.Delivery_Method]) : '—'}
               </Text>
               {(item.City || countryName) && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
@@ -161,7 +172,7 @@ export function AvailableDonationsScreen() {
                       Linking.openURL(`https://www.google.com/maps?q=${item.Location.lat},${item.Location.lng}`)
                     }
                   >
-                    <Text style={styles.mapLink}>Ver no mapa</Text>
+                    <Text style={styles.mapLink}>{t('donations.available.viewOnMap')}</Text>
                   </Pressable>
                 </View>
               )}
@@ -186,7 +197,9 @@ export function AvailableDonationsScreen() {
               )}
               <Text style={styles.dateLabel}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
               <Button onPress={() => onClaim(item.Donation_ID)} disabled={claimingId === item.Donation_ID} fullWidth>
-                {claimingId === item.Donation_ID ? 'A aceitar…' : 'Aceitar Doação'}
+                {claimingId === item.Donation_ID
+                  ? t('donations.available.claiming')
+                  : t('donations.available.claimButton')}
               </Button>
             </View>
           </Card>

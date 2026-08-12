@@ -2,6 +2,7 @@ import { MEDICAL_SUPPLY_EXAMPLES, type GeoRegion, type ImpactFeedVisibility, typ
 import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -28,6 +29,7 @@ interface ProfileData {
 }
 
 export function SettingsScreen() {
+  const { t } = useTranslation();
   const { firebaseUser, session, refreshSession, signOutUser } = useAuth();
   const insets = useSafeAreaInsets();
 
@@ -70,10 +72,10 @@ export function SettingsScreen() {
         setCountries(countryList);
         setAllCountries(allCountryList);
       } catch {
-        setProfileError('Não foi possível carregar o seu perfil.');
+        setProfileError(t('settings.profileLoadError'));
       }
     })();
-  }, [firebaseUser]);
+  }, [firebaseUser, t]);
 
   async function onSaveProfile() {
     if (!profile) return;
@@ -87,7 +89,7 @@ export function SettingsScreen() {
       await apiFetch('/donor/profile', { method: 'PATCH', idToken, body: profile });
       setProfileSuccess(true);
     } catch (err) {
-      setProfileError(err instanceof ApiError ? err.message : 'Não foi possível guardar.');
+      setProfileError(err instanceof ApiError ? err.message : t('settings.saveError'));
     } finally {
       setSavingProfile(false);
     }
@@ -104,7 +106,7 @@ export function SettingsScreen() {
       setCorporateSuccess(true);
       setInviteCode('');
     } catch (err) {
-      setCorporateError(err instanceof ApiError ? err.message : 'Não foi possível associar a conta.');
+      setCorporateError(err instanceof ApiError ? err.message : t('settings.corporateJoinError'));
     } finally {
       setJoiningCorporate(false);
     }
@@ -120,7 +122,7 @@ export function SettingsScreen() {
       await refreshSession();
       setCountrySuccess(true);
     } catch (err) {
-      setCountryError(err instanceof ApiError ? err.message : 'Não foi possível mudar de país.');
+      setCountryError(err instanceof ApiError ? err.message : t('settings.countrySwitchError'));
     } finally {
       setSwitchingCountry(false);
     }
@@ -186,220 +188,191 @@ export function SettingsScreen() {
       await apiFetch('/donor/account', { method: 'DELETE', idToken });
       await signOutUser();
     } catch (err) {
-      setDeleteError(err instanceof ApiError ? err.message : 'Não foi possível eliminar a conta.');
+      setDeleteError(err instanceof ApiError ? err.message : t('settings.deleteAccountError'));
       setDeleting(false);
     }
   }
 
   function onPressSignOut() {
-    Alert.alert('Sair', 'Tem a certeza que quer sair?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sair', style: 'destructive', onPress: () => signOutUser() },
+    Alert.alert(t('settings.signOutTitle'), t('settings.signOutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('settings.signOutTitle'), style: 'destructive', onPress: () => signOutUser() },
     ]);
   }
 
   function onPressDeleteAccount() {
-    Alert.alert(
-      'Eliminar conta',
-      'Isto elimina permanentemente o seu perfil e acesso à conta Wafina. O seu histórico de doações já entregues pode ser mantido de forma anonimizada para estatísticas de impacto agregadas. Esta ação não pode ser revertida.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: onDeleteAccount },
-      ],
-    );
+    Alert.alert(t('settings.deleteAccountConfirmTitle'), t('settings.deleteAccountConfirmMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('settings.deleteAccountConfirmButton'), style: 'destructive', onPress: onDeleteAccount },
+    ]);
   }
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
-        <Text style={styles.title}>Definições</Text>
+        <Text style={styles.title}>{t('settings.title')}</Text>
 
         <Card style={{ gap: spacing[3] }}>
-          <Text style={styles.cardTitle}>Perfil</Text>
+          <Text style={styles.cardTitle}>{t('settings.profileTitle')}</Text>
           {session?.wafinaId && (
-            <Text style={[styles.hint, { fontFamily: fonts.mono }]}>ID Wafina: {session.wafinaId}</Text>
+            <Text style={[styles.hint, { fontFamily: fonts.mono }]}>
+              {t('settings.wafinaIdLabel', { id: session.wafinaId })}
+            </Text>
           )}
-          {!profile && !profileError && <Text style={styles.hint}>A carregar…</Text>}
+          {!profile && !profileError && <Text style={styles.hint}>{t('common.loading')}</Text>}
           {profileError && !profile && <ErrorBanner message={profileError} />}
           {profile && countries && (
             <>
               <Input
-                label="Nome"
+                label={t('settings.nameLabel')}
                 autoCapitalize="words"
                 value={profile.Name}
                 onChangeText={(v) => setProfile({ ...profile, Name: v })}
               />
               <Input
-                label="Telefone"
+                label={t('settings.phoneLabel')}
                 keyboardType="phone-pad"
                 value={profile.Phone}
                 onChangeText={(v) => setProfile({ ...profile, Phone: v })}
               />
               <Select
-                label="País de origem"
+                label={t('settings.homeCountryLabel')}
                 value={profile.Home_Country_ID}
                 onValueChange={(v) => setProfile({ ...profile, Home_Country_ID: v })}
                 options={countries.map((c) => ({ label: c.Name, value: c.Region_ID }))}
               />
               {profileError && <ErrorBanner message={profileError} />}
-              {profileSuccess && <Text style={styles.successText}>Perfil atualizado.</Text>}
+              {profileSuccess && <Text style={styles.successText}>{t('settings.profileUpdated')}</Text>}
               <Button onPress={onSaveProfile} loading={savingProfile}>
-                Guardar alterações
+                {t('settings.saveChanges')}
               </Button>
             </>
           )}
         </Card>
 
         <Card style={{ gap: spacing[3] }}>
-          <Text style={styles.cardTitle}>País ativo</Text>
-          <Text style={styles.hint}>
-            Determina quais as instituições e doações que vê. Mudar de país nunca altera doações já
-            submetidas.
-          </Text>
+          <Text style={styles.cardTitle}>{t('settings.activeCountryTitle')}</Text>
+          <Text style={styles.hint}>{t('settings.activeCountryHint')}</Text>
           {allCountries && session?.activeCountryId && (
             <>
               <Select
-                label="País ativo"
+                label={t('settings.activeCountryLabel')}
                 value={session.activeCountryId}
                 onValueChange={onChangeActiveCountry}
                 options={allCountries.map((c) => ({
-                  label: c.Active ? c.Name : `${c.Name} — Brevemente`,
+                  label: c.Active ? c.Name : `${c.Name}${t('settings.comingSoonSuffix')}`,
                   value: c.Region_ID,
                   enabled: c.Active,
                 }))}
               />
-              {switchingCountry && <Text style={styles.hint}>A mudar de país…</Text>}
+              {switchingCountry && <Text style={styles.hint}>{t('settings.switchingCountry')}</Text>}
               {countryError && <ErrorBanner message={countryError} />}
-              {countrySuccess && <Text style={styles.successText}>País ativo atualizado.</Text>}
+              {countrySuccess && <Text style={styles.successText}>{t('settings.activeCountryUpdated')}</Text>}
               <Select
-                label="Sugerir mudança ao detetar viagem?"
+                label={t('settings.switchPreferenceLabel')}
                 value={session.switchPreference ?? 'Always_Ask'}
                 onValueChange={(v) => onChangeSwitchPreference(v as SwitchPreference)}
                 options={[
-                  { label: 'Perguntar sempre', value: 'Always_Ask' },
-                  { label: 'Nunca perguntar automaticamente', value: 'Never_Ask_Automatically' },
+                  { label: t('settings.switchPreferenceAlways'), value: 'Always_Ask' },
+                  { label: t('settings.switchPreferenceNever'), value: 'Never_Ask_Automatically' },
                 ]}
               />
-              {savingPreference && <Text style={styles.hint}>A guardar preferência…</Text>}
+              {savingPreference && <Text style={styles.hint}>{t('settings.savingPreference')}</Text>}
             </>
           )}
         </Card>
 
         <Card style={{ gap: spacing[3] }}>
-          <Text style={styles.cardTitle}>Conta corporativa</Text>
+          <Text style={styles.cardTitle}>{t('settings.corporateTitle')}</Text>
           {session?.donorSubtype === 'Corporate' ? (
-            <Text style={styles.hint}>Esta conta já está associada a uma conta corporativa.</Text>
+            <Text style={styles.hint}>{t('settings.corporateAlreadyLinked')}</Text>
           ) : (
             <>
-              <Text style={styles.hint}>
-                Se a sua empresa tem uma parceria com a Wafina, introduza o código fornecido pelo Admin.
-              </Text>
-              <Input label="Código de convite" value={inviteCode} onChangeText={setInviteCode} />
+              <Text style={styles.hint}>{t('settings.corporateHint')}</Text>
+              <Input label={t('settings.inviteCodeLabel')} value={inviteCode} onChangeText={setInviteCode} />
               {corporateError && <ErrorBanner message={corporateError} />}
-              {corporateSuccess && <Text style={styles.successText}>Conta associada com sucesso.</Text>}
+              {corporateSuccess && <Text style={styles.successText}>{t('settings.corporateJoinSuccess')}</Text>}
               <Button variant="secondary" onPress={onJoinCorporate} loading={joiningCorporate}>
-                Associar conta
+                {t('settings.joinAccountButton')}
               </Button>
             </>
           )}
         </Card>
 
         <Card style={{ gap: spacing[3] }}>
-          <Text style={styles.cardTitle}>Privacidade</Text>
-          <Text style={styles.hint}>
-            Se ativar, a instituição que aceitar uma doação sua vê o seu nome e número de telefone
-            no cartão da doação, para poder combinar a recolha consigo. Caso contrário, a doação
-            aparece sem identificação pessoal — a instituição vê apenas a localização e a morada
-            que indicar.
-          </Text>
+          <Text style={styles.cardTitle}>{t('settings.privacyTitle')}</Text>
+          <Text style={styles.hint}>{t('settings.privacyHint')}</Text>
           <Select
-            label="Mostrar o meu nome às instituições"
+            label={t('settings.showNameLabel')}
             value={session?.showNameToInstitutions ? 'yes' : 'no'}
             onValueChange={(v) => onChangeShowName(v === 'yes')}
             options={[
-              { label: 'Não mostrar', value: 'no' },
-              { label: 'Mostrar o meu nome', value: 'yes' },
+              { label: t('settings.showNameNo'), value: 'no' },
+              { label: t('settings.showNameYes'), value: 'yes' },
             ]}
           />
-          {savingNamePref && <Text style={styles.hint}>A guardar…</Text>}
+          {savingNamePref && <Text style={styles.hint}>{t('settings.saving')}</Text>}
         </Card>
 
         <Card style={{ gap: spacing[3] }}>
-          <Text style={styles.cardTitle}>Feed de Impacto</Text>
-          <Text style={styles.hint}>
-            Privado mostra apenas histórias sobre as suas próprias doações. Público mostra também
-            histórias aprovadas sobre doações de outras pessoas, para ver o impacto de toda a
-            comunidade Wafina.
-          </Text>
+          <Text style={styles.cardTitle}>{t('settings.impactFeedTitle')}</Text>
+          <Text style={styles.hint}>{t('settings.impactFeedHint')}</Text>
           <Select
-            label="Visibilidade do feed"
+            label={t('settings.feedVisibilityLabel')}
             value={session?.impactFeedVisibility ?? 'Private'}
             onValueChange={(v) => onChangeImpactFeedVisibility(v as ImpactFeedVisibility)}
             options={[
-              { label: 'Privado — só as minhas doações', value: 'Private' },
-              { label: 'Público — toda a comunidade', value: 'Public' },
+              { label: t('settings.feedVisibilityPrivate'), value: 'Private' },
+              { label: t('settings.feedVisibilityPublic'), value: 'Public' },
             ]}
           />
-          {savingFeedPref && <Text style={styles.hint}>A guardar…</Text>}
+          {savingFeedPref && <Text style={styles.hint}>{t('settings.saving')}</Text>}
         </Card>
 
         <Card style={{ gap: spacing[3] }}>
-          <Text style={styles.cardTitle}>Notificações</Text>
-          <Text style={styles.hint}>
-            A notificação na app está sempre ativa. Pode também escolher receber um email
-            personalizado sempre que uma história de impacto sobre uma das suas doações for
-            publicada.
-          </Text>
+          <Text style={styles.cardTitle}>{t('settings.notificationsTitle')}</Text>
+          <Text style={styles.hint}>{t('settings.notificationsHint')}</Text>
           <Select
-            label="Notificações por email"
+            label={t('settings.emailNotificationsLabel')}
             value={session?.emailNotificationsEnabled ? 'yes' : 'no'}
             onValueChange={(v) => onChangeEmailNotifications(v === 'yes')}
             options={[
-              { label: 'Receber por email', value: 'yes' },
-              { label: 'Não receber por email', value: 'no' },
+              { label: t('settings.emailNotificationsYes'), value: 'yes' },
+              { label: t('settings.emailNotificationsNo'), value: 'no' },
             ]}
           />
-          {savingEmailPref && <Text style={styles.hint}>A guardar…</Text>}
+          {savingEmailPref && <Text style={styles.hint}>{t('settings.saving')}</Text>}
         </Card>
 
         {__DEV__ && (
           <Card style={{ gap: spacing[3] }}>
-            <Text style={styles.cardTitle}>Opções de programador</Text>
-            <Text style={styles.hint}>
-              Simula o país detetado por GPS, sem precisar de VPN ou de uma app de localização
-              falsa. Nunca aparece fora de um build de desenvolvimento.
-            </Text>
+            <Text style={styles.cardTitle}>{t('settings.devOptionsTitle')}</Text>
+            <Text style={styles.hint}>{t('settings.devOptionsHint')}</Text>
             {SIMULATABLE_COUNTRIES.map((c) => (
               <Button
                 key={c.isoCode}
                 variant="secondary"
                 onPress={() => simulateCountryDetection(c.isoCode)}
               >
-                Simular {c.label}
+                {t('settings.simulateCountry', { country: c.label })}
               </Button>
             ))}
           </Card>
         )}
 
         <Card style={{ gap: spacing[3] }}>
-          <Text style={[styles.cardTitle, { color: colors.danger }]}>Eliminar conta</Text>
-          <Text style={styles.hint}>
-            Elimina permanentemente o seu perfil e acesso à sua conta Wafina. O seu histórico de
-            doações já entregues pode ser mantido de forma anonimizada para estatísticas de impacto
-            agregadas.
-          </Text>
+          <Text style={[styles.cardTitle, { color: colors.danger }]}>{t('settings.deleteAccountTitle')}</Text>
+          <Text style={styles.hint}>{t('settings.deleteAccountHint')}</Text>
           {deleteError && <ErrorBanner message={deleteError} />}
           <Button variant="danger" onPress={onPressDeleteAccount} loading={deleting}>
-            Eliminar a minha conta
+            {t('settings.deleteAccountButton')}
           </Button>
         </Card>
 
         {/* Donation categories reference, 2026-08-07 — a donor deciding whether an item qualifies as 'Material Médico' needs this once, not every time they open the Donate form (see MEDICAL_SUPPLY_INFO's comment in @wafina/shared). */}
         <Card style={{ gap: spacing[3] }}>
-          <Text style={styles.cardTitle}>O que conta como "Material Médico"?</Text>
-          <Text style={styles.hint}>
-            Material médico limpo e funcional — nunca medicamentos. Exemplos:
-          </Text>
+          <Text style={styles.cardTitle}>{t('settings.medicalSupplyTitle')}</Text>
+          <Text style={styles.hint}>{t('settings.medicalSupplyHint')}</Text>
           <View style={{ gap: spacing[2] }}>
             {MEDICAL_SUPPLY_EXAMPLES.map((item) => (
               <View key={item.label} style={styles.medicalSupplyRow}>
@@ -411,10 +384,8 @@ export function SettingsScreen() {
         </Card>
 
         <Card style={{ gap: spacing[3] }}>
-          <Text style={styles.cardTitle}>Sobre</Text>
-          <Text style={styles.hint}>
-            A Wafina é desenvolvida e operada por <Text style={styles.hintBold}>ZUINDER</Text>.
-          </Text>
+          <Text style={styles.cardTitle}>{t('settings.aboutTitle')}</Text>
+          <Text style={styles.hint}>{t('settings.aboutText')}</Text>
           <Button variant="secondary" onPress={() => Linking.openURL('https://www.zuinder.com')}>
             www.zuinder.com
           </Button>
@@ -422,18 +393,18 @@ export function SettingsScreen() {
             variant="secondary"
             onPress={() => Linking.openURL('https://wafina-donor-web.onrender.com/privacy')}
           >
-            Política de Privacidade
+            {t('settings.privacyPolicyButton')}
           </Button>
           <Button
             variant="secondary"
             onPress={() => Linking.openURL('https://wafina-donor-web.onrender.com/terms')}
           >
-            Termos de Utilização
+            {t('settings.termsButton')}
           </Button>
         </Card>
 
         <Button variant="ghostDanger" onPress={onPressSignOut}>
-          Sair
+          {t('settings.signOutTitle')}
         </Button>
       </ScrollView>
     </KeyboardAvoidingView>

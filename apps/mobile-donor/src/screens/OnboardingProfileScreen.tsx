@@ -1,6 +1,7 @@
 import type { GeoRegion } from '@wafina/shared';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -11,6 +12,7 @@ import { ApiError, apiFetch } from '@/lib/api';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
 export function OnboardingProfileScreen() {
+  const { t } = useTranslation();
   const { firebaseUser, refreshSession, signOutUser } = useAuth();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -27,7 +29,7 @@ export function OnboardingProfileScreen() {
         setCountries(list);
         if (list[0]) setHomeCountryId(list[0].Region_ID);
       } catch {
-        setError('Não foi possível carregar a lista de países.');
+        setError(t('profile.loadCountriesError'));
       }
     })();
   }, []);
@@ -45,7 +47,7 @@ export function OnboardingProfileScreen() {
       await refreshSession();
       // RootNavigator swaps to Home on its own once session.profileComplete flips.
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível guardar. Tente novamente.');
+      setError(err instanceof ApiError ? err.message : t('profile.saveError'));
     } finally {
       setSubmitting(false);
     }
@@ -58,26 +60,26 @@ export function OnboardingProfileScreen() {
     >
       <View style={styles.center}>
         <Card style={styles.card}>
-          <Text style={styles.title}>Complete o seu perfil</Text>
-          <Text style={styles.subtitle}>Só mais um passo antes de poder doar.</Text>
-          <Input label="Nome" autoCapitalize="words" value={name} onChangeText={setName} />
-          <Input label="Telefone" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+          <Text style={styles.title}>{t('profile.title')}</Text>
+          <Text style={styles.subtitle}>{t('profile.subtitle')}</Text>
+          <Input label={t('settings.nameLabel')} autoCapitalize="words" value={name} onChangeText={setName} />
+          <Input label={t('settings.phoneLabel')} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
           {countries ? (
             <Select
-              label="País"
+              label={t('profile.countryLabel')}
               value={homeCountryId}
               onValueChange={setHomeCountryId}
               options={countries.map((c) => ({ label: c.Name, value: c.Region_ID }))}
             />
           ) : (
-            <Text style={styles.hint}>A carregar países…</Text>
+            <Text style={styles.hint}>{t('profile.loadingCountries')}</Text>
           )}
           {error ? <ErrorBanner message={error} /> : null}
           <Button onPress={onSubmit} loading={submitting} disabled={!homeCountryId} fullWidth>
-            Continuar
+            {t('profile.continueButton')}
           </Button>
           <Button variant="ghost" onPress={() => signOutUser()} fullWidth>
-            Não é a sua conta? Sair
+            {t('profile.notYourAccount')}
           </Button>
         </Card>
       </View>

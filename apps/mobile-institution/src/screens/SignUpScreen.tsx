@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import logoMark from '../../assets/icon-mark.png';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
@@ -16,6 +17,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 type AccountKind = 'Institution' | 'Animal_Shelter';
 
 export function SignUpScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,11 +53,11 @@ export function SignUpScreen({ navigation }: Props) {
       >
         <View style={styles.brand}>
           <Image source={logoMark} style={styles.logo} resizeMode="contain" />
-          <Text style={styles.title}>Criar conta</Text>
+          <Text style={styles.title}>{t('auth.createAccountTitle')}</Text>
         </View>
         <Card style={styles.card}>
           <View style={styles.kindPicker}>
-            <Text style={styles.kindLabel}>Tipo de conta</Text>
+            <Text style={styles.kindLabel}>{t('auth.accountKindLabel')}</Text>
             <View style={styles.kindRow}>
               <View style={styles.kindOption}>
                 <Button
@@ -63,7 +65,7 @@ export function SignUpScreen({ navigation }: Props) {
                   onPress={() => setAccountKind('Institution')}
                   fullWidth
                 >
-                  Instituição
+                  {t('auth.accountKindInstitution')}
                 </Button>
               </View>
               <View style={styles.kindOption}>
@@ -72,25 +74,25 @@ export function SignUpScreen({ navigation }: Props) {
                   onPress={() => setAccountKind('Animal_Shelter')}
                   fullWidth
                 >
-                  Abrigo de Animais
+                  {t('auth.accountKindShelter')}
                 </Button>
               </View>
             </View>
           </View>
-          <Input label="E-mail" keyboardType="email-address" value={email} onChangeText={setEmail} />
+          <Input label={t('auth.email')} keyboardType="email-address" value={email} onChangeText={setEmail} />
           <Input
-            label="Palavra-passe"
+            label={t('auth.password')}
             secureTextEntry
-            hint="Mínimo de 6 caracteres."
+            hint={t('auth.passwordHint')}
             value={password}
             onChangeText={setPassword}
           />
           {error ? <ErrorBanner message={error} /> : null}
           <Button onPress={onSubmit} loading={submitting} fullWidth>
-            Criar conta
+            {t('auth.createAccountTitle')}
           </Button>
           <Button variant="ghost" onPress={() => navigation.navigate('SignIn')} fullWidth>
-            Já tem conta? Entrar
+            {t('auth.alreadyHaveAccount')}
           </Button>
         </Card>
       </ScrollView>

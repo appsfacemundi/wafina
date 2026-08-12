@@ -2,6 +2,7 @@ import type { GeoRegion } from '@wafina/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Input } from '@/components/Input';
@@ -22,6 +23,7 @@ interface PublicInstitution {
 }
 
 export function InstitutionsScreen() {
+  const { t } = useTranslation();
   const { firebaseUser } = useAuth();
   const insets = useSafeAreaInsets();
   const [institutions, setInstitutions] = useState<PublicInstitution[] | null>(null);
@@ -41,10 +43,10 @@ export function InstitutionsScreen() {
         setInstitutions(institutionList);
         setCountries(countryList);
       } catch {
-        setError('Não foi possível carregar as instituições.');
+        setError(t('institutions.loadError'));
       }
     })();
-  }, [firebaseUser]);
+  }, [firebaseUser, t]);
 
   function countryName(countryId: string): string {
     return countries.find((c) => c.Region_ID === countryId)?.Name ?? '';
@@ -68,24 +70,24 @@ export function InstitutionsScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
-            <Text style={styles.title}>Instituições</Text>
+            <Text style={styles.title}>{t('institutions.title')}</Text>
             {error && (
               <View style={styles.errorBanner}>
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
-            {!error && institutions === null && <Text style={styles.loading}>A carregar…</Text>}
+            {!error && institutions === null && <Text style={styles.loading}>{t('common.loading')}</Text>}
             {institutions?.length === 0 && (
               <EmptyState
-                title="Ainda sem instituições verificadas"
-                description="As instituições aprovadas pelo Admin aparecem aqui."
+                title={t('institutions.emptyNoneTitle')}
+                description={t('institutions.emptyNoneDescription')}
                 icon="business-outline"
               />
             )}
             {institutions && institutions.length > 0 && (
               <Input
-                label="Pesquisar"
-                placeholder="Pesquisar por nome ou tipo…"
+                label={t('institutions.searchLabel')}
+                placeholder={t('institutions.searchPlaceholder')}
                 value={search}
                 onChangeText={setSearch}
                 style={{ marginBottom: spacing[3] }}
@@ -93,8 +95,8 @@ export function InstitutionsScreen() {
             )}
             {institutions && institutions.length > 0 && visibleInstitutions.length === 0 && (
               <EmptyState
-                title="Sem resultados"
-                description="Nenhuma instituição corresponde à pesquisa."
+                title={t('institutions.emptyNoResultsTitle')}
+                description={t('institutions.emptyNoResultsDescription')}
                 icon="search-outline"
               />
             )}
@@ -114,8 +116,10 @@ export function InstitutionsScreen() {
                 </Text>
               </View>
             </View>
-            {item.Needs_List && <Text style={styles.meta}>Necessita: {item.Needs_List}</Text>}
-            <Text style={styles.mono}>{item.Total_Items_Received} itens recebidos</Text>
+            {item.Needs_List && (
+              <Text style={styles.meta}>{t('institutions.needsLabel', { needs: item.Needs_List })}</Text>
+            )}
+            <Text style={styles.mono}>{t('institutions.itemsReceived', { count: item.Total_Items_Received })}</Text>
           </Card>
         )}
       />

@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Alert, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
@@ -25,6 +26,7 @@ export function ThankYouNoteModal({
   onSkip: () => void;
   onSubmit: (message: string, photo: ImagePicker.ImagePickerAsset | null) => void;
 }) {
+  const { t } = useTranslation();
   const [message, setMessage] = useState('');
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
@@ -43,10 +45,10 @@ export function ThankYouNoteModal({
   }
 
   function onPickPhoto() {
-    Alert.alert('Adicionar fotografia (opcional)', undefined, [
-      { text: 'Tirar fotografia', onPress: onPickFromCamera },
-      { text: 'Escolher da galeria', onPress: onPickFromLibrary },
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t('thankYouNote.addPhotoTitle'), undefined, [
+      { text: t('register.takePhoto'), onPress: onPickFromCamera },
+      { text: t('register.chooseFromGallery'), onPress: onPickFromLibrary },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   }
 
@@ -59,15 +61,12 @@ export function ThankYouNoteModal({
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onSkip}>
       <View style={styles.backdrop}>
         <Card style={styles.card}>
-          <Text style={styles.title}>Deixe uma mensagem para o doador</Text>
-          <Text style={styles.body}>
-            Opcional — uma mensagem de agradecimento e/ou uma foto tornam o gesto do doador ainda mais especial.
-            Só é usado no email de confirmação; não é publicado em lado nenhum.
-          </Text>
+          <Text style={styles.title}>{t('thankYouNote.title')}</Text>
+          <Text style={styles.body}>{t('thankYouNote.body')}</Text>
           <TextInput
             multiline
             numberOfLines={3}
-            placeholder="Ex: Muito obrigado, isto vai ajudar imenso a nossa comunidade!"
+            placeholder={t('thankYouNote.placeholder')}
             placeholderTextColor={colors.textFaint}
             value={message}
             onChangeText={setMessage}
@@ -80,7 +79,7 @@ export function ThankYouNoteModal({
                 style={styles.removePhotoBtn}
                 onPress={() => setPhoto(null)}
                 accessibilityRole="button"
-                accessibilityLabel="Remover fotografia"
+                accessibilityLabel={t('thankYouNote.removePhoto')}
                 hitSlop={8}
               >
                 <Ionicons name="close" size={16} color={colors.accentText} />
@@ -89,7 +88,7 @@ export function ThankYouNoteModal({
           ) : (
             <Pressable style={styles.addPhotoBtn} onPress={onPickPhoto}>
               <Ionicons name="camera-outline" size={18} color={colors.textMuted} />
-              <Text style={styles.addPhotoText}>Adicionar foto (opcional)</Text>
+              <Text style={styles.addPhotoText}>{t('thankYouNote.addPhoto')}</Text>
             </Pressable>
           )}
           <Button
@@ -100,7 +99,7 @@ export function ThankYouNoteModal({
             loading={submitting}
             fullWidth
           >
-            Confirmar entrega
+            {t('thankYouNote.confirmButton')}
           </Button>
           <Button
             variant="ghost"
@@ -111,7 +110,7 @@ export function ThankYouNoteModal({
             disabled={submitting}
             fullWidth
           >
-            Pular e confirmar sem mensagem
+            {t('thankYouNote.skipButton')}
           </Button>
         </Card>
       </View>

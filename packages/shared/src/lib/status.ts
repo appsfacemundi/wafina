@@ -14,6 +14,22 @@ export const DONATION_STATUS_LABEL: Record<DonationStatus, string> = {
 };
 
 /**
+ * RC1 EN/PT localization, 2026-08-12 — the DOMAIN VALUE (DonationStatus, e.g.
+ * 'Pending') never changes; DONATION_STATUS_LABEL above is a fixed-PT DISPLAY
+ * LABEL kept as-is so existing (non-i18n) web callers are untouched. Mobile
+ * apps that need a translated label should resolve through this key map
+ * instead: `t(DONATION_STATUS_LABEL_KEY[status])`. Keys point into each
+ * mobile app's own `status.donation.*` i18n namespace.
+ */
+export const DONATION_STATUS_LABEL_KEY: Record<DonationStatus, string> = {
+  Pending: 'status.donation.pending',
+  Claimed: 'status.donation.claimed',
+  Collection_Scheduled: 'status.donation.collectionScheduled',
+  Collected: 'status.donation.collected',
+  Delivered: 'status.donation.delivered',
+};
+
+/**
  * Real-device finding, 2026-08-04: Claimed/Collection_Scheduled/Collected
  * previously all shared 'info', so three different real-world stages read as
  * the same badge color. Spread across distinct tones so each stage of the
@@ -52,6 +68,16 @@ export function donorDonationStatusLabel(donation: {
   return DONATION_STATUS_LABEL[donation.Status];
 }
 
+/** Translated counterpart to donorDonationStatusLabel above — see DONATION_STATUS_LABEL_KEY. */
+export function donorDonationStatusLabelKey(donation: {
+  Status: DonationStatus;
+  Approval_Status: DonationApprovalStatus;
+}): string {
+  if (donation.Approval_Status === 'Pending_Review') return 'status.donation.pendingReview';
+  if (donation.Approval_Status === 'Rejected') return 'status.donation.rejected';
+  return DONATION_STATUS_LABEL_KEY[donation.Status];
+}
+
 export function donorDonationStatusTone(donation: {
   Status: DonationStatus;
   Approval_Status: DonationApprovalStatus;
@@ -68,9 +94,22 @@ export const RECIPIENT_CATEGORY_LABEL: Record<RecipientCategory, string> = {
   Animal_Shelters: '🐾 Abrigos de Animais',
 };
 
+/** Translated counterpart — see DONATION_STATUS_LABEL_KEY for the pattern. Keys keep the same emoji prefix. */
+export const RECIPIENT_CATEGORY_LABEL_KEY: Record<RecipientCategory, string> = {
+  People: 'status.recipientCategory.people',
+  Institutions: 'status.recipientCategory.institutions',
+  Animal_Shelters: 'status.recipientCategory.animalShelters',
+};
+
 export const DELIVERY_METHOD_LABEL: Record<DeliveryMethod, string> = {
   Donor_Delivers: '🚗 Doador entrega',
   Pickup_Required: '📦 Necessita recolha',
+};
+
+/** Translated counterpart — see DONATION_STATUS_LABEL_KEY for the pattern. */
+export const DELIVERY_METHOD_LABEL_KEY: Record<DeliveryMethod, string> = {
+  Donor_Delivers: 'status.deliveryMethod.donorDelivers',
+  Pickup_Required: 'status.deliveryMethod.pickupRequired',
 };
 
 /** RC1 RECEBER — Admin-facing label for the computed People-category state. */
@@ -78,6 +117,13 @@ export const INDIVIDUAL_DONATION_STATE_LABEL: Record<IndividualDonationState, st
   Available: 'Disponível',
   Reserved: 'Reservado',
   Delivered: 'Recebido',
+};
+
+/** Translated counterpart — see DONATION_STATUS_LABEL_KEY for the pattern. */
+export const INDIVIDUAL_DONATION_STATE_LABEL_KEY: Record<IndividualDonationState, string> = {
+  Available: 'status.individualState.available',
+  Reserved: 'status.individualState.reserved',
+  Delivered: 'status.individualState.delivered',
 };
 
 export const INDIVIDUAL_DONATION_STATE_TONE: Record<IndividualDonationState, 'warning' | 'info' | 'success'> = {

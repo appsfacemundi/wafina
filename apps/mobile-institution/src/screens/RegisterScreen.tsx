@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function RegisterScreen({ onRegistered }: Props) {
+  const { t } = useTranslation();
   const { firebaseUser, session, signOutUser } = useAuth();
   const insets = useSafeAreaInsets();
   const isShelter = session?.role === 'Animal_Shelter';
@@ -81,7 +83,7 @@ export function RegisterScreen({ onRegistered }: Props) {
         setCountries(list);
         if (list[0]) setCountryId(list[0].Region_ID);
       } catch {
-        setError('Não foi possível carregar a lista de países.');
+        setError(t('register.errors.loadCountries'));
       }
     })();
   }, []);
@@ -101,7 +103,7 @@ export function RegisterScreen({ onRegistered }: Props) {
   async function onPickLogoFromCamera() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      setError('É necessário acesso à câmara para tirar uma fotografia.');
+      setError(t('register.errors.cameraPermission'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
@@ -111,7 +113,7 @@ export function RegisterScreen({ onRegistered }: Props) {
   async function onPickLogoFromLibrary() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      setError('É necessário acesso às fotografias para anexar uma imagem.');
+      setError(t('register.errors.libraryPermission'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
@@ -119,10 +121,10 @@ export function RegisterScreen({ onRegistered }: Props) {
   }
 
   function onPickLogo() {
-    Alert.alert('Adicionar logótipo', undefined, [
-      { text: 'Tirar fotografia', onPress: onPickLogoFromCamera },
-      { text: 'Escolher da galeria', onPress: onPickLogoFromLibrary },
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t('register.addLogoTitle'), undefined, [
+      { text: t('register.takePhoto'), onPress: onPickLogoFromCamera },
+      { text: t('register.chooseFromGallery'), onPress: onPickLogoFromLibrary },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   }
 
@@ -132,7 +134,7 @@ export function RegisterScreen({ onRegistered }: Props) {
   async function onFindAddress() {
     setLocationError('');
     if (!address.trim()) {
-      setLocationError('Introduza uma morada.');
+      setLocationError(t('register.errors.enterAddress'));
       return;
     }
     setLocationStatus('geocoding');
@@ -146,7 +148,7 @@ export function RegisterScreen({ onRegistered }: Props) {
       setLng(String(result.lng));
       setLocationStatus('geocoded');
     } catch (err) {
-      setLocationError(err instanceof ApiError ? err.message : 'Não foi possível localizar essa morada.');
+      setLocationError(err instanceof ApiError ? err.message : t('register.errors.geocode'));
       setLocationStatus('failed');
     }
   }
@@ -154,23 +156,25 @@ export function RegisterScreen({ onRegistered }: Props) {
   async function onSubmit() {
     setError('');
     if (!name || !type) {
-      setError(isShelter ? 'Preencha o nome e o tipo do abrigo.' : 'Preencha o nome e o tipo da instituição.');
+      setError(
+        isShelter ? t('register.errors.missingNameTypeShelter') : t('register.errors.missingNameTypeInstitution'),
+      );
       return;
     }
     if (type === 'Outro' && !customType.trim()) {
-      setError('Descreva o tipo no campo "Outro".');
+      setError(t('register.errors.missingCustomType'));
       return;
     }
     if (!logo) {
-      setError(isShelter ? 'Adicione o logótipo do abrigo.' : 'Adicione o logótipo da instituição.');
+      setError(isShelter ? t('register.errors.missingLogoShelter') : t('register.errors.missingLogoInstitution'));
       return;
     }
     if (!hasValidLocation) {
-      setError('É necessária uma localização válida. Ative o GPS ou confirme a sua morada.');
+      setError(t('register.errors.missingLocation'));
       return;
     }
     if (!countryId) {
-      setError('Selecione o país onde a instituição opera.');
+      setError(t('register.errors.missingCountry'));
       return;
     }
     setSubmitting(true);
@@ -192,7 +196,7 @@ export function RegisterScreen({ onRegistered }: Props) {
       });
       await onRegistered();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível submeter o registo.');
+      setError(err instanceof ApiError ? err.message : t('register.errors.submit'));
     } finally {
       setSubmitting(false);
     }
@@ -202,83 +206,79 @@ export function RegisterScreen({ onRegistered }: Props) {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
         <Card style={{ gap: spacing[4] }}>
-          <Text style={styles.title}>{isShelter ? 'Registar abrigo de animais' : 'Registar instituição'}</Text>
+          <Text style={styles.title}>{isShelter ? t('register.titleShelter') : t('register.titleInstitution')}</Text>
           <Text style={styles.subtitle}>
-            {isShelter
-              ? 'Após o envio, o seu abrigo fica pendente de verificação pelo Admin.'
-              : 'Após o envio, a sua instituição fica pendente de verificação pelo Admin.'}
+            {isShelter ? t('register.subtitleShelter') : t('register.subtitleInstitution')}
           </Text>
           <Input
-            label={isShelter ? 'Nome do abrigo' : 'Nome da instituição'}
+            label={isShelter ? t('register.nameLabelShelter') : t('register.nameLabelInstitution')}
             autoCapitalize="words"
             value={name}
             onChangeText={setName}
           />
-          <Select label="Tipo" value={type} onValueChange={setType} options={typeOptions} />
+          <Select label={t('register.typeLabel')} value={type} onValueChange={setType} options={typeOptions} />
           {type === 'Outro' && (
-            <Input label="Descreva o tipo" value={customType} onChangeText={setCustomType} />
+            <Input label={t('register.describeType')} value={customType} onChangeText={setCustomType} />
           )}
 
           <View style={{ gap: spacing[1] }}>
             <Text style={styles.label}>
-              {isShelter ? 'Logótipo do abrigo (obrigatório)' : 'Logótipo da instituição (obrigatório)'}
+              {isShelter ? t('register.logoLabelShelter') : t('register.logoLabelInstitution')}
             </Text>
             {logo ? (
               <Image source={{ uri: logo.uri }} style={styles.logoPreview} />
             ) : (
               <Pressable style={styles.uploadWell} onPress={onPickLogo}>
-                <Text style={styles.hint}>Escolha um logótipo</Text>
+                <Text style={styles.hint}>{t('register.chooseLogo')}</Text>
               </Pressable>
             )}
             {logo && (
               <Button variant="secondary" onPress={onPickLogo}>
-                Escolher outro logótipo
+                {t('register.chooseAnotherLogo')}
               </Button>
             )}
           </View>
 
           {countries ? (
             <Select
-              label="País"
+              label={t('register.countryLabel')}
               value={countryId}
               onValueChange={setCountryId}
               options={countries.map((c) => ({ label: c.Name, value: c.Region_ID }))}
             />
           ) : (
-            <Text style={styles.hint}>A carregar países…</Text>
+            <Text style={styles.hint}>{t('register.loadingCountries')}</Text>
           )}
           <Input
-            label="Necessidades (opcional)"
-            hint="Ex: Roupas, Alimentos"
+            label={t('register.needsListLabel')}
+            hint={t('register.needsListHint')}
             value={needsList}
             onChangeText={setNeedsList}
           />
           <Input
-            label="Área de cobertura (opcional)"
-            hint="Ex: toda a província de Luanda"
+            label={t('register.coverageAreaLabel')}
+            hint={t('register.coverageAreaHint')}
             value={coverageArea}
             onChangeText={setCoverageArea}
           />
 
           <View style={{ gap: spacing[1] }}>
-            <Text style={styles.label}>Localização</Text>
-            {locationStatus === 'capturing' && <Text style={styles.hint}>A obter a sua localização…</Text>}
+            <Text style={styles.label}>{t('register.locationLabel')}</Text>
+            {locationStatus === 'capturing' && <Text style={styles.hint}>{t('register.gettingLocation')}</Text>}
             {(locationStatus === 'captured' || locationStatus === 'geocoded') && (
-              <Text style={styles.hint}>📍 Localização confirmada</Text>
+              <Text style={styles.hint}>{t('register.locationConfirmed')}</Text>
             )}
             {(locationStatus === 'failed' || locationStatus === 'geocoding') && (
               <View style={{ gap: spacing[2] }}>
-                <Text style={styles.hint}>
-                  Não foi possível obter a sua localização automaticamente. Introduza a sua morada.
-                </Text>
+                <Text style={styles.hint}>{t('register.locationFailedHint')}</Text>
                 <Input
-                  label="Morada (obrigatório)"
-                  placeholder="Ex: Rua Amílcar Cabral, Luanda"
+                  label={t('register.addressLabel')}
+                  placeholder={t('register.addressPlaceholder')}
                   value={address}
                   onChangeText={setAddress}
                 />
                 <Button variant="secondary" onPress={onFindAddress} loading={locationStatus === 'geocoding'}>
-                  Confirmar morada
+                  {t('register.confirmAddress')}
                 </Button>
                 {locationError ? <ErrorBanner message={locationError} /> : null}
               </View>
@@ -287,10 +287,10 @@ export function RegisterScreen({ onRegistered }: Props) {
 
           {error ? <ErrorBanner message={error} /> : null}
           <Button onPress={onSubmit} loading={submitting} fullWidth>
-            Submeter registo
+            {t('register.submit')}
           </Button>
           <Button variant="ghost" onPress={() => signOutUser()} fullWidth>
-            Não é a sua conta? Sair
+            {t('register.notYourAccount')}
           </Button>
         </Card>
       </ScrollView>

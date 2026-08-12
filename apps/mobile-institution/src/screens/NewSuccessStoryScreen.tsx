@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -20,6 +21,7 @@ const MAX_DESCRIPTION_LENGTH = 600;
 type Props = NativeStackScreenProps<ClaimedByMeStackParamList, 'NewSuccessStory'>;
 
 export function NewSuccessStoryScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { donationId, publicCode } = route.params;
   const { firebaseUser } = useAuth();
   const { showToast } = useToast();
@@ -38,7 +40,7 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
   async function onPickFromCamera() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      setError('É necessário acesso à câmara para tirar uma fotografia.');
+      setError(t('successStory.errors.cameraPermission'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
@@ -48,7 +50,7 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
   async function onPickFromLibrary() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      setError('É necessário acesso às fotografias para anexar uma imagem.');
+      setError(t('successStory.errors.libraryPermission'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
@@ -56,33 +58,33 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
   }
 
   function onPickPhoto() {
-    Alert.alert('Adicionar fotografia', undefined, [
-      { text: 'Tirar fotografia', onPress: onPickFromCamera },
-      { text: 'Escolher da galeria', onPress: onPickFromLibrary },
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t('successStory.addPhotoTitle'), undefined, [
+      { text: t('register.takePhoto'), onPress: onPickFromCamera },
+      { text: t('register.chooseFromGallery'), onPress: onPickFromLibrary },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   }
 
   async function onSubmit() {
     setError('');
     if (!title.trim()) {
-      setError('Indique um título.');
+      setError(t('successStory.errors.titleRequired'));
       return;
     }
     if (title.length > MAX_TITLE_LENGTH) {
-      setError(`O título não pode exceder ${MAX_TITLE_LENGTH} caracteres.`);
+      setError(t('successStory.errors.titleTooLong', { max: MAX_TITLE_LENGTH }));
       return;
     }
     if (!description.trim()) {
-      setError('Indique uma descrição.');
+      setError(t('successStory.errors.descriptionRequired'));
       return;
     }
     if (description.length > MAX_DESCRIPTION_LENGTH) {
-      setError(`A descrição não pode exceder ${MAX_DESCRIPTION_LENGTH} caracteres.`);
+      setError(t('successStory.errors.descriptionTooLong', { max: MAX_DESCRIPTION_LENGTH }));
       return;
     }
     if (!photo) {
-      setError('Adicione uma fotografia.');
+      setError(t('successStory.errors.photoRequired'));
       return;
     }
 
@@ -99,10 +101,10 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
           Show_Donation_Details: String(showDonationDetails),
         },
       });
-      showToast('História enviada para aprovação do Admin!');
+      showToast(t('successStory.successToast'));
       navigation.navigate('ClaimedByMeList');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível publicar a história.');
+      setError(err instanceof ApiError ? err.message : t('successStory.errors.publish'));
     } finally {
       setSubmitting(false);
     }
@@ -112,11 +114,16 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
         <Card style={{ gap: spacing[4] }}>
-          <Text style={styles.title}>Publicar história de impacto</Text>
-          <Text style={styles.mono}>Doação: {publicCode}</Text>
-          <Input label="Título" value={title} onChangeText={setTitle} hint={`${title.length}/${MAX_TITLE_LENGTH}`} />
+          <Text style={styles.title}>{t('successStory.publishTitle')}</Text>
+          <Text style={styles.mono}>{t('successStory.donationMono', { code: publicCode })}</Text>
           <Input
-            label="Descrição"
+            label={t('successStory.titleLabel')}
+            value={title}
+            onChangeText={setTitle}
+            hint={`${title.length}/${MAX_TITLE_LENGTH}`}
+          />
+          <Input
+            label={t('successStory.descriptionLabel')}
             value={description}
             onChangeText={setDescription}
             multiline
@@ -127,12 +134,12 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
             <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="contain" />
           ) : (
             <Pressable style={styles.uploadWell} onPress={onPickPhoto}>
-              <Text style={styles.uploadText}>Escolha uma fotografia</Text>
+              <Text style={styles.uploadText}>{t('successStory.choosePhoto')}</Text>
             </Pressable>
           )}
           {photo && (
             <Button variant="secondary" onPress={onPickPhoto}>
-              Escolher outra fotografia
+              {t('successStory.chooseAnotherPhoto')}
             </Button>
           )}
 
@@ -148,16 +155,15 @@ export function NewSuccessStoryScreen({ route, navigation }: Props) {
               color={showDonationDetails ? colors.accent : colors.textFaint}
             />
             <Text style={styles.checkboxLabel}>
-              Mostrar o nome da instituição e o tipo de item doado na história{'\n'}
-              <Text style={styles.checkboxHint}>
-                Se desativar, o doador vê apenas o título e a descrição acima.
-              </Text>
+              {t('successStory.showDetailsLabel')}
+              {'\n'}
+              <Text style={styles.checkboxHint}>{t('successStory.showDetailsHint')}</Text>
             </Text>
           </Pressable>
 
           {error ? <ErrorBanner message={error} /> : null}
           <Button onPress={onSubmit} loading={submitting} fullWidth>
-            Publicar
+            {t('successStory.publishButton')}
           </Button>
         </Card>
       </ScrollView>

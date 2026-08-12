@@ -1,11 +1,11 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import {
-  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHOD_LABEL_KEY,
   daysAgoLabel,
-  donorDonationStatusLabel,
+  donorDonationStatusLabelKey,
   donorDonationStatusTone,
   DONATION_STATUSES,
-  RECIPIENT_CATEGORY_LABEL,
+  RECIPIENT_CATEGORY_LABEL_KEY,
   formatDateLabel,
   type CorporateAccount,
   type Donation,
@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
 import { DonationTimeline } from '@/components/DonationTimeline';
@@ -30,6 +31,7 @@ type Props = BottomTabScreenProps<AppTabParamList, 'MyDonations'>;
 type StatusFilter = 'all' | 'pending' | 'accepted' | 'delivered';
 
 export function MyDonationsScreen({ route }: Props) {
+  const { t } = useTranslation();
   const { firebaseUser, session } = useAuth();
   const insets = useSafeAreaInsets();
   const highlightId = route.params?.donationId;
@@ -62,7 +64,7 @@ export function MyDonationsScreen({ route }: Props) {
           setDonations(donationList);
           setStoriesByDonation(new Map(stories.map((s) => [s.Donation_ID, s])));
         } catch {
-          setError('Não foi possível carregar as suas doações.');
+          setError(t('donations.loadError'));
         }
       })();
     }, [firebaseUser]),
@@ -160,10 +162,10 @@ export function MyDonationsScreen({ route }: Props) {
   }, [highlightId, filteredDonations]);
 
   const filterChips: { key: StatusFilter; label: string; count: number }[] = [
-    { key: 'all', label: 'Todas', count: visibleDonations.length },
-    { key: 'pending', label: 'Pendentes', count: statusGroups.pending.length },
-    { key: 'accepted', label: 'Aceites', count: statusGroups.accepted.length },
-    { key: 'delivered', label: 'Entregues', count: statusGroups.delivered.length },
+    { key: 'all', label: t('donations.filterAll'), count: visibleDonations.length },
+    { key: 'pending', label: t('donations.filterPending'), count: statusGroups.pending.length },
+    { key: 'accepted', label: t('donations.filterAccepted'), count: statusGroups.accepted.length },
+    { key: 'delivered', label: t('donations.filterDelivered'), count: statusGroups.delivered.length },
   ];
 
   return (
@@ -177,16 +179,16 @@ export function MyDonationsScreen({ route }: Props) {
         ListHeaderComponent={
           <>
             <View style={styles.headerRow}>
-              <Text style={styles.title}>Minhas Doações</Text>
+              <Text style={styles.title}>{t('donations.title')}</Text>
             </View>
             {stats && (
               <View style={styles.statsGrid}>
                 {[
-                  ['Total de doações', stats.total],
-                  ['Itens doados (total)', stats.quantity],
-                  ['Pendentes', stats.pending],
-                  ['Aceites', stats.claimed],
-                  ['Entregues', stats.delivered],
+                  [t('donations.statTotal'), stats.total],
+                  [t('donations.statItemsTotal'), stats.quantity],
+                  [t('donations.statPending'), stats.pending],
+                  [t('donations.statAccepted'), stats.claimed],
+                  [t('donations.statDelivered'), stats.delivered],
                 ].map(([label, value]) => (
                   <Card key={label as string} style={styles.statCard}>
                     <Text style={styles.statValue}>{value}</Text>
@@ -200,12 +202,12 @@ export function MyDonationsScreen({ route }: Props) {
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
-            {!error && donations === null && <Text style={styles.loading}>A carregar…</Text>}
+            {!error && donations === null && <Text style={styles.loading}>{t('common.loading')}</Text>}
             {donations && donations.length > 0 && (
               <>
                 <Input
-                  label="Pesquisar"
-                  placeholder="Pesquisar por item ou código…"
+                  label={t('donations.searchLabel')}
+                  placeholder={t('donations.searchPlaceholder')}
                   value={search}
                   onChangeText={setSearch}
                   style={{ marginBottom: spacing[3] }}
@@ -232,18 +234,22 @@ export function MyDonationsScreen({ route }: Props) {
             )}
             {donations?.length === 0 && (
               <EmptyState
-                title="Ainda sem doações"
-                description="Quando submeter uma doação, o estado dela aparece aqui."
+                title={t('donations.emptyNoneTitle')}
+                description={t('donations.emptyNoneDescription')}
                 icon="gift-outline"
               />
             )}
             {donations && donations.length > 0 && visibleDonations.length === 0 && (
-              <EmptyState title="Sem resultados" description="Nenhuma doação corresponde à pesquisa." icon="search-outline" />
+              <EmptyState
+                title={t('donations.emptyNoResultsTitle')}
+                description={t('donations.emptyNoResultsDescription')}
+                icon="search-outline"
+              />
             )}
             {donations && donations.length > 0 && visibleDonations.length > 0 && filteredDonations.length === 0 && (
               <EmptyState
-                title="Sem doações neste estado"
-                description="Não há doações que correspondam a este filtro."
+                title={t('donations.emptyNoStatusTitle')}
+                description={t('donations.emptyNoStatusDescription')}
                 icon="filter-outline"
               />
             )}
@@ -265,27 +271,31 @@ export function MyDonationsScreen({ route }: Props) {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemType}>{item.Item_Type}</Text>
                   <Text style={styles.donationId}>
-                    {item.Public_Donation_Code} · Qtd {item.Quantity}
+                    {item.Public_Donation_Code} · {t('donations.quantityAbbrev')} {item.Quantity}
                   </Text>
                 </View>
-                <Badge tone={donorDonationStatusTone(item)}>{donorDonationStatusLabel(item)}</Badge>
+                <Badge tone={donorDonationStatusTone(item)}>{t(donorDonationStatusLabelKey(item))}</Badge>
               </View>
               <Text style={styles.donationId}>
                 {item.Corporate_Account_ID
-                  ? `🏢 Doação da Empresa${corporateAccount ? ` – ${corporateAccount.Company_Name}` : ''}`
-                  : '👤 Doação Pessoal'}
+                  ? corporateAccount
+                    ? t('donations.corporateDonationWithCompany', { company: corporateAccount.Company_Name })
+                    : t('donations.corporateDonation')
+                  : t('donations.personalDonation')}
               </Text>
               <Text style={styles.donationId}>
-                {item.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[item.Recipient_Category] : '—'}
+                {item.Recipient_Category ? t(RECIPIENT_CATEGORY_LABEL_KEY[item.Recipient_Category]) : '—'}
                 {' · '}
-                {item.Delivery_Method ? DELIVERY_METHOD_LABEL[item.Delivery_Method] : '—'}
+                {item.Delivery_Method ? t(DELIVERY_METHOD_LABEL_KEY[item.Delivery_Method]) : '—'}
               </Text>
               <Text style={styles.donationId}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
               {(item.Expected_Collection_Date || item.Expected_Delivery_Date) && (
                 <Text style={styles.donationId}>
-                  {item.Expected_Collection_Date && `Recolha estimada: ${formatDateLabel(item.Expected_Collection_Date)}`}
+                  {item.Expected_Collection_Date &&
+                    t('donations.expectedCollection', { date: formatDateLabel(item.Expected_Collection_Date) })}
                   {item.Expected_Collection_Date && item.Expected_Delivery_Date && ' · '}
-                  {item.Expected_Delivery_Date && `Entrega estimada: ${formatDateLabel(item.Expected_Delivery_Date)}`}
+                  {item.Expected_Delivery_Date &&
+                    t('donations.expectedDelivery', { date: formatDateLabel(item.Expected_Delivery_Date) })}
                 </Text>
               )}
               {item.Status !== 'Pending' && <DonationTimeline donation={item} />}
@@ -293,7 +303,7 @@ export function MyDonationsScreen({ route }: Props) {
                 <View style={styles.storyCard}>
                   <Image source={{ uri: story.Image }} style={styles.storyImage} />
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={styles.storyLabel}>História de impacto</Text>
+                    <Text style={styles.storyLabel}>{t('donations.impactStoryLabel')}</Text>
                     <Text style={styles.storyTitle}>{story.Title}</Text>
                     <Text style={styles.storyDescription} numberOfLines={3}>
                       {story.Description}

@@ -2,12 +2,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   CONDITIONS,
-  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHOD_LABEL_KEY,
   DELIVERY_METHODS,
   ITEM_TYPES,
   MEDICAL_SUPPLY_INFO,
   RECIPIENT_CATEGORIES,
-  RECIPIENT_CATEGORY_LABEL,
+  RECIPIENT_CATEGORY_LABEL_KEY,
   type CorporateAccount,
   type DeliveryMethod,
   type RecipientCategory,
@@ -17,6 +17,7 @@ import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -109,6 +110,7 @@ const CONDITION_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 export function DonateScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { firebaseUser, session } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -191,7 +193,7 @@ export function DonateScreen({ navigation }: Props) {
   async function onPickFromCamera() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      setError('É necessário acesso à câmara para tirar uma fotografia.');
+      setError(t('donate.cameraPermissionError'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
@@ -201,7 +203,7 @@ export function DonateScreen({ navigation }: Props) {
   async function onPickFromLibrary() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      setError('É necessário acesso às fotografias para anexar uma imagem.');
+      setError(t('donate.libraryPermissionError'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
@@ -209,10 +211,10 @@ export function DonateScreen({ navigation }: Props) {
   }
 
   function onPickPhoto() {
-    Alert.alert('Adicionar fotografia', undefined, [
-      { text: 'Tirar fotografia', onPress: onPickFromCamera },
-      { text: 'Escolher da galeria', onPress: onPickFromLibrary },
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t('donate.addPhoto'), undefined, [
+      { text: t('donate.takePhoto'), onPress: onPickFromCamera },
+      { text: t('donate.chooseFromLibrary'), onPress: onPickFromLibrary },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   }
 
@@ -222,7 +224,7 @@ export function DonateScreen({ navigation }: Props) {
   async function onFindAddress() {
     setLocationError('');
     if (!address.trim()) {
-      setLocationError('Introduza uma morada.');
+      setLocationError(t('donate.addressRequiredError'));
       return;
     }
     setLocationStatus('geocoding');
@@ -236,7 +238,7 @@ export function DonateScreen({ navigation }: Props) {
       setLng(String(result.lng));
       setLocationStatus('geocoded');
     } catch (err) {
-      setLocationError(err instanceof ApiError ? err.message : 'Não foi possível localizar essa morada.');
+      setLocationError(err instanceof ApiError ? err.message : t('donate.geocodeFailedError'));
       setLocationStatus('failed');
     }
   }
@@ -276,19 +278,19 @@ export function DonateScreen({ navigation }: Props) {
 
     if (!quantity || Number(quantity) < 1) {
       setQuantityInvalid(true);
-      setError('A quantidade é obrigatória.');
+      setError(t('donate.quantityRequiredError'));
       scrollToSection(quantityInputRef.current);
       quantityInputRef.current?.focus();
       return;
     }
     if (!photo) {
       setPhotoMissing(true);
-      setError('A fotografia é obrigatória. Adicione uma fotografia da doação.');
+      setError(t('donate.photoRequiredErrorFull'));
       scrollToSection(photoSectionRef.current);
       return;
     }
     if (!hasValidLocation) {
-      setError('É necessária uma localização válida. Ative o GPS ou confirme a sua morada.');
+      setError(t('donate.locationRequiredError'));
       return;
     }
 
@@ -313,7 +315,7 @@ export function DonateScreen({ navigation }: Props) {
       });
       setQuantity('1');
       setPhoto(null);
-      showToast('Doação submetida com sucesso!');
+      showToast(t('donate.submitSuccess'));
       // Real-device finding, 2026-08-04: staying on the form after a
       // successful submit read as "did this actually work?" — the toast
       // above is easy to miss, and nothing on this screen changes to confirm
@@ -321,22 +323,28 @@ export function DonateScreen({ navigation }: Props) {
       // clearest possible confirmation.
       navigation.navigate('Tabs', { screen: 'MyDonations' });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível submeter a doação.');
+      setError(err instanceof ApiError ? err.message : t('donate.submitError'));
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
     }
   }
 
-  const recipientChips = RECIPIENT_CATEGORIES.map((c) => ({ value: c, ...splitEmojiLabel(RECIPIENT_CATEGORY_LABEL[c]) }));
-  const deliveryChips = DELIVERY_METHODS.map((m) => ({ value: m, ...splitEmojiLabel(DELIVERY_METHOD_LABEL[m]) }));
+  const recipientChips = RECIPIENT_CATEGORIES.map((c) => ({
+    value: c,
+    ...splitEmojiLabel(t(RECIPIENT_CATEGORY_LABEL_KEY[c])),
+  }));
+  const deliveryChips = DELIVERY_METHODS.map((m) => ({
+    value: m,
+    ...splitEmojiLabel(t(DELIVERY_METHOD_LABEL_KEY[m])),
+  }));
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView ref={scrollRef} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
         <View style={styles.headerRow}>
           <View style={styles.headerSpacer} />
-          <Text style={styles.title}>Doar</Text>
+          <Text style={styles.title}>{t('donate.title')}</Text>
           {/* Navigation audit, 2026-08-07 — now that this screen is a modal
               reached from Home's "Doar agora" button (not a tab), it needs an
               explicit way back for anyone who opens it and changes their
@@ -345,7 +353,7 @@ export function DonateScreen({ navigation }: Props) {
           <Pressable
             onPress={() => navigation.goBack()}
             accessibilityRole="button"
-            accessibilityLabel="Fechar"
+            accessibilityLabel={t('donate.close')}
             hitSlop={12}
             style={styles.headerSpacer}
           >
@@ -357,16 +365,20 @@ export function DonateScreen({ navigation }: Props) {
           <View style={styles.heroIconWrap}>
             <Text style={styles.heroIcon}>🎁</Text>
           </View>
-          <Text style={styles.heroTitle}>A sua doação transforma vidas</Text>
-          <Text style={styles.heroSubtitle}>
-            Preencha os dados abaixo para conectarmos a sua doação a quem mais precisa.
-          </Text>
+          <Text style={styles.heroTitle}>{t('donate.heroTitle')}</Text>
+          <Text style={styles.heroSubtitle}>{t('donate.heroSubtitle')}</Text>
         </View>
 
         <Card style={{ gap: spacing[5] }}>
           <View style={{ gap: spacing[2] }}>
-            <SectionHeader n={1} title="Tipo de item" />
-            <Select label="Tipo de item" hideLabel value={itemType} onValueChange={setItemType} options={ITEM_TYPES} />
+            <SectionHeader n={1} title={t('donate.sectionItemType')} />
+            <Select
+              label={t('donate.sectionItemType')}
+              hideLabel
+              value={itemType}
+              onValueChange={setItemType}
+              options={ITEM_TYPES}
+            />
             {/* 'Material Médico' addition, 2026-08-07 — see MEDICAL_SUPPLY_INFO's comment in @wafina/shared. */}
             {itemType === 'Material Médico' && (
               <View style={styles.medicalSupplyNotice}>
@@ -378,9 +390,9 @@ export function DonateScreen({ navigation }: Props) {
 
           <View style={{ gap: spacing[2] }}>
             <View style={styles.photoHeaderRow}>
-              <SectionHeader n={2} title="Quantidade de itens" />
+              <SectionHeader n={2} title={t('donate.sectionQuantity')} />
               <View style={styles.requiredPill}>
-                <Text style={styles.requiredPillText}>Obrigatória</Text>
+                <Text style={styles.requiredPillText}>{t('donate.required')}</Text>
               </View>
             </View>
             <View style={[styles.stepperRow, quantityInvalid && styles.stepperRowInvalid]}>
@@ -391,7 +403,7 @@ export function DonateScreen({ navigation }: Props) {
                   adjustQuantity(-1);
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Diminuir quantidade"
+                accessibilityLabel={t('donate.decreaseQuantity')}
                 hitSlop={8}
               >
                 <Ionicons name="remove" size={20} color={colors.accentText} />
@@ -410,7 +422,7 @@ export function DonateScreen({ navigation }: Props) {
                   }}
                   keyboardType="number-pad"
                   maxLength={6}
-                  accessibilityLabel="Quantidade de itens"
+                  accessibilityLabel={t('donate.quantityLabel')}
                 />
               </View>
               <Pressable
@@ -420,21 +432,21 @@ export function DonateScreen({ navigation }: Props) {
                   adjustQuantity(1);
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Aumentar quantidade"
+                accessibilityLabel={t('donate.increaseQuantity')}
                 hitSlop={8}
               >
                 <Ionicons name="add" size={20} color={colors.accentText} />
               </Pressable>
             </View>
             {quantityInvalid ? (
-              <Text style={styles.fieldErrorText}>⚠️ A quantidade é obrigatória.</Text>
+              <Text style={styles.fieldErrorText}>⚠️ {t('donate.quantityRequiredError')}</Text>
             ) : (
-              <Text style={styles.hint}>Obrigatório — indique quantas unidades está a doar.</Text>
+              <Text style={styles.hint}>{t('donate.quantityRequiredHint')}</Text>
             )}
           </View>
 
           <View style={{ gap: spacing[2] }}>
-            <SectionHeader n={3} title="Estado do item" />
+            <SectionHeader n={3} title={t('donate.sectionCondition')} />
             <View style={styles.chipRow}>
               {CONDITIONS.map((c) => (
                 <IconChip
@@ -449,7 +461,7 @@ export function DonateScreen({ navigation }: Props) {
           </View>
 
           <View style={{ gap: spacing[2] }}>
-            <SectionHeader n={4} title="Destinatário" />
+            <SectionHeader n={4} title={t('donate.sectionRecipient')} />
             <View style={styles.chipRow}>
               {recipientChips.map((c) => (
                 <EmojiChip
@@ -464,7 +476,7 @@ export function DonateScreen({ navigation }: Props) {
           </View>
 
           <View style={{ gap: spacing[2] }}>
-            <SectionHeader n={5} title="Método de entrega" />
+            <SectionHeader n={5} title={t('donate.sectionDeliveryMethod')} />
             <View style={styles.chipRow}>
               {deliveryChips.map((m) => (
                 <EmojiChip
@@ -481,15 +493,18 @@ export function DonateScreen({ navigation }: Props) {
 
           {corporateAccount && (
             <View style={{ gap: spacing[2] }}>
-              <SectionHeader n={6} title="Doar como" />
+              <SectionHeader n={6} title={t('donate.sectionDonateAs')} />
               <Select
-                label="Doar como"
+                label={t('donate.donateAsLabel')}
                 hideLabel
                 value={isCorporateDonation ? 'corporate' : 'personal'}
                 onValueChange={(v) => setIsCorporateDonation(v === 'corporate')}
                 options={[
-                  { label: 'Doação Pessoal', value: 'personal' },
-                  { label: `Doação da Empresa (${corporateAccount.Company_Name})`, value: 'corporate' },
+                  { label: t('donate.personalDonationOption'), value: 'personal' },
+                  {
+                    label: t('donate.corporateDonationOption', { company: corporateAccount.Company_Name }),
+                    value: 'corporate',
+                  },
                 ]}
               />
             </View>
@@ -497,9 +512,9 @@ export function DonateScreen({ navigation }: Props) {
 
           <View ref={photoSectionRef} style={{ gap: spacing[2] }}>
             <View style={styles.photoHeaderRow}>
-              <SectionHeader n={corporateAccount ? 7 : 6} title="Fotografia da doação" />
+              <SectionHeader n={corporateAccount ? 7 : 6} title={t('donate.sectionPhoto')} />
               <View style={styles.requiredPill}>
-                <Text style={styles.requiredPillText}>Obrigatória</Text>
+                <Text style={styles.requiredPillText}>{t('donate.required')}</Text>
               </View>
             </View>
             {photo ? (
@@ -509,7 +524,7 @@ export function DonateScreen({ navigation }: Props) {
                   style={styles.removePhotoBtn}
                   onPress={() => setPhoto(null)}
                   accessibilityRole="button"
-                  accessibilityLabel="Remover fotografia"
+                  accessibilityLabel={t('donate.removePhoto')}
                   hitSlop={8}
                 >
                   <Ionicons name="close" size={16} color={colors.accentText} />
@@ -529,31 +544,27 @@ export function DonateScreen({ navigation }: Props) {
                   color={photoMissing ? colors.danger : colors.textMuted}
                 />
                 <Text style={[styles.uploadText, photoMissing && { color: colors.danger }]}>
-                  Adicionar fotografia
+                  {t('donate.addPhoto')}
                 </Text>
-                <Text style={styles.uploadHint}>PNG, JPG até 8MB</Text>
+                <Text style={styles.uploadHint}>{t('donate.photoHint')}</Text>
               </Pressable>
             )}
-            {photoMissing && <Text style={styles.fieldErrorText}>A fotografia é obrigatória.</Text>}
+            {photoMissing && <Text style={styles.fieldErrorText}>{t('donate.photoRequiredError')}</Text>}
           </View>
 
           <View style={{ gap: spacing[2] }}>
-            {locationStatus === 'capturing' && <Text style={styles.hint}>A obter a sua localização…</Text>}
+            {locationStatus === 'capturing' && <Text style={styles.hint}>{t('donate.gettingLocation')}</Text>}
             {(locationStatus === 'captured' || locationStatus === 'geocoded') && (
               <View style={styles.locationPill}>
                 <Ionicons name="checkmark-circle" size={18} color={colors.success} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.locationPillTitle}>Localização confirmada</Text>
-                  <Text style={styles.locationPillHint}>
-                    Usada apenas para conectar a doação a instituições próximas — a sua privacidade é respeitada.
-                  </Text>
+                  <Text style={styles.locationPillTitle}>{t('donate.locationConfirmedTitle')}</Text>
+                  <Text style={styles.locationPillHint}>{t('donate.locationConfirmedHint')}</Text>
                 </View>
               </View>
             )}
             {(locationStatus === 'failed' || locationStatus === 'geocoding') && (
-              <Text style={styles.hint}>
-                Não foi possível obter a sua localização automaticamente. Indique a morada de recolha.
-              </Text>
+              <Text style={styles.hint}>{t('donate.locationFailedHint')}</Text>
             )}
             {/*
               RC1 pickup-location fix, 2026-08-07 — collapsed by default when
@@ -566,18 +577,22 @@ export function DonateScreen({ navigation }: Props) {
             */}
             {!addressExpanded && (locationStatus === 'captured' || locationStatus === 'geocoded') ? (
               <Pressable onPress={() => setAddressExpanded(true)} hitSlop={4}>
-                <Text style={styles.addressToggle}>+ Adicionar morada ou referência de recolha (opcional)</Text>
+                <Text style={styles.addressToggle}>{t('donate.addAddressToggle')}</Text>
               </Pressable>
             ) : (
               <View style={{ gap: spacing[2] }}>
                 <Input
-                  label={locationStatus === 'failed' || locationStatus === 'geocoding' ? 'Morada de recolha' : 'Morada / referência de recolha (opcional)'}
-                  placeholder="Ex: Rua Amílcar Cabral 23, apto 4B, portão azul"
+                  label={
+                    locationStatus === 'failed' || locationStatus === 'geocoding'
+                      ? t('donate.addressLabelFailed')
+                      : t('donate.addressLabelOptional')
+                  }
+                  placeholder={t('donate.addressPlaceholder')}
                   value={address}
                   onChangeText={setAddress}
                 />
                 <Button variant="secondary" onPress={onFindAddress} loading={locationStatus === 'geocoding'}>
-                  {hasValidLocation ? 'Recolher nesta morada em vez do GPS' : 'Confirmar morada'}
+                  {hasValidLocation ? t('donate.useAddressInsteadOfGps') : t('donate.confirmAddress')}
                 </Button>
                 {locationError ? <ErrorBanner message={locationError} /> : null}
               </View>
@@ -587,7 +602,7 @@ export function DonateScreen({ navigation }: Props) {
           {error ? <ErrorBanner message={error} /> : null}
 
           <Button variant="primary" size="large" onPress={onSubmit} loading={submitting} fullWidth>
-            ❤️ Confirmar doação
+            {t('donate.submitButton')}
           </Button>
         </Card>
       </ScrollView>

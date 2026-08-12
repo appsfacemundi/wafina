@@ -26,3 +26,21 @@ export const INSTITUTION_FIELD_LABELS: Record<string, string> = {
 export function institutionFieldLabel(field: string): string {
   return INSTITUTION_FIELD_LABELS[field] ?? field;
 }
+
+/**
+ * RC1 localization, 2026-08-11 — i18next key equivalent of the map above, for
+ * mobile UI consumers that need an English string. Server-side notification
+ * text (apps/api) keeps using INSTITUTION_FIELD_LABELS directly, unchanged.
+ */
+export const INSTITUTION_FIELD_LABEL_KEYS: Record<string, string> = {
+  Name: 'fields.name',
+  Type: 'fields.type',
+  Location: 'fields.location',
+  Needs_List: 'fields.needsList',
+  Logo: 'fields.logo',
+  Service_Radius_Km: 'fields.serviceRadiusKm',
+};
+
+export function institutionFieldLabelKey(field: string): string | null {
+  return INSTITUTION_FIELD_LABEL_KEYS[field] ?? null;
+}

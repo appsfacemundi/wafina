@@ -1,12 +1,13 @@
 import {
-  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHOD_LABEL_KEY,
   DONATION_JOURNEY_DATE_FIELD,
   DONATION_JOURNEY_STEPS,
-  DONATION_STATUS_LABEL,
+  DONATION_STATUS_LABEL_KEY,
   formatDateTimeLabel,
   type Donation,
 } from '@wafina/shared';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, spacing } from '@/theme/tokens';
 
 /**
@@ -15,6 +16,7 @@ import { colors, spacing } from '@/theme/tokens';
  * is highlighted, future steps are dimmed.
  */
 export function DonationTimeline({ donation }: { donation: Donation }) {
+  const { t } = useTranslation();
   const currentIndex = (DONATION_JOURNEY_STEPS as string[]).indexOf(donation.Status);
 
   return (
@@ -28,14 +30,14 @@ export function DonationTimeline({ donation }: { donation: Donation }) {
           <View key={step} style={styles.row}>
             <View style={[styles.dot, reached && styles.dotReached, isCurrent && styles.dotCurrent]} />
             <Text style={[styles.label, reached && styles.labelReached, isCurrent && styles.labelCurrent]}>
-              {DONATION_STATUS_LABEL[step]}
+              {t(DONATION_STATUS_LABEL_KEY[step])}
             </Text>
             {date && <Text style={styles.date}>· {formatDateTimeLabel(date)}</Text>}
           </View>
         );
       })}
       {donation.Delivery_Method && (
-        <Text style={styles.deliveryMethod}>{DELIVERY_METHOD_LABEL[donation.Delivery_Method]}</Text>
+        <Text style={styles.deliveryMethod}>{t(DELIVERY_METHOD_LABEL_KEY[donation.Delivery_Method])}</Text>
       )}
     </View>
   );

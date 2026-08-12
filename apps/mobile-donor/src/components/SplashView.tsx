@@ -1,5 +1,6 @@
 import { Image, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import iconMark from '../../assets/icon-mark.png';
 
 /**
@@ -11,6 +12,7 @@ import iconMark from '../../assets/icon-mark.png';
  * (and testable) through Expo Go, not just in a future production build.
  */
 export function SplashView() {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const bg = scheme === 'dark' ? '#0F172A' : '#0057D9';
@@ -20,7 +22,7 @@ export function SplashView() {
       <View style={styles.plate}>
         <Image source={iconMark} style={styles.mark} resizeMode="contain" />
       </View>
-      <Text style={[styles.tagline, { bottom: insets.bottom + 32 }]}>DOE COM AMOR & RECEBA COM PRAZER</Text>
+      <Text style={[styles.tagline, { bottom: insets.bottom + 32 }]}>{t('auth.tagline')}</Text>
       <Text style={[styles.credit, { bottom: insets.bottom + 12 }]}>BY ZUINDER</Text>
     </View>
   );

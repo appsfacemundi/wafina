@@ -2,6 +2,7 @@ import { detectSupportedCountryFromCoords, type GeoRegion } from '@wafina/shared
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -17,6 +18,7 @@ import { colors, fonts, radius, spacing } from '@/theme/tokens';
  * "Switch now" — detection alone never reaches the API.
  */
 export function SwitchCountryPrompt() {
+  const { t } = useTranslation();
   const { firebaseUser, session, refreshSession } = useAuth();
   const [detected, setDetected] = useState<GeoRegion | null>(null);
   const [actionError, setActionError] = useState('');
@@ -76,7 +78,7 @@ export function SwitchCountryPrompt() {
       await refreshSession();
       setDetected(null);
     } catch {
-      setActionError('Não foi possível mudar de país. Tente novamente em Definições.');
+      setActionError(t('switchCountry.switchError'));
     }
   }
 
@@ -92,7 +94,7 @@ export function SwitchCountryPrompt() {
       await refreshSession();
       setDetected(null);
     } catch {
-      setActionError('Não foi possível guardar a preferência. Tente novamente em Definições.');
+      setActionError(t('switchCountry.preferenceError'));
     }
   }
 
@@ -102,20 +104,17 @@ export function SwitchCountryPrompt() {
     <Modal transparent animationType="fade" visible>
       <View style={styles.backdrop}>
         <Card style={styles.card}>
-          <Text style={styles.title}>Detetámos uma mudança de país</Text>
-          <Text style={styles.body}>
-            Parece que está atualmente em {detected.Name}. Mudar o seu país ativo para{' '}
-            {detected.Name}?
-          </Text>
+          <Text style={styles.title}>{t('switchCountry.title')}</Text>
+          <Text style={styles.body}>{t('switchCountry.body', { country: detected.Name })}</Text>
           {actionError ? <ErrorBanner message={actionError} /> : null}
           <Button onPress={switchNow} fullWidth>
-            Mudar agora
+            {t('switchCountry.switchNow')}
           </Button>
           <Button variant="secondary" onPress={() => setDetected(null)} fullWidth>
-            Agora não
+            {t('switchCountry.notNow')}
           </Button>
           <Button variant="ghost" onPress={neverAskAgain} fullWidth>
-            Nunca perguntar automaticamente
+            {t('switchCountry.neverAsk')}
           </Button>
         </Card>
       </View>

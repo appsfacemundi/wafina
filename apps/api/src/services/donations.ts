@@ -82,6 +82,16 @@ function escapeHtml(input: string): string {
 }
 
 /**
+ * RC1 localization, 2026-08-11 — lifecycle emails support PT/EN. There is no
+ * stored per-user language preference on the User type today (only the
+ * mobile apps' on-device UI language, which never reaches the server), so
+ * every call site below passes the RC1 default of 'pt' explicitly. Once a
+ * stored preference exists, callers can pass it straight through — the
+ * templates are already bilingual and ready for it.
+ */
+type EmailLocale = 'pt' | 'en';
+
+/**
  * Donation lifecycle emails, 2026-08-11 — Email #1: sent to the donor the
  * moment their donation is claimed (Institution/Shelter) or reserved
  * (Pessoa via RECEBER) — "someone is going to receive your item". Gated by
@@ -90,26 +100,37 @@ function escapeHtml(input: string): string {
  * Swallows its own failures so a missing/misconfigured provider never turns
  * a successful claim/reservation into a failed request.
  */
-async function sendDonationClaimedEmail(donorId: string, itemType: string): Promise<void> {
+async function sendDonationClaimedEmail(donorId: string, itemType: string, locale: EmailLocale = 'pt'): Promise<void> {
   try {
     const donor = await findUserById(donorId);
     if (!donor?.Email || donor.Email_Notifications_Enabled === 'FALSE') return;
+    const item = escapeHtml(itemType);
+    const copy: Record<EmailLocale, { subject: string; heading: string; body1: string; body2: string; footer: string }> = {
+      pt: {
+        subject: 'Wafina — A sua doação foi doada a alguém que precisa',
+        heading: 'A sua doação foi doada! 🎁',
+        body1: `Boas notícias — a sua doação de <strong>${item}</strong> foi aceite e vai chegar a quem precisa dela.`,
+        body2: 'Assim que a receção for confirmada, enviamos-lhe outra mensagem a agradecer o seu gesto.',
+        footer: 'Recebeu este email porque tem as notificações por email ativadas nas definições da sua conta Wafina.',
+      },
+      en: {
+        subject: 'Wafina — Your donation has been given to someone in need',
+        heading: 'Your donation has been given! 🎁',
+        body1: `Good news — your donation of <strong>${item}</strong> has been accepted and is on its way to someone who needs it.`,
+        body2: "Once receipt is confirmed, we'll send you another message thanking you for your gesture.",
+        footer: 'You received this email because email notifications are enabled in your Wafina account settings.',
+      },
+    };
+    const c = copy[locale];
     await sendEmail({
       to: donor.Email,
-      subject: 'Wafina — A sua doação foi doada a alguém que precisa',
+      subject: c.subject,
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-          <h2 style="color: #ff5a36;">A sua doação foi doada! 🎁</h2>
-          <p style="color: #475569; line-height: 1.5;">
-            Boas notícias — a sua doação de <strong>${escapeHtml(itemType)}</strong> foi aceite e vai chegar a
-            quem precisa dela.
-          </p>
-          <p style="color: #475569; line-height: 1.5;">
-            Assim que a receção for confirmada, enviamos-lhe outra mensagem a agradecer o seu gesto.
-          </p>
-          <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">
-            Recebeu este email porque tem as notificações por email ativadas nas definições da sua conta Wafina.
-          </p>
+          <h2 style="color: #ff5a36;">${c.heading}</h2>
+          <p style="color: #475569; line-height: 1.5;">${c.body1}</p>
+          <p style="color: #475569; line-height: 1.5;">${c.body2}</p>
+          <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">${c.footer}</p>
         </div>
       `,
     });
@@ -131,29 +152,41 @@ async function sendDonationReceivedEmail(
   itemType: string,
   thankYouMessage: string | null,
   thankYouPhoto: string | null,
+  locale: EmailLocale = 'pt',
 ): Promise<void> {
   try {
     const donor = await findUserById(donorId);
     if (!donor?.Email || donor.Email_Notifications_Enabled === 'FALSE') return;
+    const item = escapeHtml(itemType);
+    const copy: Record<EmailLocale, { subject: string; heading: string; body: string; footer: string }> = {
+      pt: {
+        subject: 'Wafina — Obrigado! A sua doação foi recebida',
+        heading: 'Obrigado pelo seu gesto! ❤️',
+        body: `A sua doação de <strong>${item}</strong> foi recebida com sucesso. Fez a diferença na vida de alguém.`,
+        footer: 'Recebeu este email porque tem as notificações por email ativadas nas definições da sua conta Wafina.',
+      },
+      en: {
+        subject: 'Wafina — Thank you! Your donation was received',
+        heading: 'Thank you for your gesture! ❤️',
+        body: `Your donation of <strong>${item}</strong> was received successfully. It made a difference in someone's life.`,
+        footer: 'You received this email because email notifications are enabled in your Wafina account settings.',
+      },
+    };
+    const c = copy[locale];
     await sendEmail({
       to: donor.Email,
-      subject: 'Wafina — Obrigado! A sua doação foi recebida',
+      subject: c.subject,
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-          <h2 style="color: #ff5a36;">Obrigado pelo seu gesto! ❤️</h2>
-          <p style="color: #475569; line-height: 1.5;">
-            A sua doação de <strong>${escapeHtml(itemType)}</strong> foi recebida com sucesso. Fez a diferença na
-            vida de alguém.
-          </p>
+          <h2 style="color: #ff5a36;">${c.heading}</h2>
+          <p style="color: #475569; line-height: 1.5;">${c.body}</p>
           ${thankYouPhoto ? `<img src="${thankYouPhoto}" alt="" style="width: 100%; border-radius: 8px; margin: 16px 0;" />` : ''}
           ${
             thankYouMessage
               ? `<p style="color: #1e293b; line-height: 1.6; font-style: italic; background: #f8fafc; border-radius: 8px; padding: 14px;">"${escapeHtml(thankYouMessage)}"</p>`
               : ''
           }
-          <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">
-            Recebeu este email porque tem as notificações por email ativadas nas definições da sua conta Wafina.
-          </p>
+          <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">${c.footer}</p>
         </div>
       `,
     });

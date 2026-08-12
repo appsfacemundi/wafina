@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { ErrorBanner } from '@/components/Banner';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -16,6 +17,7 @@ const MIN_LENGTH = 10;
 type Props = NativeStackScreenProps<DisputesStackParamList, 'NewDispute'>;
 
 export function NewDisputeScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { donationId, publicCode } = route.params;
   const { firebaseUser } = useAuth();
   const { showToast } = useToast();
@@ -27,7 +29,7 @@ export function NewDisputeScreen({ route, navigation }: Props) {
   async function onSubmit() {
     setError('');
     if (description.trim().length < MIN_LENGTH) {
-      setError(`Descreva a ocorrência com pelo menos ${MIN_LENGTH} caracteres.`);
+      setError(t('disputes.minLengthError', { count: MIN_LENGTH }));
       return;
     }
     setSubmitting(true);
@@ -38,10 +40,10 @@ export function NewDisputeScreen({ route, navigation }: Props) {
         idToken,
         body: { Donation_ID: donationId, Issue_Description: description },
       });
-      showToast('Ocorrência comunicada com sucesso.');
+      showToast(t('disputes.submitSuccess'));
       navigation.navigate('DisputesList');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível enviar a ocorrência.');
+      setError(err instanceof ApiError ? err.message : t('disputes.submitError'));
     } finally {
       setSubmitting(false);
     }
@@ -50,9 +52,9 @@ export function NewDisputeScreen({ route, navigation }: Props) {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Card style={{ marginHorizontal: spacing[6], marginTop: insets.top + spacing[6], marginBottom: spacing[6], gap: spacing[3] }}>
-        <Text style={styles.title}>Comunicar Ocorrência</Text>
-        <Text style={styles.mono}>Doação: {publicCode}</Text>
-        <Text style={styles.label}>Descrição da ocorrência</Text>
+        <Text style={styles.title}>{t('disputes.newTitle')}</Text>
+        <Text style={styles.mono}>{t('disputes.donationMono', { code: publicCode })}</Text>
+        <Text style={styles.label}>{t('disputes.descriptionLabel')}</Text>
         <TextInput
           style={styles.textarea}
           value={description}
@@ -64,7 +66,7 @@ export function NewDisputeScreen({ route, navigation }: Props) {
         />
         {error ? <ErrorBanner message={error} /> : null}
         <Button onPress={onSubmit} loading={submitting} fullWidth>
-          Comunicar Ocorrência
+          {t('disputes.newTitle')}
         </Button>
       </Card>
     </KeyboardAvoidingView>

@@ -3,11 +3,13 @@ import { formatDateTimeLabel, type SuccessStory } from '@wafina/shared';
 import { useEffect, useState } from 'react';
 import { FlatList, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { apiFetch, ApiError } from '@/lib/api';
+import i18n from '@/i18n';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
 // UX follow-up, 2026-08-07 — donors want to share a story to social media
@@ -32,12 +34,14 @@ import { colors, fonts, spacing } from '@/theme/tokens';
 // identical to nothing happening — surface it via a toast instead.
 async function onShareStory(story: SuccessStory, showToast: (message: string, tone?: 'success' | 'error') => void) {
   try {
+    // Title/Description are the institution's own content — never translated,
+    // only the surrounding Wafina-authored share chrome uses i18n.
     await Share.share({
-      title: `Wafina — ${story.Title}`,
-      message: `${story.Title}\n\n${story.Description}\n\n— partilhado via Wafina`,
+      title: i18n.t('impact.shareTitlePrefix', { title: story.Title }),
+      message: `${story.Title}\n\n${story.Description}\n\n${i18n.t('impact.shareFooter')}`,
     });
   } catch {
-    showToast('Não foi possível abrir as opções de partilha.', 'error');
+    showToast(i18n.t('impact.shareFailedError'), 'error');
   }
 }
 
@@ -47,6 +51,7 @@ async function onShareStory(story: SuccessStory, showToast: (message: string, to
  * inline on the one donation card it belonged to.
  */
 export function ImpactScreen() {
+  const { t } = useTranslation();
   const { firebaseUser } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -60,10 +65,10 @@ export function ImpactScreen() {
         const idToken = await firebaseUser.getIdToken();
         setStories(await apiFetch<SuccessStory[]>('/donor/success-stories', { idToken }));
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as histórias de impacto.');
+        setError(err instanceof ApiError ? err.message : t('impact.loadError'));
       }
     })();
-  }, [firebaseUser]);
+  }, [firebaseUser, t]);
 
   return (
     <View style={styles.screen}>
@@ -71,20 +76,18 @@ export function ImpactScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
-            <Text style={styles.title}>Histórias de Impacto</Text>
-            <Text style={styles.subtitle}>
-              Veja o impacto real das suas doações, partilhado pelas instituições que as receberam.
-            </Text>
+            <Text style={styles.title}>{t('impact.title')}</Text>
+            <Text style={styles.subtitle}>{t('impact.subtitle')}</Text>
             {error && (
               <View style={styles.errorBanner}>
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
-            {!error && stories === null && <Text style={styles.loading}>A carregar…</Text>}
+            {!error && stories === null && <Text style={styles.loading}>{t('common.loading')}</Text>}
             {stories?.length === 0 && (
               <EmptyState
-                title="Ainda sem histórias"
-                description="Quando uma instituição partilhar o impacto de uma das suas doações, aparece aqui."
+                title={t('impact.emptyTitle')}
+                description={t('impact.emptyDescription')}
                 icon="heart-outline"
               />
             )}
@@ -101,7 +104,7 @@ export function ImpactScreen() {
                 <Pressable
                   onPress={() => onShareStory(item, showToast)}
                   accessibilityRole="button"
-                  accessibilityLabel="Partilhar história"
+                  accessibilityLabel={t('impact.shareAccessibilityLabel')}
                   hitSlop={10}
                 >
                   <Ionicons name="share-social-outline" size={20} color={colors.textMuted} />
@@ -113,7 +116,9 @@ export function ImpactScreen() {
                 </Text>
               )}
               <Text style={styles.description}>{item.Description}</Text>
-              <Text style={styles.dateLabel}>Publicada em {formatDateTimeLabel(item.Date_Published)}</Text>
+              <Text style={styles.dateLabel}>
+                {t('impact.publishedOn', { date: formatDateTimeLabel(item.Date_Published) })}
+              </Text>
             </View>
           </Card>
         )}

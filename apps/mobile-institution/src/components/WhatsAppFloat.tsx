@@ -11,6 +11,7 @@ import {
   type PanResponderGestureState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 const WHATSAPP_URL = 'https://wa.me/351930935925';
@@ -30,6 +31,7 @@ const SCREEN = Dimensions.get('window');
  * native-driven (see ReceberScreen's swipe-card fix for the same issue).
  */
 export function WhatsAppFloat() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [dismissed, setDismissed] = useState(false);
 
@@ -78,14 +80,14 @@ export function WhatsAppFloat() {
 
   return (
     <Animated.View style={[styles.wrap, { transform: pan.getTranslateTransform() }]} pointerEvents="box-none">
-      <View {...panResponder.panHandlers} style={styles.button} accessibilityRole="button" accessibilityLabel="Contactar via WhatsApp">
+      <View {...panResponder.panHandlers} style={styles.button} accessibilityRole="button" accessibilityLabel={t('whatsapp.contactLabel')}>
         <Ionicons name="logo-whatsapp" size={20} color="#ffffff" />
       </View>
       <Pressable
         style={styles.closeBtn}
         onPress={() => setDismissed(true)}
         accessibilityRole="button"
-        accessibilityLabel="Ocultar atalho do WhatsApp"
+        accessibilityLabel={t('whatsapp.hideLabel')}
         hitSlop={8}
       >
         <Ionicons name="close" size={10} color="#ffffff" />

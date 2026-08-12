@@ -19,6 +19,7 @@ import {
   type PanResponderGestureState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
@@ -85,6 +86,7 @@ function SwipeCard({
   centerStyle: { top: number } | null;
   onMeasureHeight?: (height: number) => void;
 }) {
+  const { t } = useTranslation();
   const rotate = pan.x.interpolate({
     inputRange: [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
     outputRange: [`-${ROTATION_DEG}deg`, '0deg', `${ROTATION_DEG}deg`],
@@ -146,10 +148,10 @@ function SwipeCard({
         <Photo uri={donation.Photo} style={styles.photo} placeholderIcon="🎁" resizeMode="cover" />
         <View style={styles.availableBadge}>
           <View style={styles.availableDot} />
-          <Text style={styles.availableBadgeText}>Disponível</Text>
+          <Text style={styles.availableBadgeText}>{t('receber.available')}</Text>
         </View>
         <View style={styles.wafinaBadge}>
-          <Text style={styles.wafinaBadgeText}>Wafina</Text>
+          <Text style={styles.wafinaBadgeText}>{t('receber.wafinaBadge')}</Text>
         </View>
         {isTop && (
           <>
@@ -159,10 +161,10 @@ function SwipeCard({
                 button reserves now, so this stamp is relabeled to match what
                 a drag actually does: move to the next card. */}
             <Animated.View style={[styles.stamp, styles.stampLike, { opacity: likeOpacity }]}>
-              <Text style={styles.stampLikeText}>PRÓXIMA</Text>
+              <Text style={styles.stampLikeText}>{t('receber.swipeStampNext')}</Text>
             </Animated.View>
             <Animated.View style={[styles.stamp, styles.stampPass, { opacity: passOpacity }]}>
-              <Text style={styles.stampPassText}>PASSAR</Text>
+              <Text style={styles.stampPassText}>{t('receber.swipeStampPass')}</Text>
             </Animated.View>
           </>
         )}
@@ -173,7 +175,9 @@ function SwipeCard({
           <View style={styles.metaRow}>
             <View style={styles.metaChip}>
               <Ionicons name="cube-outline" size={13} color={colors.textMuted} />
-              <Text style={styles.metaChipText}>Qtd: {donation.Quantity}</Text>
+              <Text style={styles.metaChipText}>
+                {t('receber.quantityAbbrev')}: {donation.Quantity}
+              </Text>
             </View>
             <View style={styles.metaChip}>
               <Ionicons name="sparkles-outline" size={13} color={colors.textMuted} />
@@ -188,7 +192,7 @@ function SwipeCard({
               </Text>
             </View>
           )}
-          <Text style={styles.dateLabel}>📅 Publicado {daysAgoLabel(donation.Date_Submitted)}</Text>
+          <Text style={styles.dateLabel}>{t('receber.publishedLabel', { time: daysAgoLabel(donation.Date_Submitted) })}</Text>
         </View>
       </Card>
     </Animated.View>
@@ -196,6 +200,7 @@ function SwipeCard({
 }
 
 export function ReceberScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { firebaseUser, session } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -254,9 +259,9 @@ export function ReceberScreen({ navigation }: Props) {
         setCards(null);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as doações.');
+      setError(err instanceof ApiError ? err.message : t('receber.loadError'));
     }
-  }, [firebaseUser]);
+  }, [firebaseUser, t]);
 
   // Live regressive countdown for the cooldown AND active-reservation
   // screens — ticks every second only while one of those is actually
@@ -331,7 +336,7 @@ export function ReceberScreen({ navigation }: Props) {
     } catch (err) {
       // Someone else won the race, or the item was pulled — never leave the
       // stack stuck on a card that's no longer real.
-      showToast(err instanceof ApiError ? err.message : 'Não foi possível reservar esta doação.');
+      showToast(err instanceof ApiError ? err.message : t('receber.reserveFailedError'));
       removeTopCard();
     }
   }
@@ -423,10 +428,10 @@ export function ReceberScreen({ navigation }: Props) {
         body: { code: codeInput.trim() },
       });
       setCodeInput('');
-      showToast('Código confirmado! Já pode confirmar a receção.');
+      showToast(t('receber.codeVerifiedToast'));
       await load();
     } catch (err) {
-      setCodeError(err instanceof ApiError ? err.message : 'Não foi possível confirmar o código.');
+      setCodeError(err instanceof ApiError ? err.message : t('receber.codeVerifyFailedError'));
     } finally {
       setVerifyingCode(false);
     }
@@ -455,14 +460,14 @@ export function ReceberScreen({ navigation }: Props) {
         });
       }
       setShowThankYouModal(false);
-      showToast('Recebimento confirmado. Obrigado!');
+      showToast(t('receber.receiptConfirmedToast'));
       await load();
     } catch (err) {
       // Close the modal on failure too, so the screen's own error banner
       // (rendered behind it) is actually visible instead of hidden by the
       // modal overlay.
       setShowThankYouModal(false);
-      setError(err instanceof ApiError ? err.message : 'Não foi possível confirmar o recebimento.');
+      setError(err instanceof ApiError ? err.message : t('receber.receiptConfirmFailedError'));
     } finally {
       setConfirming(false);
     }
@@ -474,11 +479,11 @@ export function ReceberScreen({ navigation }: Props) {
   const Header = (
     <View style={[styles.headerRow, { paddingTop: insets.top + spacing[5] }]}>
       <View style={styles.headerSpacer} />
-      <Text style={styles.title}>Receber</Text>
+      <Text style={styles.title}>{t('receber.title')}</Text>
       <Pressable
         onPress={() => navigation.goBack()}
         accessibilityRole="button"
-        accessibilityLabel="Fechar"
+        accessibilityLabel={t('receber.close')}
         hitSlop={10}
         style={styles.headerSpacer}
       >
@@ -492,7 +497,7 @@ export function ReceberScreen({ navigation }: Props) {
     return (
       <View style={styles.screen}>
         {Header}
-        <Text style={styles.loading}>A carregar…</Text>
+        <Text style={styles.loading}>{t('common.loading')}</Text>
       </View>
     );
   }
@@ -509,16 +514,14 @@ export function ReceberScreen({ navigation }: Props) {
           <View style={styles.congratsIconWrap}>
             <Text style={styles.congratsIcon}>🎉</Text>
           </View>
-          <Text style={styles.congratsTitle}>Congratulações!</Text>
-          <Text style={styles.congratsText}>A sua doação foi reservada com sucesso.</Text>
+          <Text style={styles.congratsTitle}>{t('receber.congratsTitle')}</Text>
+          <Text style={styles.congratsText}>{t('receber.congratsText')}</Text>
           <View style={styles.congratsNoticeCard}>
             <Ionicons name="time-outline" size={18} color={colors.accent} />
-            <Text style={styles.congratsNoticeText}>
-              Esta doação está reservada para si durante 24 horas.
-            </Text>
+            <Text style={styles.congratsNoticeText}>{t('receber.congratsNotice')}</Text>
           </View>
           <Button onPress={() => setJustReserved(false)} fullWidth>
-            Continuar
+            {t('receber.congratsContinue')}
           </Button>
         </View>
       </View>
@@ -546,11 +549,11 @@ export function ReceberScreen({ navigation }: Props) {
         >
           {/* PRIMARY — kept deliberately minimal per spec: title, countdown,
               code entry, confirm. Everything else lives in "Mais informações". */}
-          <Text style={styles.reservedTitle}>🎁 Doação reservada</Text>
+          <Text style={styles.reservedTitle}>{t('receber.reservedTitle')}</Text>
 
           {reservationCountdown && !reservationCountdown.expired ? (
             <View style={styles.countdownCard}>
-              <Text style={styles.countdownCardLabel}>Reserva válida por</Text>
+              <Text style={styles.countdownCardLabel}>{t('receber.countdownValidFor')}</Text>
               <View style={styles.countdownRow}>
                 <View style={styles.countdownUnit}>
                   <Text style={styles.countdownValueLarge}>{pad2(reservationCountdown.hours)}</Text>
@@ -571,7 +574,7 @@ export function ReceberScreen({ navigation }: Props) {
           ) : (
             <View style={[styles.countdownCard, styles.countdownCardExpired]}>
               <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
-              <Text style={styles.countdownExpiredText}>A sua reserva expirou. A atualizar…</Text>
+              <Text style={styles.countdownExpiredText}>{t('receber.reservationExpiredNotice')}</Text>
             </View>
           )}
 
@@ -585,10 +588,8 @@ export function ReceberScreen({ navigation }: Props) {
           <View style={styles.sectionCard}>
             {!codeVerified ? (
               <>
-                <Text style={styles.sectionTitle}>🔢 Introduza o código de 4 dígitos</Text>
-                <Text style={styles.locationText}>
-                  No local, a equipa Wafina confirma o seu ID e entrega-lhe um código de 4 dígitos.
-                </Text>
+                <Text style={styles.sectionTitle}>{t('receber.enterCodeTitle')}</Text>
+                <Text style={styles.locationText}>{t('receber.enterCodeHint')}</Text>
                 <TextInput
                   value={codeInput}
                   onChangeText={(v) => {
@@ -603,17 +604,17 @@ export function ReceberScreen({ navigation }: Props) {
                 />
                 {codeError ? <Text style={styles.errorText}>{codeError}</Text> : null}
                 <Button onPress={onVerifyCode} loading={verifyingCode} disabled={codeInput.length !== 4} fullWidth>
-                  Confirmar código
+                  {t('receber.confirmCodeButton')}
                 </Button>
               </>
             ) : (
               <>
                 <View style={styles.codeVerifiedBanner}>
                   <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-                  <Text style={styles.codeVerifiedText}>Código confirmado no ponto de recolha.</Text>
+                  <Text style={styles.codeVerifiedText}>{t('receber.codeVerifiedBanner')}</Text>
                 </View>
                 <Button onPress={() => setShowThankYouModal(true)} loading={confirming} fullWidth>
-                  Confirmar recebimento
+                  {t('receber.confirmReceiptButton')}
                 </Button>
               </>
             )}
@@ -625,7 +626,7 @@ export function ReceberScreen({ navigation }: Props) {
             style={styles.moreInfoToggle}
           >
             <Text style={styles.moreInfoToggleIcon}>{moreInfoExpanded ? '☝️' : '👇'}</Text>
-            <Text style={styles.moreInfoToggleText}>Mais informações</Text>
+            <Text style={styles.moreInfoToggleText}>{t('receber.moreInfoToggle')}</Text>
             <Ionicons
               name={moreInfoExpanded ? 'chevron-up' : 'chevron-down'}
               size={16}
@@ -650,7 +651,7 @@ export function ReceberScreen({ navigation }: Props) {
                     {reserved.Item_Type}
                   </Text>
                   <Text style={styles.locationText}>
-                    Qtd: {reserved.Quantity} · Estado: {reserved.Condition}
+                    {t('receber.itemQtyCondition', { qty: reserved.Quantity, condition: reserved.Condition })}
                   </Text>
                 </View>
               </View>
@@ -658,14 +659,16 @@ export function ReceberScreen({ navigation }: Props) {
               {/* Collection point — never invented; a null response means Wafina
                   genuinely has no point configured yet for this country. */}
               <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>📍 Onde levantar</Text>
+                <Text style={styles.sectionTitle}>{t('receber.collection.whereToCollect')}</Text>
                 {collectionPoint ? (
                   <View style={styles.collectionPointBody}>
                     <Text style={styles.collectionPointName}>{collectionPoint.Name}</Text>
                     <Text style={styles.locationText}>{collectionPoint.Address}</Text>
                     {collectionPoint.City && <Text style={styles.locationText}>{collectionPoint.City}</Text>}
                     {collectionPoint.Opening_Hours && (
-                      <Text style={styles.locationText}>Horário: {collectionPoint.Opening_Hours}</Text>
+                      <Text style={styles.locationText}>
+                        {t('receber.collection.hours', { hours: collectionPoint.Opening_Hours })}
+                      </Text>
                     )}
                     {collectionPoint.Phone && (
                       <Pressable onPress={() => Linking.openURL(`tel:${collectionPoint.Phone}`)}>
@@ -681,7 +684,7 @@ export function ReceberScreen({ navigation }: Props) {
                       <Pressable
                         onPress={() => Linking.openURL(`https://wa.me/${collectionPoint.Phone!.replace(/\D/g, '')}`)}
                       >
-                        <Text style={styles.mapLink}>💬 Contactar pelo WhatsApp</Text>
+                        <Text style={styles.mapLink}>{t('receber.collection.whatsapp')}</Text>
                       </Pressable>
                     )}
                     {collectionPoint.Directions && (
@@ -690,27 +693,22 @@ export function ReceberScreen({ navigation }: Props) {
                     <Pressable
                       onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${mapsQuery}`)}
                     >
-                      <Text style={[styles.mapLink, styles.directionsLink]}>Como chegar →</Text>
+                      <Text style={[styles.mapLink, styles.directionsLink]}>{t('receber.collection.directions')}</Text>
                     </Pressable>
                   </View>
                 ) : collectionPointFetchFailed ? (
-                  <Text style={styles.locationText}>Não foi possível carregar o ponto de recolha. Tente novamente.</Text>
+                  <Text style={styles.locationText}>{t('receber.collection.loadFailedHint')}</Text>
                 ) : (
-                  <Text style={styles.locationText}>
-                    A informação do ponto de recolha ainda não está configurada para o seu país. Contacte o suporte
-                    Wafina para saber onde levantar esta doação.
-                  </Text>
+                  <Text style={styles.locationText}>{t('receber.collection.notConfiguredHint')}</Text>
                 )}
               </View>
 
               <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>🪪 O que precisa para levantar</Text>
-                <Text style={styles.locationText}>
-                  Apresente o seu ID Wafina no ponto de recolha para verificação.
-                </Text>
+                <Text style={styles.sectionTitle}>{t('receber.collection.whatToBringTitle')}</Text>
+                <Text style={styles.locationText}>{t('receber.collection.whatToBringHint')}</Text>
                 {session?.wafinaId && (
                   <View style={styles.wafinaIdWrap}>
-                    <Text style={styles.wafinaIdLabel}>ID Wafina</Text>
+                    <Text style={styles.wafinaIdLabel}>{t('receber.collection.wafinaIdLabel')}</Text>
                     <Text style={styles.wafinaIdValue}>{session.wafinaId}</Text>
                   </View>
                 )}
@@ -721,7 +719,7 @@ export function ReceberScreen({ navigation }: Props) {
                   <View style={[styles.progressDot, styles.progressDotDone]}>
                     <Ionicons name="checkmark" size={12} color="#ffffff" />
                   </View>
-                  <Text style={styles.progressLabel}>Reservada</Text>
+                  <Text style={styles.progressLabel}>{t('receber.progress.reserved')}</Text>
                 </View>
                 <View style={styles.progressLine} />
                 <View style={styles.progressStep}>
@@ -732,20 +730,17 @@ export function ReceberScreen({ navigation }: Props) {
                       <Text style={styles.progressDotPendingText}>2</Text>
                     )}
                   </View>
-                  <Text style={styles.progressLabel}>Levantar</Text>
+                  <Text style={styles.progressLabel}>{t('receber.progress.pickup')}</Text>
                 </View>
                 <View style={styles.progressLine} />
                 <View style={styles.progressStep}>
                   <View style={styles.progressDot}>
                     <Text style={styles.progressDotPendingText}>3</Text>
                   </View>
-                  <Text style={styles.progressLabel}>Recebida</Text>
+                  <Text style={styles.progressLabel}>{t('receber.progress.received')}</Text>
                 </View>
               </View>
-              <Text style={styles.progressExplain}>
-                Dirija-se ao ponto de recolha antes do fim da reserva. Depois de receber fisicamente a doação,
-                confirme o recebimento na aplicação.
-              </Text>
+              <Text style={styles.progressExplain}>{t('receber.progress.explain')}</Text>
             </View>
           )}
         </ScrollView>
@@ -770,18 +765,16 @@ export function ReceberScreen({ navigation }: Props) {
           <View style={styles.cooldownIconWrap}>
             <Ionicons name="hourglass-outline" size={32} color={colors.warning} />
           </View>
-          <Text style={styles.cooldownTitle}>Já recebeu uma doação recentemente</Text>
-          <Text style={styles.cooldownText}>
-            Para dar oportunidade a mais pessoas, cada Pessoa pode receber uma doação a cada 3 dias.
-          </Text>
+          <Text style={styles.cooldownTitle}>{t('receber.cooldown.title')}</Text>
+          <Text style={styles.cooldownText}>{t('receber.cooldown.text')}</Text>
           <View style={styles.cooldownDateWrap}>
-            <Text style={styles.cooldownDateLabel}>Pode receber novamente em</Text>
+            <Text style={styles.cooldownDateLabel}>{t('receber.cooldown.nextEligible')}</Text>
             <View style={styles.countdownRow}>
               {countdown.days > 0 && (
                 <>
                   <View style={styles.countdownUnit}>
                     <Text style={styles.countdownValue}>{countdown.days}</Text>
-                    <Text style={styles.countdownUnitLabel}>dias</Text>
+                    <Text style={styles.countdownUnitLabel}>{t('receber.cooldown.days')}</Text>
                   </View>
                   <Text style={styles.countdownColon}>:</Text>
                 </>
@@ -815,7 +808,7 @@ export function ReceberScreen({ navigation }: Props) {
     <View style={styles.screen}>
       {Header}
       <View style={styles.content}>
-        <Text style={styles.subtitle}>Encontre bens disponíveis para si.</Text>
+        <Text style={styles.subtitle}>{t('receber.subtitle')}</Text>
         {error ? (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>{error}</Text>
@@ -825,12 +818,12 @@ export function ReceberScreen({ navigation }: Props) {
         <View style={styles.stackArea} onLayout={(e) => setStackAreaHeight(e.nativeEvent.layout.height)}>
           {stackCards.length === 0 ? (
             <EmptyState
-              title="Chegou ao fim da lista"
-              description="Reviu todas as doações disponíveis. Passar não as remove — pode vê-las novamente."
+              title={t('receber.emptyEndTitle')}
+              description={t('receber.emptyEndDescription')}
               icon="gift-outline"
               action={
                 <Button variant="receive" onPress={load}>
-                  Ver novamente
+                  {t('receber.viewAgain')}
                 </Button>
               }
             />
@@ -860,7 +853,7 @@ export function ReceberScreen({ navigation }: Props) {
             <Pressable
               onPress={() => animateCardOut('left', onPass)}
               accessibilityRole="button"
-              accessibilityLabel="Passar"
+              accessibilityLabel={t('receber.passAccessibilityLabel')}
               style={[styles.actionBtn, styles.passBtn]}
             >
               <Ionicons name="close" size={28} color={colors.danger} />
@@ -870,7 +863,7 @@ export function ReceberScreen({ navigation }: Props) {
               // animateCardOut's doc comment for why the gesture path can't.
               onPress={() => animateCardOut('right', () => onSelect(topDonation))}
               accessibilityRole="button"
-              accessibilityLabel="Quero Receber"
+              accessibilityLabel={t('receber.selectAccessibilityLabel')}
               style={[styles.actionBtn, styles.selectBtn]}
             >
               <Ionicons name="heart" size={26} color="#ffffff" />
