@@ -1,7 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { formatDateTimeLabel, type SuccessStory } from '@wafina/shared';
-import { useEffect, useState } from 'react';
+import * as Sharing from 'expo-sharing';
+import { useEffect, useRef, useState } from 'react';
 import { FlatList, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/Card';
@@ -13,36 +15,33 @@ import i18n from '@/i18n';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
 // UX follow-up, 2026-08-07 — donors want to share a story to social media
-// directly from its card. `Share.share()` opens the OS's native share sheet
-// (WhatsApp, Instagram, X, etc. all register as targets there already) — no
-// per-story public URL exists yet (only a general, non-deep-linkable
-// `/impact` page on Donor Web), so this shares the story text itself rather
-// than a link to it.
+// directly from its card.
 //
-// RC1 note, 2026-08-07 — a version that downloaded the photo locally and
-// shared it via `expo-sharing` (so the image itself, not just text, reached
-// WhatsApp/Instagram) was tried and reverted: `expo-sharing` is a native
-// module, and Expo Go on the test device couldn't resolve it even after a
-// full reinstall/cache-clear cycle — resolving that needs an actual native
-// rebuild, untestable through Expo Go. Reverted to unblock RC1; revisit
-// once a real production/dev-client build exists to verify against.
+// RC1 note, 2026-08-07 — an `expo-sharing` version (image itself, not just
+// text, reaching WhatsApp/Instagram) was tried and reverted: it's a native
+// module Expo Go couldn't resolve, untestable without a real build. Revisited
+// 2026-08-12 against an actual local production build — confirmed working.
+//
+// Bug fix, 2026-08-12 — live-tested against a real WhatsApp send: the OS
+// share intent only carries one payload type into an arbitrary third-party
+// app, so the caption text never showed up alongside the shared photo (a
+// platform limit, not something either API's options can work around). Fixed
+// by burning the caption into the shared image itself via a hidden
+// `react-native-view-shot` snapshot — the text is now part of the picture,
+// so it survives no matter which app the photo lands in.
 //
 // Bug fix, 2026-08-08 — `Share.share()` only resolves on dismiss (both
 // platforms), it never throws for that case; a rejection here is always a
 // genuine failure (e.g. no share target registered on the device). The
 // previous empty catch silently ate those too, so a real failure looked
 // identical to nothing happening — surface it via a toast instead.
-async function onShareStory(story: SuccessStory, showToast: (message: string, tone?: 'success' | 'error') => void) {
-  try {
-    // Title/Description are the institution's own content — never translated,
-    // only the surrounding Wafina-authored share chrome uses i18n.
-    await Share.share({
-      title: i18n.t('impact.shareTitlePrefix', { title: story.Title }),
-      message: `${story.Title}\n\n${story.Description}\n\n${i18n.t('impact.shareFooter')}`,
-    });
-  } catch {
-    showToast(i18n.t('impact.shareFailedError'), 'error');
-  }
+async function shareStoryTextOnly(story: SuccessStory) {
+  // Title/Description are the institution's own content — never translated,
+  // only the surrounding Wafina-authored share chrome uses i18n.
+  await Share.share({
+    title: i18n.t('impact.shareTitlePrefix', { title: story.Title }),
+    message: `${story.Title}\n\n${story.Description}\n\n${i18n.t('impact.shareFooter')}`,
+  });
 }
 
 /**
@@ -57,6 +56,11 @@ export function ImpactScreen() {
   const insets = useSafeAreaInsets();
   const [stories, setStories] = useState<SuccessStory[] | null>(null);
   const [error, setError] = useState('');
+  // Hidden off-screen node holding the currently-shared story's photo with
+  // its caption burned in — see the capture flow in handleShareStory below.
+  const [shareTarget, setShareTarget] = useState<SuccessStory | null>(null);
+  const captureViewRef = useRef<View>(null);
+  const imageLoadResolveRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -70,8 +74,61 @@ export function ImpactScreen() {
     })();
   }, [firebaseUser, t]);
 
+  async function handleShareStory(story: SuccessStory) {
+    try {
+      const imageShareAvailable = await Sharing.isAvailableAsync();
+      if (!imageShareAvailable) {
+        await shareStoryTextOnly(story);
+        return;
+      }
+
+      let captureUri: string;
+      try {
+        await new Promise<void>((resolve, reject) => {
+          imageLoadResolveRef.current = resolve;
+          setShareTarget(story);
+          setTimeout(() => reject(new Error('image load timeout')), 8000);
+        });
+        // One frame so the native layer actually paints before the snapshot.
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        captureUri = await captureRef(captureViewRef, { format: 'jpg', quality: 0.92 });
+      } catch {
+        // Couldn't render/capture the captioned image — text-only is still
+        // a real share, not a dead end.
+        setShareTarget(null);
+        await shareStoryTextOnly(story);
+        return;
+      }
+
+      await Sharing.shareAsync(captureUri, {
+        dialogTitle: t('impact.shareTitlePrefix', { title: story.Title }),
+        mimeType: 'image/jpeg',
+      });
+      setShareTarget(null);
+    } catch {
+      setShareTarget(null);
+      showToast(t('impact.shareFailedError'), 'error');
+    }
+  }
+
   return (
     <View style={styles.screen}>
+      {shareTarget && (
+        <View style={styles.captureWrapper} pointerEvents="none">
+          <View ref={captureViewRef} collapsable={false} style={styles.captureCard}>
+            <Image
+              source={{ uri: shareTarget.Image }}
+              style={styles.capturePhoto}
+              resizeMode="cover"
+              onLoad={() => imageLoadResolveRef.current?.()}
+            />
+            <View style={styles.captureCaption}>
+              <Text style={styles.captureCaptionTitle}>{shareTarget.Title}</Text>
+              <Text style={styles.captureCaptionFooter}>{t('impact.shareFooter')}</Text>
+            </View>
+          </View>
+        </View>
+      )}
       <FlatList
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
@@ -102,7 +159,7 @@ export function ImpactScreen() {
               <View style={styles.cardHeaderRow}>
                 <Text style={[styles.storyTitle, { flex: 1 }]}>{item.Title}</Text>
                 <Pressable
-                  onPress={() => onShareStory(item, showToast)}
+                  onPress={() => handleShareStory(item)}
                   accessibilityRole="button"
                   accessibilityLabel={t('impact.shareAccessibilityLabel')}
                   hitSlop={10}
@@ -131,6 +188,44 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  captureWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 720,
+    height: 720,
+    opacity: 0,
+    zIndex: -1,
+  },
+  captureCard: {
+    width: 720,
+    height: 720,
+    backgroundColor: '#000',
+  },
+  capturePhoto: {
+    width: 720,
+    height: 720,
+  },
+  captureCaption: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15,23,42,0.72)',
+    paddingHorizontal: 32,
+    paddingVertical: 24,
+  },
+  captureCaptionTitle: {
+    fontFamily: 'Manrope-700',
+    fontSize: 27,
+    color: '#fff',
+    marginBottom: 6,
+  },
+  captureCaptionFooter: {
+    fontFamily: 'Manrope-600',
+    fontSize: 17,
+    color: 'rgba(255,255,255,0.85)',
   },
   content: {
     padding: spacing[6],
