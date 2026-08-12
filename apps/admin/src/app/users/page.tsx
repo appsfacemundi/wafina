@@ -75,6 +75,7 @@ export default function AdminUsersPage() {
     return [
       { key: 'donor', title: 'Doadores', items: filtered.filter((u) => u.Role === 'Donor') },
       { key: 'institution', title: 'Instituições', items: filtered.filter((u) => u.Role === 'Institution') },
+      { key: 'shelter', title: 'Abrigos de Animais', items: filtered.filter((u) => u.Role === 'Animal_Shelter') },
       { key: 'admin', title: 'Admins', items: filtered.filter((u) => u.Role === 'Admin') },
     ];
   }, [filtered]);

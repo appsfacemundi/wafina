@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
@@ -11,6 +12,7 @@ import { apiFetch, ApiError } from '@/lib/api';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
 export function DisputesListScreen() {
+  const { t } = useTranslation();
   const { firebaseUser } = useAuth();
   const insets = useSafeAreaInsets();
   const [disputes, setDisputes] = useState<Dispute[] | null>(null);
@@ -23,16 +25,28 @@ export function DisputesListScreen() {
     useCallback(() => {
       if (!firebaseUser) return;
       (async () => {
+        let idToken: string;
         try {
-          const idToken = await firebaseUser.getIdToken();
-          const [disputeList, donations] = await Promise.all([
-            apiFetch<Dispute[]>('/disputes/mine', { idToken }),
-            apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
-          ]);
-          setDisputes(disputeList);
-          setCodeByDonationId(new Map(donations.map((d) => [d.Donation_ID, d.Public_Donation_Code])));
+          idToken = await firebaseUser.getIdToken();
         } catch (err) {
-          setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as ocorrências.');
+          setError(err instanceof ApiError ? err.message : t('disputes.loadError'));
+          return;
+        }
+        // The disputes list is this screen's primary content; the claimed-donations
+        // lookup only enriches each row with a public code, so it degrades silently
+        // instead of blocking the list (e.g. not applicable to this account's role).
+        const [disputesResult, donationsResult] = await Promise.allSettled([
+          apiFetch<Dispute[]>('/disputes/mine', { idToken }),
+          apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
+        ]);
+        if (disputesResult.status === 'fulfilled') {
+          setDisputes(disputesResult.value);
+          setError('');
+        } else {
+          setError(disputesResult.reason instanceof ApiError ? disputesResult.reason.message : t('disputes.loadError'));
+        }
+        if (donationsResult.status === 'fulfilled') {
+          setCodeByDonationId(new Map(donationsResult.value.map((d) => [d.Donation_ID, d.Public_Donation_Code])));
         }
       })();
     }, [firebaseUser]),
@@ -44,17 +58,17 @@ export function DisputesListScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
         ListHeaderComponent={
           <>
-            <Text style={styles.title}>As Minhas Ocorrências</Text>
+            <Text style={styles.title}>{t('disputes.listTitle')}</Text>
             {error && (
               <View style={styles.errorBanner}>
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
-            {!error && disputes === null && <Text style={styles.loading}>A carregar…</Text>}
+            {!error && disputes === null && <Text style={styles.loading}>{t('common.loading')}</Text>}
             {disputes?.length === 0 && (
               <EmptyState
-                title="Sem ocorrências"
-                description="As ocorrências que comunicar sobre doações aparecem aqui."
+                title={t('disputes.emptyTitle')}
+                description={t('disputes.emptyDescription')}
                 icon="alert-circle-outline"
               />
             )}
@@ -65,13 +79,17 @@ export function DisputesListScreen() {
         renderItem={({ item }) => (
           <Card style={{ marginBottom: spacing[3], gap: spacing[2] }}>
             <View style={styles.row}>
-              <Text style={[styles.mono, styles.monoId]}>Doação {codeByDonationId.get(item.Donation_ID) ?? ''}</Text>
+              <Text style={[styles.mono, styles.monoId]}>
+                {t('disputes.donationLabel', { code: codeByDonationId.get(item.Donation_ID) ?? '' })}
+              </Text>
               <Badge tone={item.Status === 'Open' ? 'warning' : 'success'}>
-                {item.Status === 'Open' ? 'Aberta' : 'Resolvida'}
+                {item.Status === 'Open' ? t('disputes.statusOpen') : t('disputes.statusResolved')}
               </Badge>
             </View>
             <Text style={styles.body}>{item.Issue_Description}</Text>
-            {item.Resolution_Notes && <Text style={styles.hint}>Resposta: {item.Resolution_Notes}</Text>}
+            {item.Resolution_Notes && (
+              <Text style={styles.hint}>{t('disputes.responseLabel', { notes: item.Resolution_Notes })}</Text>
+            )}
             <Text style={styles.time}>{formatDateTimeLabel(item.Date_Raised)}</Text>
           </Card>
         )}

@@ -17,7 +17,7 @@ export const changeRequestsRouter = Router();
 changeRequestsRouter.post(
   '/change-requests',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
   asyncHandler(async (req, res) => {
     const institutionId = await requireOwnInstitutionId(req.user!.userId);

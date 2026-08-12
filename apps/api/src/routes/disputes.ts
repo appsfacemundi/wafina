@@ -17,7 +17,7 @@ export const disputesRouter = Router();
 disputesRouter.post(
   '/disputes',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
   asyncHandler(async (req, res) => {
     const institutionId = await requireOwnInstitutionId(req.user!.userId);
@@ -35,7 +35,7 @@ disputesRouter.post(
 disputesRouter.get(
   '/disputes/mine',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
   asyncHandler(async (req, res) => {
     const institutionId = await requireOwnInstitutionId(req.user!.userId);

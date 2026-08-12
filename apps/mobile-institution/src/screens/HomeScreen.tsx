@@ -5,6 +5,7 @@ import type { ComponentProps } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/Card';
 import { useAuth } from '@/context/AuthContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
@@ -32,6 +33,7 @@ function todayDateOnly(): string {
 }
 
 export function HomeScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { session, firebaseUser } = useAuth();
   const { institution } = useOwnInstitution();
   const insets = useSafeAreaInsets();
@@ -43,21 +45,24 @@ export function HomeScreen({ navigation }: Props) {
   useEffect(() => {
     if (!firebaseUser) return;
     (async () => {
+      let idToken: string;
       try {
-        const idToken = await firebaseUser.getIdToken();
-        const [availableList, claimedList, storyList, notificationList] = await Promise.all([
-          apiFetch<InstitutionDonationView[]>('/donations/available', { idToken }),
-          apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
-          apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }),
-          apiFetch<Notification[]>('/notifications', { idToken }),
-        ]);
-        setAvailable(availableList);
-        setClaimedByMe(claimedList);
-        setStories(storyList);
-        setNotifications(notificationList);
+        idToken = await firebaseUser.getIdToken();
       } catch {
-        // Non-critical — the dashboard just shows "—" for whichever counts failed to load.
+        return;
       }
+      // Each stat loads independently — one endpoint failing (e.g. not applicable to this
+      // account's role) shouldn't blank the others.
+      const [availableResult, claimedResult, storiesResult, notificationsResult] = await Promise.allSettled([
+        apiFetch<InstitutionDonationView[]>('/donations/available', { idToken }),
+        apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
+        apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }),
+        apiFetch<Notification[]>('/notifications', { idToken }),
+      ]);
+      if (availableResult.status === 'fulfilled') setAvailable(availableResult.value);
+      if (claimedResult.status === 'fulfilled') setClaimedByMe(claimedResult.value);
+      if (storiesResult.status === 'fulfilled') setStories(storiesResult.value);
+      if (notificationsResult.status === 'fulfilled') setNotifications(notificationsResult.value);
     })();
   }, [firebaseUser]);
 
@@ -83,7 +88,7 @@ export function HomeScreen({ navigation }: Props) {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}
     >
       <Text style={styles.title}>
-        Bem-vindo(a){institution ? `, ${institution.Name}` : ''}
+        {t('home.greeting', { suffix: institution ? `, ${institution.Name}` : '' })}
       </Text>
       <Card style={{ gap: spacing[2] }}>
         {/* Pilot feedback, 2026-08-05: the greeting above shows the
@@ -97,18 +102,18 @@ export function HomeScreen({ navigation }: Props) {
       <Pressable
         onPress={() => navigation.navigate('AvailableDonations')}
         accessibilityRole="button"
-        accessibilityLabel="Receber Doações"
+        accessibilityLabel={t('home.ctaTitle')}
         style={({ pressed }) => [styles.ctaCard, pressed && styles.ctaCardPressed]}
       >
         <View style={styles.ctaIconWrap}>
           <Ionicons name="gift" size={22} color={colors.accentText} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.ctaTitle}>Receber Doações</Text>
+          <Text style={styles.ctaTitle}>{t('home.ctaTitle')}</Text>
           <Text style={styles.ctaSubtitle}>
             {session?.role === 'Animal_Shelter'
-              ? 'Encontre doações disponíveis para o seu abrigo'
-              : 'Encontre doações disponíveis para a sua instituição'}
+              ? t('home.ctaSubtitleShelter')
+              : t('home.ctaSubtitleInstitution')}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.accentText} />
@@ -118,14 +123,22 @@ export function HomeScreen({ navigation }: Props) {
         <StatCard
           icon="file-tray-outline"
           value={stats.available}
-          label={session?.role === 'Animal_Shelter' ? 'Doações para abrigos' : 'Doações disponíveis'}
+          label={session?.role === 'Animal_Shelter' ? t('home.statAvailableShelter') : t('home.statAvailableInstitution')}
         />
-        <StatCard icon="checkmark-circle-outline" value={stats.accepted} label="Aceites" />
-        <StatCard icon="car-outline" value={stats.collectionsToday} label="Recolhas hoje" />
-        <StatCard icon="cube-outline" value={stats.deliveriesPending} label="Entregas pendentes" />
-        <StatCard icon="heart-outline" value={stats.storiesPublished} label="Histórias publicadas" />
-        <StatCard icon="notifications-outline" value={stats.unreadNotifications} label="Notificações por ler" />
-        <StatCard icon="gift-outline" value={institution?.Total_Items_Received ?? null} label="Itens recebidos (total)" />
+        <StatCard icon="checkmark-circle-outline" value={stats.accepted} label={t('home.statAccepted')} />
+        <StatCard icon="car-outline" value={stats.collectionsToday} label={t('home.statCollectionsToday')} />
+        <StatCard icon="cube-outline" value={stats.deliveriesPending} label={t('home.statDeliveriesPending')} />
+        <StatCard icon="heart-outline" value={stats.storiesPublished} label={t('home.statStoriesPublished')} />
+        <StatCard
+          icon="notifications-outline"
+          value={stats.unreadNotifications}
+          label={t('home.statUnreadNotifications')}
+        />
+        <StatCard
+          icon="gift-outline"
+          value={institution?.Total_Items_Received ?? null}
+          label={t('home.statTotalReceived')}
+        />
       </View>
     </ScrollView>
   );

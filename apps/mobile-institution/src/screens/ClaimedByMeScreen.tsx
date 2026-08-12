@@ -1,10 +1,10 @@
 import {
-  DELIVERY_METHOD_LABEL,
+  DELIVERY_METHOD_LABEL_KEY,
   DELIVERY_METHODS,
-  DONATION_STATUS_LABEL,
+  DONATION_STATUS_LABEL_KEY,
   DONATION_STATUS_TONE,
   DONATION_STATUSES,
-  RECIPIENT_CATEGORY_LABEL,
+  RECIPIENT_CATEGORY_LABEL_KEY,
   daysAgoLabel,
   formatDateLabel,
   type DeliveryMethod,
@@ -17,6 +17,7 @@ import type * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -35,6 +36,7 @@ type Props = NativeStackScreenProps<ClaimedByMeStackParamList, 'ClaimedByMeList'
 type StatusFilter = 'all' | 'active' | 'delivered';
 
 export function ClaimedByMeScreen({ navigation, route }: Props) {
+  const { t } = useTranslation();
   const { firebaseUser } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
@@ -57,16 +59,29 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
 
   async function load() {
     if (!firebaseUser) return;
+    let idToken: string;
     try {
-      const idToken = await firebaseUser.getIdToken();
-      const [donationList, stories] = await Promise.all([
-        apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
-        apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }),
-      ]);
-      setDonations(donationList);
-      setStoriesByDonation(new Set(stories.map((s) => s.Donation_ID)));
+      idToken = await firebaseUser.getIdToken();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível carregar as doações.');
+      setError(err instanceof ApiError ? err.message : t('donations.claimed.loadError'));
+      return;
+    }
+    // The claimed-donations list is this screen's primary content; the stories
+    // lookup only drives an optional "already published" badge, so it degrades
+    // silently instead of blocking the list (e.g. not applicable to this
+    // account's role).
+    const [donationsResult, storiesResult] = await Promise.allSettled([
+      apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
+      apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }),
+    ]);
+    if (donationsResult.status === 'fulfilled') {
+      setDonations(donationsResult.value);
+      setError('');
+    } else {
+      setError(donationsResult.reason instanceof ApiError ? donationsResult.reason.message : t('donations.claimed.loadError'));
+    }
+    if (storiesResult.status === 'fulfilled') {
+      setStoriesByDonation(new Set(storiesResult.value.map((s) => s.Donation_ID)));
     }
   }
 
@@ -158,9 +173,9 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
   }, [highlightId, visibleDonations]);
 
   const SUCCESS_MESSAGE: Record<'schedule-collection' | 'collect' | 'deliver', string> = {
-    'schedule-collection': 'Recolha agendada com sucesso!',
-    collect: 'Doação marcada como recolhida!',
-    deliver: 'Entrega confirmada com sucesso!',
+    'schedule-collection': t('donations.claimed.successSchedule'),
+    collect: t('donations.claimed.successCollect'),
+    deliver: t('donations.claimed.successDeliver'),
   };
 
   async function onAction(
@@ -187,17 +202,13 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
       setError('');
       showToast(SUCCESS_MESSAGE[action]);
       if (action === 'deliver') {
-        Alert.alert(
-          'Parabéns! 🎉',
-          'A doação foi entregue com sucesso. Gostaria de criar uma História de Impacto agora?',
-          [
-            { text: 'Mais tarde', style: 'cancel' },
-            {
-              text: 'Criar História',
-              onPress: () => navigation.navigate('NewSuccessStory', { donationId, publicCode }),
-            },
-          ],
-        );
+        Alert.alert(t('donations.claimed.deliverySuccessTitle'), t('donations.claimed.deliverySuccessBody'), [
+          { text: t('donations.claimed.later'), style: 'cancel' },
+          {
+            text: t('donations.claimed.createStory'),
+            onPress: () => navigation.navigate('NewSuccessStory', { donationId, publicCode }),
+          },
+        ]);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : failMessage);
@@ -238,23 +249,19 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
       setError('');
       setDeliverModalDonationId(null);
       showToast(SUCCESS_MESSAGE.deliver);
-      Alert.alert(
-        'Parabéns! 🎉',
-        'A doação foi entregue com sucesso. Gostaria de criar uma História de Impacto agora?',
-        [
-          { text: 'Mais tarde', style: 'cancel' },
-          {
-            text: 'Criar História',
-            onPress: () => navigation.navigate('NewSuccessStory', { donationId, publicCode }),
-          },
-        ],
-      );
+      Alert.alert(t('donations.claimed.deliverySuccessTitle'), t('donations.claimed.deliverySuccessBody'), [
+        { text: t('donations.claimed.later'), style: 'cancel' },
+        {
+          text: t('donations.claimed.createStory'),
+          onPress: () => navigation.navigate('NewSuccessStory', { donationId, publicCode }),
+        },
+      ]);
     } catch (err) {
       // Close the modal on failure too, so the screen's own error banner
       // (rendered behind it) is actually visible instead of hidden by the
       // modal overlay.
       setDeliverModalDonationId(null);
-      setError(err instanceof ApiError ? err.message : 'Não foi possível confirmar a entrega.');
+      setError(err instanceof ApiError ? err.message : t('donations.claimed.deliverError'));
     } finally {
       setActingId(null);
     }
@@ -264,7 +271,7 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
     if (!deliverModalDonationId) return;
     const id = deliverModalDonationId;
     setDeliverModalDonationId(null);
-    onAction(id, 'deliver', 'Não foi possível confirmar a entrega.');
+    onAction(id, 'deliver', t('donations.claimed.deliverError'));
   }
 
   return (
@@ -278,9 +285,9 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
         ListHeaderComponent={
           <>
             <View style={styles.headerRow}>
-              <Text style={styles.title}>Doações Aceites</Text>
+              <Text style={styles.title}>{t('donations.claimed.title')}</Text>
               <Pressable onPress={() => navigation.navigate('MySuccessStories')}>
-                <Text style={styles.mapLink}>Histórias de Impacto</Text>
+                <Text style={styles.mapLink}>{t('donations.claimed.viewStories')}</Text>
               </Pressable>
             </View>
             {error && (
@@ -288,12 +295,12 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
-            {!error && donations === null && <Text style={styles.loading}>A carregar…</Text>}
+            {!error && donations === null && <Text style={styles.loading}>{t('common.loading')}</Text>}
             {donations && donations.length > 0 && (
               <>
                 <Input
-                  label="Pesquisar"
-                  placeholder="Pesquisar por item, código ou doador…"
+                  label={t('common.search')}
+                  placeholder={t('donations.claimed.searchPlaceholder')}
                   value={search}
                   onChangeText={setSearch}
                   style={{ marginBottom: spacing[3] }}
@@ -301,10 +308,13 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                 <View style={styles.filterRow}>
                   {(
                     [
-                      { key: 'all', label: 'Todos', count: statusCounts.all },
-                      { key: 'active', label: 'Em Curso', count: statusCounts.active },
-                      { key: 'delivered', label: 'Entregues', count: statusCounts.delivered },
-                    ] as { key: StatusFilter; label: string; count: number }[]
+                      { key: 'all', label: t('donations.claimed.filterAll', { count: statusCounts.all }) },
+                      { key: 'active', label: t('donations.claimed.filterActive', { count: statusCounts.active }) },
+                      {
+                        key: 'delivered',
+                        label: t('donations.claimed.filterDelivered', { count: statusCounts.delivered }),
+                      },
+                    ] as { key: StatusFilter; label: string }[]
                   ).map((f) => (
                     <Pressable
                       key={f.key}
@@ -314,7 +324,7 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                       style={[styles.filterChip, statusFilter === f.key && styles.filterChipActive]}
                     >
                       <Text style={[styles.filterChipText, statusFilter === f.key && styles.filterChipTextActive]}>
-                        {f.label} ({f.count})
+                        {f.label}
                       </Text>
                     </Pressable>
                   ))}
@@ -329,7 +339,7 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                       style={[styles.filterChip, deliveryFilter === f && styles.filterChipActive]}
                     >
                       <Text style={[styles.filterChipText, deliveryFilter === f && styles.filterChipTextActive]}>
-                        {f === 'all' ? 'Todos os métodos' : DELIVERY_METHOD_LABEL[f]}
+                        {f === 'all' ? t('donations.claimed.filterAllMethods') : t(DELIVERY_METHOD_LABEL_KEY[f])}
                       </Text>
                     </Pressable>
                   ))}
@@ -338,13 +348,17 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
             )}
             {donations?.length === 0 && (
               <EmptyState
-                title="Ainda sem doações aceites"
-                description="As doações que aceitar aparecem aqui."
+                title={t('donations.claimed.emptyNoneTitle')}
+                description={t('donations.claimed.emptyNoneDescription')}
                 icon="checkmark-circle-outline"
               />
             )}
             {donations && donations.length > 0 && visibleDonations.length === 0 && (
-              <EmptyState title="Sem resultados" description="Nenhuma doação corresponde à pesquisa." icon="search-outline" />
+              <EmptyState
+                title={t('donations.claimed.emptyNoResultsTitle')}
+                description={t('donations.claimed.emptyNoResultsDescription')}
+                icon="search-outline"
+              />
             )}
           </>
         }
@@ -356,16 +370,16 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
             <View style={styles.cardBody}>
               <View style={styles.rowBetween}>
                 <Text style={styles.itemType}>{item.Item_Type}</Text>
-                <Badge tone={DONATION_STATUS_TONE[item.Status]}>{DONATION_STATUS_LABEL[item.Status]}</Badge>
+                <Badge tone={DONATION_STATUS_TONE[item.Status]}>{t(DONATION_STATUS_LABEL_KEY[item.Status])}</Badge>
               </View>
               <Text style={styles.mono}>{item.Public_Donation_Code}</Text>
               <Text style={styles.meta}>
-                Qtd: {item.Quantity} · Estado: {item.Condition}
+                {t('donations.available.qtyCondition', { qty: item.Quantity, condition: item.Condition })}
               </Text>
               <Text style={styles.meta}>
-                {item.Recipient_Category ? RECIPIENT_CATEGORY_LABEL[item.Recipient_Category] : '—'}
+                {item.Recipient_Category ? t(RECIPIENT_CATEGORY_LABEL_KEY[item.Recipient_Category]) : '—'}
                 {' · '}
-                {item.Delivery_Method ? DELIVERY_METHOD_LABEL[item.Delivery_Method] : '—'}
+                {item.Delivery_Method ? t(DELIVERY_METHOD_LABEL_KEY[item.Delivery_Method]) : '—'}
               </Text>
               {item.City && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
@@ -375,7 +389,7 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                       Linking.openURL(`https://www.google.com/maps?q=${item.Location.lat},${item.Location.lng}`)
                     }
                   >
-                    <Text style={styles.mapLink}>Ver no mapa</Text>
+                    <Text style={styles.mapLink}>{t('donations.available.viewOnMap')}</Text>
                   </Pressable>
                 </View>
               )}
@@ -395,9 +409,13 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
               <Text style={styles.dateLabel}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
               {(item.Expected_Collection_Date || item.Expected_Delivery_Date) && (
                 <Text style={styles.meta}>
-                  {item.Expected_Collection_Date && `Recolha estimada: ${formatDateLabel(item.Expected_Collection_Date)}`}
+                  {item.Expected_Collection_Date &&
+                    t('donations.claimed.expectedCollection', {
+                      date: formatDateLabel(item.Expected_Collection_Date),
+                    })}
                   {item.Expected_Collection_Date && item.Expected_Delivery_Date && ' · '}
-                  {item.Expected_Delivery_Date && `Entrega estimada: ${formatDateLabel(item.Expected_Delivery_Date)}`}
+                  {item.Expected_Delivery_Date &&
+                    t('donations.claimed.expectedDelivery', { date: formatDateLabel(item.Expected_Delivery_Date) })}
                 </Text>
               )}
               <View style={{ marginTop: 4, marginBottom: 4 }}>
@@ -407,19 +425,25 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                 {item.Status === 'Claimed' && (
                   <Button
                     variant="secondary"
-                    onPress={() => onAction(item.Donation_ID, 'schedule-collection', 'Não foi possível agendar a recolha.')}
+                    onPress={() =>
+                      onAction(item.Donation_ID, 'schedule-collection', t('donations.claimed.scheduleError'))
+                    }
                     disabled={actingId === item.Donation_ID}
                   >
-                    {actingId === item.Donation_ID ? 'A agendar…' : 'Confirmar recolha agendada'}
+                    {actingId === item.Donation_ID
+                      ? t('donations.claimed.scheduling')
+                      : t('donations.claimed.confirmScheduled')}
                   </Button>
                 )}
                 {item.Status === 'Collection_Scheduled' && (
                   <Button
                     variant="secondary"
-                    onPress={() => onAction(item.Donation_ID, 'collect', 'Não foi possível marcar como recolhida.')}
+                    onPress={() => onAction(item.Donation_ID, 'collect', t('donations.claimed.collectError'))}
                     disabled={actingId === item.Donation_ID}
                   >
-                    {actingId === item.Donation_ID ? 'A confirmar…' : 'Marcar como recolhida'}
+                    {actingId === item.Donation_ID
+                      ? t('donations.claimed.confirming')
+                      : t('donations.claimed.markCollected')}
                   </Button>
                 )}
                 {item.Status === 'Collected' && (
@@ -428,7 +452,9 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                     onPress={() => setDeliverModalDonationId(item.Donation_ID)}
                     disabled={actingId === item.Donation_ID}
                   >
-                    {actingId === item.Donation_ID ? 'A confirmar…' : 'Confirmar entrega'}
+                    {actingId === item.Donation_ID
+                      ? t('donations.claimed.confirming')
+                      : t('donations.claimed.confirmDelivery')}
                   </Button>
                 )}
                 <Button
@@ -440,11 +466,11 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                     })
                   }
                 >
-                  Comunicar Ocorrência
+                  {t('donations.claimed.reportIssue')}
                 </Button>
                 {item.Status === 'Delivered' &&
                   (storiesByDonation.has(item.Donation_ID) ? (
-                    <Text style={styles.storyPublished}>✓ História publicada</Text>
+                    <Text style={styles.storyPublished}>{t('donations.claimed.storyPublished')}</Text>
                   ) : (
                     <Button
                       variant="ghost"
@@ -455,7 +481,7 @@ export function ClaimedByMeScreen({ navigation, route }: Props) {
                         })
                       }
                     >
-                      Publicar história
+                      {t('donations.claimed.publishStory')}
                     </Button>
                   ))}
               </View>

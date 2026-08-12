@@ -32,7 +32,7 @@ const upload = multer({
 successStoriesRouter.post(
   '/success-stories',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
   upload.single('image'),
   asyncHandler(async (req, res) => {
@@ -61,7 +61,7 @@ successStoriesRouter.post(
 successStoriesRouter.get(
   '/success-stories/mine',
   requireAuth,
-  requireRole('Institution'),
+  requireRole('Institution', 'Animal_Shelter'),
   requireVerified,
   asyncHandler(async (req, res) => {
     const institutionId = await requireOwnInstitutionId(req.user!.userId);
