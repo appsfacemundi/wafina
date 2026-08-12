@@ -114,3 +114,20 @@ Checked directly against the code on 2026-08-02, not assumed:
 
 If any of these change (e.g. a future analytics SDK or social login is added), this file goes stale on
 that point specifically and should be re-checked before submission.
+
+---
+
+## Re-checked 2026-08-12, against RECEBER and Animal Shelters
+
+Both shipped after this file was first drafted (2026-08-02). Checked whether either changes any answer
+above — **neither does**:
+
+- **RECEBER** (individual donation reservation/pickup) adds a reservation record, a 4-digit collection
+  PIN, and a collection-point location to the data model — all still within the existing "Location" and
+  "App activity" categories already declared, not a new data type. No new SDK, no new third-party data
+  sharing, no messaging feature added (the PIN and collection-point are shown in-app, not sent via SMS/
+  chat).
+- **Animal Shelters** is a new `Role`/`Recipient_Category` value, not a new data category — a shelter
+  account collects the same fields an Institution account already does (name, location, verification).
+- Net effect: **no change** to the Play Data Safety form, the Content rating answers, or Apple's App
+  Privacy nutrition label. The "Verified facts" list above still holds.
