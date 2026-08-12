@@ -5,7 +5,7 @@ import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso, parseSheetDate } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { getDonation } from './donations';
-import { sendEmail } from './email';
+import { EMAIL_BRAND_COLOR, EMAIL_LOGO_HTML, sendEmail } from './email';
 import { getInstitutionById } from './institutions';
 import { createNotification } from './notifications';
 import { findUserById } from './users';
@@ -58,7 +58,8 @@ async function sendImpactStoryEmail(donorId: string, story: { Title: string; Des
       subject: `Wafina — ${story.Title}`,
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-          <h2 style="color: #ff5a36;">A sua doação chegou a quem precisava! ❤️</h2>
+          ${EMAIL_LOGO_HTML}
+          <h2 style="color: ${EMAIL_BRAND_COLOR};">A sua doação chegou a quem precisava! ❤️</h2>
           <img src="${story.Image}" alt="" style="width: 100%; border-radius: 8px; margin: 16px 0;" />
           <h3>${story.Title}</h3>
           <p style="color: #475569; line-height: 1.5;">${story.Description}</p>

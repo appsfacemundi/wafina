@@ -7,6 +7,22 @@ export interface SendEmailInput {
 }
 
 /**
+ * Brand consistency fix, 2026-08-12 — lifecycle emails were still using
+ * `#ff5a36` and no logo, left over from before the brand redesign to the
+ * bougainvillea (`#ad1a67`) heart mark used everywhere else (app icons,
+ * store listings). Centralized here so every email template stays in sync
+ * with the actual current icon (`apps/mobile-donor/assets/icon.png`, not
+ * the older illustrated mark) instead of each call site drifting separately.
+ */
+export const EMAIL_BRAND_COLOR = '#ad1a67';
+
+export const EMAIL_LOGO_HTML = `
+  <div style="text-align: center; margin-bottom: 24px;">
+    <img src="https://wafina-donor-web.onrender.com/wafina-email-logo.png" alt="Wafina" width="56" height="56" style="border-radius: 14px; display: inline-block;" />
+  </div>
+`;
+
+/**
  * Notification preferences module, 2026-08-08 — the only email-sending path
  * in the app. Uses Resend's REST API directly (no SDK) to avoid a new
  * dependency for a single POST call. Failures are swallowed (logged, not

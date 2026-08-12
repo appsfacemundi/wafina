@@ -16,7 +16,7 @@ import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetLatLong, nowIso, parseSheetDate, sequenceSuffix, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
-import { sendEmail } from './email';
+import { EMAIL_BRAND_COLOR, EMAIL_LOGO_HTML, sendEmail } from './email';
 import { getRegionById } from './geo-regions';
 import { createNotification } from './notifications';
 import { findUserById } from './users';
@@ -127,7 +127,8 @@ async function sendDonationClaimedEmail(donorId: string, itemType: string, local
       subject: c.subject,
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-          <h2 style="color: #ff5a36;">${c.heading}</h2>
+          ${EMAIL_LOGO_HTML}
+          <h2 style="color: ${EMAIL_BRAND_COLOR};">${c.heading}</h2>
           <p style="color: #475569; line-height: 1.5;">${c.body1}</p>
           <p style="color: #475569; line-height: 1.5;">${c.body2}</p>
           <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">${c.footer}</p>
@@ -178,7 +179,8 @@ async function sendDonationReceivedEmail(
       subject: c.subject,
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-          <h2 style="color: #ff5a36;">${c.heading}</h2>
+          ${EMAIL_LOGO_HTML}
+          <h2 style="color: ${EMAIL_BRAND_COLOR};">${c.heading}</h2>
           <p style="color: #475569; line-height: 1.5;">${c.body}</p>
           ${thankYouPhoto ? `<img src="${thankYouPhoto}" alt="" style="width: 100%; border-radius: 8px; margin: 16px 0;" />` : ''}
           ${
