@@ -7,7 +7,8 @@ import {
   type GeoRegion,
   type InstitutionDonationView,
 } from '@wafina/shared';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -45,9 +46,16 @@ export function AvailableDonationsScreen() {
     }
   }
 
-  useEffect(() => {
-    load();
-  }, [firebaseUser]);
+  // Real-device finding, 2026-08-13: this only ran once on mount, so a
+  // donation approved by Admin (or newly matching) after this tab's first
+  // load never appeared until the app was fully restarted — same
+  // missing-refetch pattern already fixed on mobile-donor's MyDonationsScreen
+  // via useFocusEffect.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [firebaseUser]),
+  );
 
   useEffect(() => {
     if (!firebaseUser || !institution?.Country_ID) return;

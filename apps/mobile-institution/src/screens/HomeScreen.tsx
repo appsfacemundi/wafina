@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { useFocusEffect } from '@react-navigation/native';
 import type { Donation, InstitutionDonationView, Notification, SuccessStory } from '@wafina/shared';
 import type { ComponentProps } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -42,29 +43,35 @@ export function HomeScreen({ navigation }: Props) {
   const [stories, setStories] = useState<SuccessStory[] | null>(null);
   const [notifications, setNotifications] = useState<Notification[] | null>(null);
 
-  useEffect(() => {
-    if (!firebaseUser) return;
-    (async () => {
-      let idToken: string;
-      try {
-        idToken = await firebaseUser.getIdToken();
-      } catch {
-        return;
-      }
-      // Each stat loads independently — one endpoint failing (e.g. not applicable to this
-      // account's role) shouldn't blank the others.
-      const [availableResult, claimedResult, storiesResult, notificationsResult] = await Promise.allSettled([
-        apiFetch<InstitutionDonationView[]>('/donations/available', { idToken }),
-        apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
-        apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }),
-        apiFetch<Notification[]>('/notifications', { idToken }),
-      ]);
-      if (availableResult.status === 'fulfilled') setAvailable(availableResult.value);
-      if (claimedResult.status === 'fulfilled') setClaimedByMe(claimedResult.value);
-      if (storiesResult.status === 'fulfilled') setStories(storiesResult.value);
-      if (notificationsResult.status === 'fulfilled') setNotifications(notificationsResult.value);
-    })();
-  }, [firebaseUser]);
+  // Real-device finding, 2026-08-13: this only ran once on mount, so the
+  // "available donations" stat stayed stale after an Admin approval or a new
+  // matching donation — same missing-refetch pattern already fixed on
+  // mobile-donor's MyDonationsScreen via useFocusEffect.
+  useFocusEffect(
+    useCallback(() => {
+      if (!firebaseUser) return;
+      (async () => {
+        let idToken: string;
+        try {
+          idToken = await firebaseUser.getIdToken();
+        } catch {
+          return;
+        }
+        // Each stat loads independently — one endpoint failing (e.g. not applicable to this
+        // account's role) shouldn't blank the others.
+        const [availableResult, claimedResult, storiesResult, notificationsResult] = await Promise.allSettled([
+          apiFetch<InstitutionDonationView[]>('/donations/available', { idToken }),
+          apiFetch<InstitutionDonationView[]>('/donations/claimed-by-me', { idToken }),
+          apiFetch<SuccessStory[]>('/success-stories/mine', { idToken }),
+          apiFetch<Notification[]>('/notifications', { idToken }),
+        ]);
+        if (availableResult.status === 'fulfilled') setAvailable(availableResult.value);
+        if (claimedResult.status === 'fulfilled') setClaimedByMe(claimedResult.value);
+        if (storiesResult.status === 'fulfilled') setStories(storiesResult.value);
+        if (notificationsResult.status === 'fulfilled') setNotifications(notificationsResult.value);
+      })();
+    }, [firebaseUser]),
+  );
 
   const stats = useMemo(() => {
     const today = todayDateOnly();
