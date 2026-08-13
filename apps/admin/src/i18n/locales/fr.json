@@ -10,7 +10,7 @@
   "nav": {
     "dashboard": "Tableau de bord",
     "institutions": "Institutions",
-    "donations": "Dons",
+    "donations": "Dons + PIN",
     "approveDonations": "Approuver les Dons",
     "impactStories": "Histoires d'impact",
     "changeRequests": "Demandes de modification",
