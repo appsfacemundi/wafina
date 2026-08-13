@@ -109,44 +109,64 @@ const CONDITION_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Bom estado': 'checkmark-circle-outline',
 };
 
-export function DonateScreen({ navigation }: Props) {
+/**
+ * RC1 rejection-loop fix, 2026-08-13 — a photo value that could be either a
+ * freshly-picked local asset (ImagePicker.ImagePickerAsset) or the existing
+ * remote URL prefilled in edit mode. Only the fields this screen actually
+ * reads are required, so both shapes satisfy it structurally.
+ */
+type PhotoValue = { uri: string; mimeType?: string };
+
+export function DonateScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { firebaseUser, session } = useAuth();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
 
-  const [itemType, setItemType] = useState<string>(ITEM_TYPES[0]);
+  // RC1 rejection-loop fix, 2026-08-13 — when opened from MyDonationsScreen's
+  // "Editar" action on a rejected donation, this same screen prefills every
+  // field from the existing donation and PATCHes instead of POSTing. See the
+  // RootStackParamList comment for why the full object (not just an ID) is
+  // passed through navigation.
+  const editDonation = route.params?.editDonation;
+  const isEditMode = !!editDonation;
+
+  const [itemType, setItemType] = useState<string>(editDonation?.Item_Type ?? ITEM_TYPES[0]);
   // RC1 UX fix, 2026-08-10 — reverted the "start at 1" default: it let a
   // donor swipe/submit past the quantity step without ever touching it,
   // silently sending whatever the last value was. Starting empty forces a
   // deliberate entry; submitting empty is now a real, visible validation
   // failure instead of a silent default.
-  const [quantity, setQuantity] = useState('');
+  const [quantity, setQuantity] = useState(editDonation ? String(editDonation.Quantity) : '');
   // RC1 audit fix, 2026-08-10 — server-side validation already rejected an
   // invalid quantity/missing photo; this only adds the visual cue so the
   // donor can immediately see WHICH field the top error banner is about,
   // instead of having to re-scan the whole form.
   const [quantityInvalid, setQuantityInvalid] = useState(false);
   const [photoMissing, setPhotoMissing] = useState(false);
-  const [condition, setCondition] = useState<string>(CONDITIONS[0]);
-  const [recipientCategory, setRecipientCategory] = useState<RecipientCategory>(RECIPIENT_CATEGORIES[0]);
-  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(DELIVERY_METHODS[0]);
-  const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [condition, setCondition] = useState<string>(editDonation?.Condition ?? CONDITIONS[0]);
+  const [recipientCategory, setRecipientCategory] = useState<RecipientCategory>(
+    editDonation?.Recipient_Category ?? RECIPIENT_CATEGORIES[0],
+  );
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(
+    editDonation?.Delivery_Method ?? DELIVERY_METHODS[0],
+  );
+  const [photo, setPhoto] = useState<PhotoValue | null>(editDonation ? { uri: editDonation.Photo } : null);
 
   const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
   const [isCorporateDonation, setIsCorporateDonation] = useState(false);
 
-  const [locationStatus, setLocationStatus] = useState<LocationStatus>('capturing');
-  const [lat, setLat] = useState('');
-  const [lng, setLng] = useState('');
-  const [address, setAddress] = useState('');
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>(isEditMode ? 'captured' : 'capturing');
+  const [lat, setLat] = useState(editDonation ? String(editDonation.Location.lat) : '');
+  const [lng, setLng] = useState(editDonation ? String(editDonation.Location.lng) : '');
+  const [address, setAddress] = useState(editDonation?.Address ?? '');
   const [locationError, setLocationError] = useState('');
   // Donate screen redesign, 2026-08-07 — the address/override field is
   // valuable (see RC1 pickup-location fix) but not needed on the common
   // path where GPS just works, so it's tucked behind a link rather than
   // always taking up space — "fast to fill" for the donor who has nothing
   // to add, still available for the one who does.
-  const [addressExpanded, setAddressExpanded] = useState(false);
+  const [addressExpanded, setAddressExpanded] = useState(!!editDonation?.Address);
 
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -170,6 +190,10 @@ export function DonateScreen({ navigation }: Props) {
   }, [firebaseUser, session?.corporateAccountId]);
 
   useEffect(() => {
+    // Edit mode already has a valid location from the original submission —
+    // re-capturing GPS here would silently move the pickup point out from
+    // under a donor who's just fixing an unrelated field like Item_Type.
+    if (isEditMode) return;
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -298,6 +322,50 @@ export function DonateScreen({ navigation }: Props) {
     setSubmitting(true);
     try {
       const idToken = await firebaseUser?.getIdToken();
+
+      if (isEditMode) {
+        // RC1 rejection-loop fix, 2026-08-13 — only re-upload the photo if
+        // the donor actually picked a new one (photo.uri still equal to the
+        // original remote URL means they left it untouched); otherwise a
+        // plain JSON PATCH avoids re-uploading a file that's already on
+        // Drive. Both shapes hit the same PATCH route (see routes/donations.ts).
+        const photoChanged = photo.uri !== editDonation!.Photo;
+        if (photoChanged) {
+          await uploadFile(`/donations/${editDonation!.Donation_ID}`, 'photo', photo.uri, {
+            method: 'PATCH',
+            idToken,
+            mimeType: photo.mimeType ?? 'image/jpeg',
+            parameters: {
+              Item_Type: itemType,
+              Quantity: quantity,
+              Condition: condition,
+              Recipient_Category: recipientCategory,
+              Delivery_Method: deliveryMethod,
+              Address: address,
+              Location_lat: lat,
+              Location_lng: lng,
+            },
+          });
+        } else {
+          await apiFetch(`/donations/${editDonation!.Donation_ID}`, {
+            method: 'PATCH',
+            idToken,
+            body: {
+              Item_Type: itemType,
+              Quantity: Number(quantity),
+              Condition: condition,
+              Recipient_Category: recipientCategory,
+              Delivery_Method: deliveryMethod,
+              Address: address,
+              Location: { lat: Number(lat), lng: Number(lng) },
+            },
+          });
+        }
+        showToast(t('donate.editSuccess'));
+        navigation.navigate('Tabs', { screen: 'MyDonations' });
+        return;
+      }
+
       await uploadFile('/donations', 'photo', photo.uri, {
         idToken,
         mimeType: photo.mimeType ?? 'image/jpeg',
@@ -323,7 +391,7 @@ export function DonateScreen({ navigation }: Props) {
       // clearest possible confirmation.
       navigation.navigate('Tabs', { screen: 'MyDonations' });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('donate.submitError'));
+      setError(err instanceof ApiError ? err.message : t(isEditMode ? 'donate.editError' : 'donate.submitError'));
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -344,7 +412,7 @@ export function DonateScreen({ navigation }: Props) {
       <ScrollView ref={scrollRef} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing[6] }]}>
         <View style={styles.headerRow}>
           <View style={styles.headerSpacer} />
-          <Text style={styles.title}>{t('donate.title')}</Text>
+          <Text style={styles.title}>{t(isEditMode ? 'donate.editTitle' : 'donate.title')}</Text>
           {/* Navigation audit, 2026-08-07 — now that this screen is a modal
               reached from Home's "Doar agora" button (not a tab), it needs an
               explicit way back for anyone who opens it and changes their
@@ -363,11 +431,18 @@ export function DonateScreen({ navigation }: Props) {
 
         <View style={styles.hero}>
           <View style={styles.heroIconWrap}>
-            <Text style={styles.heroIcon}>🎁</Text>
+            <Text style={styles.heroIcon}>{isEditMode ? '✏️' : '🎁'}</Text>
           </View>
-          <Text style={styles.heroTitle}>{t('donate.heroTitle')}</Text>
-          <Text style={styles.heroSubtitle}>{t('donate.heroSubtitle')}</Text>
+          <Text style={styles.heroTitle}>{t(isEditMode ? 'donate.editHeroTitle' : 'donate.heroTitle')}</Text>
+          <Text style={styles.heroSubtitle}>{t(isEditMode ? 'donate.editHeroSubtitle' : 'donate.heroSubtitle')}</Text>
         </View>
+
+        {/* RC1 rejection-loop fix, 2026-08-13 — the whole reason this screen
+            has an edit mode: without this, the donor sees a red "Rejeitada"
+            badge on their donation card but never learns why. */}
+        {isEditMode && editDonation?.Approval_Rejection_Reason && (
+          <ErrorBanner message={`${t('donations.rejectionReasonLabel')} ${editDonation.Approval_Rejection_Reason}`} />
+        )}
 
         <Card style={{ gap: spacing[5] }}>
           <View style={{ gap: spacing[2] }}>
@@ -491,7 +566,10 @@ export function DonateScreen({ navigation }: Props) {
             </View>
           </View>
 
-          {corporateAccount && (
+          {/* RC1 rejection-loop fix, 2026-08-13 — Corporate_Account_ID is set once at
+              creation and isn't part of editDonation's patchable fields (see
+              services/donations.ts), so this choice is meaningless once editing. */}
+          {corporateAccount && !isEditMode && (
             <View style={{ gap: spacing[2] }}>
               <SectionHeader n={6} title={t('donate.sectionDonateAs')} />
               <Select
@@ -512,7 +590,7 @@ export function DonateScreen({ navigation }: Props) {
 
           <View ref={photoSectionRef} style={{ gap: spacing[2] }}>
             <View style={styles.photoHeaderRow}>
-              <SectionHeader n={corporateAccount ? 7 : 6} title={t('donate.sectionPhoto')} />
+              <SectionHeader n={corporateAccount && !isEditMode ? 7 : 6} title={t('donate.sectionPhoto')} />
               <View style={styles.requiredPill}>
                 <Text style={styles.requiredPillText}>{t('donate.required')}</Text>
               </View>
@@ -602,7 +680,7 @@ export function DonateScreen({ navigation }: Props) {
           {error ? <ErrorBanner message={error} /> : null}
 
           <Button variant="primary" size="large" onPress={onSubmit} loading={submitting} fullWidth>
-            {t('donate.submitButton')}
+            {t(isEditMode ? 'donate.saveChangesButton' : 'donate.submitButton')}
           </Button>
         </Card>
       </ScrollView>

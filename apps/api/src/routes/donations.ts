@@ -108,13 +108,37 @@ donationsRouter.get(
   }),
 );
 
-/** Spec 11.1.2 — a donation may only be edited by its donor while still Pending. */
+/**
+ * Spec 11.1.2 — a donation may only be edited by its donor while still Pending.
+ *
+ * RC1 rejection-loop fix, 2026-08-13 — multipart (not JSON) so a donor
+ * correcting a rejected donation can also replace the photo, matching the
+ * create route's shape. The photo is optional here (unlike create): a
+ * correction that's purely textual (wrong Item_Type, wrong quantity) doesn't
+ * need to re-upload the existing one. `upload.single('photo')` leaves
+ * `req.file` undefined when no file is sent, which multer handles natively.
+ */
 donationsRouter.patch(
   '/donations/:id',
   requireAuth,
   requireRole('Donor'),
+  upload.single('photo'),
   asyncHandler(async (req, res) => {
-    const donation = await editDonation(req.user!.userId, req.params.id, req.body);
+    const patch: Record<string, unknown> = {};
+    if (req.body.Item_Type !== undefined) patch.Item_Type = req.body.Item_Type;
+    if (req.body.Quantity !== undefined) patch.Quantity = Number(req.body.Quantity);
+    if (req.body.Condition !== undefined) patch.Condition = req.body.Condition;
+    if (req.body.Recipient_Category !== undefined) patch.Recipient_Category = req.body.Recipient_Category;
+    if (req.body.Delivery_Method !== undefined) patch.Delivery_Method = req.body.Delivery_Method;
+    if (req.body.City !== undefined) patch.City = req.body.City;
+    if (req.body.Address !== undefined) patch.Address = req.body.Address;
+    if (req.body.Location_lat !== undefined && req.body.Location_lng !== undefined) {
+      patch.Location = { lat: Number(req.body.Location_lat), lng: Number(req.body.Location_lng) };
+    }
+    if (req.file) {
+      patch.Photo = await uploadPhoto(req.file.buffer, `${Date.now()}-${req.file.originalname}`, req.file.mimetype);
+    }
+    const donation = await editDonation(req.user!.userId, req.params.id, patch);
     res.json(donation);
   }),
 );

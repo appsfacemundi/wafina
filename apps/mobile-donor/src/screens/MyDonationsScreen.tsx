@@ -11,28 +11,39 @@ import {
   type Donation,
   type SuccessStory,
 } from '@wafina/shared';
+import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/Badge';
+import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { DonationTimeline } from '@/components/DonationTimeline';
 import { EmptyState } from '@/components/EmptyState';
 import { Input } from '@/components/Input';
 import { useAuth } from '@/context/AuthContext';
-import { apiFetch } from '@/lib/api';
-import type { AppTabParamList } from '@/navigation/RootNavigator';
+import { useToast } from '@/context/ToastContext';
+import { ApiError, apiFetch } from '@/lib/api';
+import type { AppTabParamList, RootStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
-type Props = BottomTabScreenProps<AppTabParamList, 'MyDonations'>;
+// Composite for the same reason as HomeScreen's Props (see its comment):
+// "Editar" on a rejected donation navigates to 'Donate', which lives on
+// RootStack one level up, not on this tab navigator.
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<AppTabParamList, 'MyDonations'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 type StatusFilter = 'all' | 'pending' | 'accepted' | 'delivered';
 
-export function MyDonationsScreen({ route }: Props) {
+export function MyDonationsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const { firebaseUser, session } = useAuth();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const highlightId = route.params?.donationId;
   const listRef = useRef<FlatList<Donation>>(null);
@@ -46,6 +57,24 @@ export function MyDonationsScreen({ route }: Props) {
   // request; only one status group is shown at a time instead of three
   // simultaneously-collapsible ones.
   const [filter, setFilter] = useState<StatusFilter>('all');
+  // RC1 rejection-loop fix, 2026-08-13 — tracks which card's "Reenviar" is
+  // in flight so only that one card's button shows a loading state.
+  const [resubmittingId, setResubmittingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!firebaseUser) return;
+    try {
+      const idToken = await firebaseUser.getIdToken();
+      const [donationList, stories] = await Promise.all([
+        apiFetch<Donation[]>('/donations/mine', { idToken }),
+        apiFetch<SuccessStory[]>('/donor/success-stories', { idToken }),
+      ]);
+      setDonations(donationList);
+      setStoriesByDonation(new Map(stories.map((s) => [s.Donation_ID, s])));
+    } catch {
+      setError(t('donations.loadError'));
+    }
+  }, [firebaseUser, t]);
 
   // Real-device finding, 2026-08-04: this only ran once on mount, so a
   // donation submitted on the Donate tab never appeared here until the app
@@ -53,22 +82,27 @@ export function MyDonationsScreen({ route }: Props) {
   // becomes active, not just the first time.
   useFocusEffect(
     useCallback(() => {
-      if (!firebaseUser) return;
-      (async () => {
-        try {
-          const idToken = await firebaseUser.getIdToken();
-          const [donationList, stories] = await Promise.all([
-            apiFetch<Donation[]>('/donations/mine', { idToken }),
-            apiFetch<SuccessStory[]>('/donor/success-stories', { idToken }),
-          ]);
-          setDonations(donationList);
-          setStoriesByDonation(new Map(stories.map((s) => [s.Donation_ID, s])));
-        } catch {
-          setError(t('donations.loadError'));
-        }
-      })();
-    }, [firebaseUser]),
+      load();
+    }, [load]),
   );
+
+  // RC1 rejection-loop fix, 2026-08-13 — the donor's only way to act on a
+  // rejection without leaving the app: puts the donation straight back in
+  // Admin's review queue. No confirmation dialog, matching the low-friction
+  // pattern already used for Institution's claim action.
+  async function onResubmit(donationId: string) {
+    setResubmittingId(donationId);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch(`/donations/${donationId}/resubmit`, { method: 'POST', idToken });
+      showToast(t('donations.resubmitSuccess'));
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('donations.resubmitError'));
+    } finally {
+      setResubmittingId(null);
+    }
+  }
 
   useEffect(() => {
     if (!firebaseUser || !session?.corporateAccountId) return;
@@ -276,6 +310,34 @@ export function MyDonationsScreen({ route }: Props) {
                 </View>
                 <Badge tone={donorDonationStatusTone(item)}>{t(donorDonationStatusLabelKey(item))}</Badge>
               </View>
+              {/* RC1 rejection-loop fix, 2026-08-13 — until now the reason only ever
+                  appeared once, in a notification the donor could easily miss; this
+                  makes it a permanent part of the donation card, plus the actual
+                  actions (edit / resubmit) the backend has supported all along but
+                  nothing in this app ever surfaced. */}
+              {item.Approval_Status === 'Rejected' && (
+                <View style={styles.rejectionBox}>
+                  <Text style={styles.rejectionText}>
+                    ⚠️ {t('donations.rejectionReasonLabel')} {item.Approval_Rejection_Reason}
+                  </Text>
+                  <View style={styles.rejectionActions}>
+                    <View style={{ flex: 1 }}>
+                      <Button variant="secondary" onPress={() => navigation.navigate('Donate', { editDonation: item })}>
+                        {t('donations.editButton')}
+                      </Button>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Button
+                        variant="primary"
+                        loading={resubmittingId === item.Donation_ID}
+                        onPress={() => onResubmit(item.Donation_ID)}
+                      >
+                        {t('donations.resubmitButton')}
+                      </Button>
+                    </View>
+                  </View>
+                </View>
+              )}
               <Text style={styles.donationId}>
                 {item.Corporate_Account_ID
                   ? corporateAccount
@@ -323,6 +385,23 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  // RC1 rejection-loop fix, 2026-08-13
+  rejectionBox: {
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radius.sm,
+    padding: spacing[3],
+    gap: spacing[3],
+  },
+  rejectionText: {
+    fontFamily: 'Manrope-400',
+    fontSize: 13,
+    color: colors.danger,
+    lineHeight: 18,
+  },
+  rejectionActions: {
+    flexDirection: 'row',
+    gap: spacing[2],
   },
   content: {
     padding: spacing[6],

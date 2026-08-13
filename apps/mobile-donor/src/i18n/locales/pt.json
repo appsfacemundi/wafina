@@ -294,7 +294,13 @@
     "locationRequiredError": "É necessária uma localização válida. Ative o GPS ou confirme a sua morada.",
     "submitButton": "❤️ Confirmar doação",
     "submitError": "Não foi possível submeter a doação.",
-    "submitSuccess": "Doação submetida com sucesso!"
+    "submitSuccess": "Doação submetida com sucesso!",
+    "editTitle": "Editar Doação",
+    "editHeroTitle": "Corrija os dados e reenvie para revisão",
+    "editHeroSubtitle": "A equipa Wafina indicou o que precisa de ser corrigido — reveja os dados abaixo e guarde as alterações.",
+    "saveChangesButton": "Guardar Alterações",
+    "editError": "Não foi possível guardar as alterações.",
+    "editSuccess": "Alterações guardadas com sucesso!"
   },
   "donations": {
     "title": "Minhas Doações",
@@ -322,7 +328,12 @@
     "corporateDonationWithCompany": "🏢 Doação da Empresa – {{company}}",
     "expectedCollection": "Recolha estimada: {{date}}",
     "expectedDelivery": "Entrega estimada: {{date}}",
-    "impactStoryLabel": "História de impacto"
+    "impactStoryLabel": "História de impacto",
+    "rejectionReasonLabel": "Motivo:",
+    "editButton": "✏️ Editar",
+    "resubmitButton": "🔄 Reenviar para revisão",
+    "resubmitSuccess": "Doação reenviada para revisão!",
+    "resubmitError": "Não foi possível reenviar a doação."
   },
   "whatsapp": {
     "contactLabel": "Contactar via WhatsApp",

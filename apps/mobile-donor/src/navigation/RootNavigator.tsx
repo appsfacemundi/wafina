@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { Donation } from '@wafina/shared';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -55,7 +56,12 @@ export type AppTabParamList = {
 // sibling screen instead of a tab, is what actually removes the slot.
 export type RootStackParamList = {
   Tabs: { screen?: keyof AppTabParamList } | undefined;
-  Donate: undefined;
+  // RC1 rejection-loop fix, 2026-08-13 — optional `editDonation` puts this
+  // same screen into edit mode (prefilled fields, PATCH instead of POST) for
+  // a donor correcting a rejected donation from MyDonationsScreen. Passed as
+  // the full object (not just an ID) since the caller already has it loaded
+  // and there's no GET-single-donation route for Donor to refetch it from.
+  Donate: { editDonation?: Donation } | undefined;
   // RC1 RECEBER — same off-tab-bar sibling pattern as Donate (see the comment
   // above RootStackParamList): reached only via HomeScreen's card, never a
   // registered tab.

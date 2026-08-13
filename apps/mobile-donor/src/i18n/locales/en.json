@@ -294,7 +294,13 @@
     "locationRequiredError": "A valid location is required. Turn on GPS or confirm your address.",
     "submitButton": "❤️ Confirm donation",
     "submitError": "We couldn't submit the donation.",
-    "submitSuccess": "Donation submitted successfully!"
+    "submitSuccess": "Donation submitted successfully!",
+    "editTitle": "Edit Donation",
+    "editHeroTitle": "Fix the details and resend for review",
+    "editHeroSubtitle": "The Wafina team told you what needs fixing — review the details below and save your changes.",
+    "saveChangesButton": "Save Changes",
+    "editError": "We couldn't save your changes.",
+    "editSuccess": "Changes saved successfully!"
   },
   "donations": {
     "title": "My Donations",
@@ -322,7 +328,12 @@
     "corporateDonationWithCompany": "🏢 Company Donation – {{company}}",
     "expectedCollection": "Estimated collection: {{date}}",
     "expectedDelivery": "Estimated delivery: {{date}}",
-    "impactStoryLabel": "Impact story"
+    "impactStoryLabel": "Impact story",
+    "rejectionReasonLabel": "Reason:",
+    "editButton": "✏️ Edit",
+    "resubmitButton": "🔄 Resend for review",
+    "resubmitSuccess": "Donation resent for review!",
+    "resubmitError": "We couldn't resend the donation."
   },
   "whatsapp": {
     "contactLabel": "Contact via WhatsApp",
