@@ -80,7 +80,7 @@ function SignInForm() {
         />
       </div>
       <div className="auth-brand" style={{ maxWidth: 360 }}>
-        <img src="/wafina-icon-mark.png" alt="Wafina" width={92} height={77} />
+        <img src="/wafina-icon-mark.png" alt="Wafina" width={92} height={92} />
         <h1 className="auth-welcome" style={{ fontSize: 24 }}>{t('auth.title')}</h1>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 13.5, marginTop: 4 }}>
           {t('auth.subtitle')}

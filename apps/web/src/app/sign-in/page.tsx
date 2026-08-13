@@ -49,7 +49,7 @@ export default function SignInPage() {
         />
       </div>
       <div className="auth-brand">
-        <img src="/wafina-icon-mark.png" alt="Wafina" width={104} height={87} />
+        <img src="/wafina-icon-mark.png" alt="Wafina" width={96} height={96} />
         <span
           className="auth-badge"
           style={{ backgroundColor: 'var(--color-accent-soft)', color: 'var(--color-accent)' }}
