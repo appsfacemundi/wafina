@@ -22,3 +22,21 @@ export interface AdminCorporateAccountView extends CorporateAccount {
   Employee_Count: number;
   Donation_Count: number;
 }
+
+/**
+ * Corporate dashboard (V2, 2026-08-17) — aggregate-only counts for a
+ * company's own employees, shown to any linked donor. Deliberately no
+ * per-employee breakdown (no company-admin role, no per-employee consent to
+ * expose individual activity to coworkers) — totals only.
+ */
+export interface CorporateAccountStats {
+  employeeCount: number;
+  donationCount: number;
+  deliveredCount: number;
+  itemsDonated: number;
+}
+
+/** GET /donor/corporate-account response shape once a donor is linked to a company. */
+export interface CorporateAccountWithStats extends CorporateAccount {
+  stats: CorporateAccountStats;
+}

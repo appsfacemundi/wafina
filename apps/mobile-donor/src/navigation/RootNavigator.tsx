@@ -14,6 +14,7 @@ import { ImpactScreen } from '@/screens/ImpactScreen';
 import { InstitutionsScreen } from '@/screens/InstitutionsScreen';
 import { MyDonationsScreen } from '@/screens/MyDonationsScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
+import { CorporateDashboardScreen } from '@/screens/CorporateDashboardScreen';
 import { OnboardingProfileScreen } from '@/screens/OnboardingProfileScreen';
 import { ReceberScreen } from '@/screens/ReceberScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
@@ -66,6 +67,9 @@ export type RootStackParamList = {
   // above RootStackParamList): reached only via HomeScreen's card, never a
   // registered tab.
   Receber: undefined;
+  // Corporate dashboard (V2, 2026-08-17) — same off-tab-bar sibling pattern,
+  // reached only via Settings' corporate card once a donor is linked.
+  CorporateDashboard: undefined;
 };
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -221,6 +225,7 @@ export function RootNavigator() {
           <RootStack.Screen name="Tabs" component={AppTabs} />
           <RootStack.Screen name="Donate" component={DonateScreen} options={{ presentation: 'modal' }} />
           <RootStack.Screen name="Receber" component={ReceberScreen} />
+          <RootStack.Screen name="CorporateDashboard" component={CorporateDashboardScreen} />
         </RootStack.Navigator>
         <WhatsAppFloat />
         </>

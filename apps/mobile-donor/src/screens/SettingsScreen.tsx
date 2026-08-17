@@ -1,3 +1,6 @@
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MEDICAL_SUPPLY_EXAMPLES, type GeoRegion, type ImpactFeedVisibility, type SwitchPreference } from '@wafina/shared';
 import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,7 +14,16 @@ import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError, apiFetch } from '@/lib/api';
 import { simulateCountryDetection } from '@/lib/dev-country-simulator';
+import type { AppTabParamList, RootStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, spacing } from '@/theme/tokens';
+
+// Composite for the same reason as HomeScreen's Props — navigating to
+// 'CorporateDashboard' targets a RootStack sibling of the tab navigator, not
+// a route within AppTab itself.
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<AppTabParamList, 'Settings'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 /** The 5 countries geo-detect.ts can actually recognize from coordinates today. */
 const SIMULATABLE_COUNTRIES = [
@@ -28,7 +40,7 @@ interface ProfileData {
   Home_Country_ID: string;
 }
 
-export function SettingsScreen() {
+export function SettingsScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { firebaseUser, session, refreshSession, signOutUser } = useAuth();
   const insets = useSafeAreaInsets();
@@ -285,7 +297,12 @@ export function SettingsScreen() {
         <Card style={{ gap: spacing[3] }}>
           <Text style={styles.cardTitle}>{t('settings.corporateTitle')}</Text>
           {session?.donorSubtype === 'Corporate' ? (
-            <Text style={styles.hint}>{t('settings.corporateAlreadyLinked')}</Text>
+            <>
+              <Text style={styles.hint}>{t('settings.corporateAlreadyLinked')}</Text>
+              <Button variant="secondary" onPress={() => navigation.navigate('CorporateDashboard')}>
+                {t('settings.viewCorporateDashboard')}
+              </Button>
+            </>
           ) : (
             <>
               <Text style={styles.hint}>{t('settings.corporateHint')}</Text>

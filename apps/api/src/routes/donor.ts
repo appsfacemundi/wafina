@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { getFirebaseAuth } from '../config/firebase';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
-import { getCorporateAccountById } from '../services/corporate-accounts';
+import { getCorporateAccountById, getCorporateAccountStats } from '../services/corporate-accounts';
 import { redeemInvitationCode } from '../services/invitation-codes';
 import { completeProfile, deleteDonorAccount, findUserById, linkCorporateAccount } from '../services/users';
 import { ValidationError } from '../services/validation-error';
@@ -64,6 +64,12 @@ donorRouter.post(
  * RC1 individual-vs-corporate donations — the donation form needs the linked
  * company's name to label the "Corporate Donation (X)" choice. Returns null
  * when the donor isn't linked to any company (nothing to choose from).
+ *
+ * Corporate dashboard (V2, 2026-08-17) — also carries `stats`, the same
+ * aggregate counts Admin's Companies page shows (getCorporateAccountStats),
+ * so the Settings screen's existing single fetch doubles as the dashboard's
+ * data source. Additive to the response shape — existing consumers reading
+ * only Company_Name/Logo/etc. are unaffected.
  */
 donorRouter.get(
   '/donor/corporate-account',
@@ -71,7 +77,15 @@ donorRouter.get(
   requireRole('Donor'),
   asyncHandler(async (req, res) => {
     const { corporateAccountId } = req.user!;
-    res.json(corporateAccountId ? await getCorporateAccountById(corporateAccountId) : null);
+    if (!corporateAccountId) {
+      res.json(null);
+      return;
+    }
+    const [account, stats] = await Promise.all([
+      getCorporateAccountById(corporateAccountId),
+      getCorporateAccountStats(corporateAccountId),
+    ]);
+    res.json(account ? { ...account, stats } : null);
   }),
 );
 

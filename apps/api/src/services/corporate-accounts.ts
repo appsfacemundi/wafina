@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AdminCorporateAccountView, CorporateAccount, UserStatus } from '@wafina/shared';
+import type { AdminCorporateAccountView, CorporateAccount, CorporateAccountStats, UserStatus } from '@wafina/shared';
 import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso } from '../config/sheet-values';
@@ -87,23 +87,37 @@ export async function reactivateCorporateAccount(id: string): Promise<CorporateA
   return getCorporateAccountOrThrow(id);
 }
 
-/** Admin's Companies page — every company plus the counts Admin needs to manage it. */
-export async function listAllCorporateAccounts(): Promise<AdminCorporateAccountView[]> {
-  const [accountRows, donationRows] = await Promise.all([
-    getRows(SHEET_TABS.corporateAccounts),
+/**
+ * Corporate dashboard (V2, 2026-08-17) — the counts a company itself and
+ * Admin both need, extracted out of what used to be listAllCorporateAccounts'
+ * inline logic so the donor-facing dashboard reuses the exact same numbers
+ * Admin already sees, rather than a second computation that could drift.
+ */
+export async function getCorporateAccountStats(corporateAccountId: string): Promise<CorporateAccountStats> {
+  const [employeeIds, donationRows] = await Promise.all([
+    listUserIdsByCorporateAccount(corporateAccountId),
     getRows(SHEET_TABS.donations),
   ]);
+  // RC1: only donations explicitly marked Corporate count here — see
+  // Donation.Corporate_Account_ID and services/donations.ts.
+  const companyDonations = donationRows.filter((d) => d.Corporate_Account_ID === corporateAccountId);
+  return {
+    employeeCount: employeeIds.length,
+    donationCount: companyDonations.length,
+    deliveredCount: companyDonations.filter((d) => d.Status === 'Delivered').length,
+    itemsDonated: companyDonations.reduce((sum, d) => sum + (Number(d.Quantity) || 0), 0),
+  };
+}
+
+/** Admin's Companies page — every company plus the counts Admin needs to manage it. */
+export async function listAllCorporateAccounts(): Promise<AdminCorporateAccountView[]> {
+  const accountRows = await getRows(SHEET_TABS.corporateAccounts);
 
   return Promise.all(
     accountRows.map(async (row) => {
       const account = rowToCorporateAccount(row);
-      const employeeIds = await listUserIdsByCorporateAccount(account.Corporate_Account_ID);
-      // RC1: only donations explicitly marked Corporate count here — see
-      // Donation.Corporate_Account_ID and services/donations.ts.
-      const donationCount = donationRows.filter(
-        (d) => d.Corporate_Account_ID === account.Corporate_Account_ID,
-      ).length;
-      return { ...account, Employee_Count: employeeIds.length, Donation_Count: donationCount };
+      const stats = await getCorporateAccountStats(account.Corporate_Account_ID);
+      return { ...account, Employee_Count: stats.employeeCount, Donation_Count: stats.donationCount };
     }),
   );
 }

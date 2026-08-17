@@ -104,6 +104,7 @@
     "savingPreference": "Saving preference…",
     "corporateTitle": "Company account",
     "corporateAlreadyLinked": "This account is already linked to a company account.",
+    "viewCorporateDashboard": "View company dashboard",
     "corporateHint": "If your company has a partnership with Wafina, enter the code provided by the Admin.",
     "inviteCodeLabel": "Invite code",
     "corporateJoinError": "We couldn't link the account.",
@@ -375,5 +376,15 @@
       "reserved": "Reserved",
       "delivered": "Received"
     }
+  },
+  "corporateDashboard": {
+    "title": "Company Dashboard",
+    "back": "Back",
+    "notLinked": "You're not linked to a company yet.",
+    "employees": "Employees",
+    "donations": "Donations",
+    "delivered": "Delivered",
+    "items": "Items donated",
+    "privacyNote": "These numbers show only the company total — no individual employee's activity is ever shared with coworkers."
   }
 }

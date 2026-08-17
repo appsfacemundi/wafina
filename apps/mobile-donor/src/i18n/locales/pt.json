@@ -104,6 +104,7 @@
     "savingPreference": "A guardar preferência…",
     "corporateTitle": "Conta corporativa",
     "corporateAlreadyLinked": "Esta conta já está associada a uma conta corporativa.",
+    "viewCorporateDashboard": "Ver painel da empresa",
     "corporateHint": "Se a sua empresa tem uma parceria com a Wafina, introduza o código fornecido pelo Admin.",
     "inviteCodeLabel": "Código de convite",
     "corporateJoinError": "Não foi possível associar a conta.",
@@ -375,5 +376,15 @@
       "reserved": "Reservado",
       "delivered": "Recebido"
     }
+  },
+  "corporateDashboard": {
+    "title": "Painel da Empresa",
+    "back": "Voltar",
+    "notLinked": "Ainda não está associado a nenhuma empresa.",
+    "employees": "Colaboradores",
+    "donations": "Doações",
+    "delivered": "Entregues",
+    "items": "Itens doados",
+    "privacyNote": "Estes números mostram apenas o total da empresa — a atividade individual de cada colaborador nunca é partilhada com os colegas."
   }
 }
