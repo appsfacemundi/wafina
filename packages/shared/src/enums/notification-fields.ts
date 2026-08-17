@@ -44,6 +44,8 @@ export const NOTIFICATION_TYPES = [
   'donation_correction_requested',
   /** RC1 RECEBER — individual (People-category) reservation lifecycle. */
   'donation_reserved',
+  /** Admin donation edit/cancel (V2, 2026-08-17) — Admin voided a donation on the donor's behalf. */
+  'donation_cancelled',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

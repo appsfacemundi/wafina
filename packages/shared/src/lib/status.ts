@@ -11,6 +11,7 @@ export const DONATION_STATUS_LABEL: Record<DonationStatus, string> = {
   Collection_Scheduled: 'Recolha Agendada',
   Collected: 'Recolhida',
   Delivered: 'Entregue',
+  Cancelled: 'Cancelada',
 };
 
 /**
@@ -27,6 +28,7 @@ export const DONATION_STATUS_LABEL_KEY: Record<DonationStatus, string> = {
   Collection_Scheduled: 'status.donation.collectionScheduled',
   Collected: 'status.donation.collected',
   Delivered: 'status.donation.delivered',
+  Cancelled: 'status.donation.cancelled',
 };
 
 /**
@@ -36,12 +38,13 @@ export const DONATION_STATUS_LABEL_KEY: Record<DonationStatus, string> = {
  * journey is visually distinguishable, not just Pending vs. everything-else
  * vs. Delivered.
  */
-export const DONATION_STATUS_TONE: Record<DonationStatus, 'warning' | 'info' | 'success' | 'neutral'> = {
+export const DONATION_STATUS_TONE: Record<DonationStatus, 'warning' | 'info' | 'success' | 'neutral' | 'danger'> = {
   Pending: 'warning',
   Claimed: 'neutral',
   Collection_Scheduled: 'info',
   Collected: 'info',
   Delivered: 'success',
+  Cancelled: 'danger',
 };
 
 /**
@@ -132,7 +135,8 @@ export const INDIVIDUAL_DONATION_STATE_TONE: Record<IndividualDonationState, 'wa
   Delivered: 'success',
 };
 
-type JourneyStatus = Exclude<DonationStatus, 'Pending'>;
+/** Cancelled is excluded — it's a terminal off-ramp, never a step on the claim->deliver journey. */
+type JourneyStatus = Exclude<DonationStatus, 'Pending' | 'Cancelled'>;
 
 /** Ordered journey for the timeline component — Pending isn't shown (an institution only sees post-acceptance steps). */
 export const DONATION_JOURNEY_STEPS: JourneyStatus[] = [

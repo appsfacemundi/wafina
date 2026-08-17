@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  CONDITIONS,
   countryFlagEmoji,
   DELIVERY_METHOD_LABEL,
   DELIVERY_METHODS,
@@ -57,7 +58,9 @@ export default function AdminDonationsPage() {
   const [countryFilter, setCountryFilter] = useState('');
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | ''>('');
   const [categoryFilter, setCategoryFilter] = useState<RecipientCategory | ''>('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'reserved' | 'delivered'>('all');
+  const [statusFilter, setStatusFilter] = useState<
+    'all' | 'pending' | 'accepted' | 'reserved' | 'delivered' | 'cancelled'
+  >('all');
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [photoSavingId, setPhotoSavingId] = useState<string | null>(null);
@@ -76,6 +79,21 @@ export default function AdminDonationsPage() {
   const [reasonText, setReasonText] = useState('');
   // V2 multi-photo (2026-08-17) — which donation's full gallery is open, if any.
   const [galleryDonation, setGalleryDonation] = useState<AdminDonationView | null>(null);
+  // Admin donation edit/cancel (V2, 2026-08-17).
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<{
+    Item_Type: string;
+    Quantity: string;
+    Condition: string;
+    Recipient_Category: RecipientCategory;
+    Delivery_Method: DeliveryMethod;
+    City: string;
+    Address: string;
+  } | null>(null);
+  const [editSavingId, setEditSavingId] = useState<string | null>(null);
+  const [cancelFormId, setCancelFormId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelSavingId, setCancelSavingId] = useState<string | null>(null);
 
   async function load() {
     if (!firebaseUser) return;
@@ -179,6 +197,7 @@ export default function AdminDonationsPage() {
         .length,
       reserved: list.filter(isActiveReservation).length,
       delivered: list.filter((d) => d.Status === 'Delivered').length,
+      cancelled: list.filter((d) => d.Status === 'Cancelled').length,
     };
   }, [filteredDonations]);
 
@@ -204,6 +223,9 @@ export default function AdminDonationsPage() {
         (a, b) => parseDate(b.Date_Delivered) - parseDate(a.Date_Delivered),
       );
     }
+    if (statusFilter === 'cancelled') {
+      return list.filter((d) => d.Status === 'Cancelled');
+    }
     // 'all' — everything the priority groups above don't already cover.
     return list.filter((d) => d.Approval_Status !== 'Pending_Review' && d.Approval_Status !== 'Rejected');
   }, [filteredDonations, statusFilter]);
@@ -222,6 +244,78 @@ export default function AdminDonationsPage() {
       setError(err instanceof ApiError ? err.message : t('donationsPage.photoUpdateError'));
     } finally {
       setPhotoSavingId(null);
+    }
+  }
+
+  function startEdit(d: AdminDonationView) {
+    setEditingId(d.Donation_ID);
+    setEditDraft({
+      Item_Type: d.Item_Type,
+      Quantity: String(d.Quantity),
+      Condition: d.Condition,
+      Recipient_Category: d.Recipient_Category ?? 'Institutions',
+      Delivery_Method: d.Delivery_Method ?? 'Donor_Delivers',
+      City: d.City ?? '',
+      Address: d.Address ?? '',
+    });
+  }
+
+  async function onSaveEdit(donationId: string) {
+    if (!editDraft) return;
+    setError('');
+    setEditSavingId(donationId);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch(`/admin/donations/${donationId}`, {
+        method: 'PATCH',
+        idToken,
+        body: {
+          Item_Type: editDraft.Item_Type,
+          Quantity: Number(editDraft.Quantity),
+          Condition: editDraft.Condition,
+          Recipient_Category: editDraft.Recipient_Category,
+          Delivery_Method: editDraft.Delivery_Method,
+          City: editDraft.City,
+          Address: editDraft.Address,
+        },
+      });
+      setEditingId(null);
+      setEditDraft(null);
+      await load();
+      showToast(t('donationsPage.editSuccess'));
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : t('donationsPage.editError');
+      setError(message);
+      showToast(message, 'error');
+    } finally {
+      setEditSavingId(null);
+    }
+  }
+
+  async function onCancelDonation(donationId: string) {
+    if (!cancelReason.trim()) {
+      setError(t('donationsPage.cancelRequired'));
+      return;
+    }
+    setError('');
+    setCancelSavingId(donationId);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch(`/admin/donations/${donationId}/cancel`, {
+        method: 'POST',
+        idToken,
+        body: { reason: cancelReason.trim() },
+      });
+      setCancelFormId(null);
+      setCancelReason('');
+      await load();
+      showToast(t('donationsPage.cancelSuccess'));
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : t('donationsPage.cancelError');
+      setError(message);
+      showToast(message, 'error');
+    } finally {
+      setCancelSavingId(null);
     }
   }
 
@@ -711,6 +805,136 @@ export default function AdminDonationsPage() {
               )}
             </div>
           )}
+          {/* Admin donation edit/cancel (V2, 2026-08-17) — a data-entry fix or
+              a withdrawal-on-the-donor's-behalf. Hidden once the donation is
+              done (Delivered/Cancelled) — nothing left to correct or void. */}
+          {d.Status !== 'Delivered' && d.Status !== 'Cancelled' && (
+            <div className="stack" style={{ gap: 8 }}>
+              {editingId === d.Donation_ID && editDraft ? (
+                <div className="stack" style={{ gap: 8, padding: 12, border: '1px solid var(--color-border)', borderRadius: 8 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700 }}>{t('donationsPage.editFormTitle')}</p>
+                  <Input
+                    label={t('donationsPage.editItemType')}
+                    value={editDraft.Item_Type}
+                    onChange={(e) => setEditDraft({ ...editDraft, Item_Type: e.target.value })}
+                  />
+                  <Input
+                    label={t('donationsPage.editQuantity')}
+                    type="number"
+                    min={1}
+                    value={editDraft.Quantity}
+                    onChange={(e) => setEditDraft({ ...editDraft, Quantity: e.target.value })}
+                  />
+                  <Select
+                    label={t('donationsPage.editCondition')}
+                    value={editDraft.Condition}
+                    onChange={(e) => setEditDraft({ ...editDraft, Condition: e.target.value })}
+                  >
+                    {CONDITIONS.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </Select>
+                  <Select
+                    label={t('donationsPage.editRecipientCategory')}
+                    value={editDraft.Recipient_Category}
+                    onChange={(e) =>
+                      setEditDraft({ ...editDraft, Recipient_Category: e.target.value as RecipientCategory })
+                    }
+                  >
+                    {RECIPIENT_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {RECIPIENT_CATEGORY_LABEL[c]}
+                      </option>
+                    ))}
+                  </Select>
+                  <Select
+                    label={t('donationsPage.editDeliveryMethod')}
+                    value={editDraft.Delivery_Method}
+                    onChange={(e) =>
+                      setEditDraft({ ...editDraft, Delivery_Method: e.target.value as DeliveryMethod })
+                    }
+                  >
+                    {DELIVERY_METHODS.map((m) => (
+                      <option key={m} value={m}>
+                        {DELIVERY_METHOD_LABEL[m]}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input
+                    label={t('donationsPage.editCity')}
+                    value={editDraft.City}
+                    onChange={(e) => setEditDraft({ ...editDraft, City: e.target.value })}
+                  />
+                  <Input
+                    label={t('donationsPage.editAddress')}
+                    value={editDraft.Address}
+                    onChange={(e) => setEditDraft({ ...editDraft, Address: e.target.value })}
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button onClick={() => onSaveEdit(d.Donation_ID)} disabled={editSavingId === d.Donation_ID}>
+                      {editSavingId === d.Donation_ID ? t('donationsPage.uploading') : t('donationsPage.saveEdit')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingId(null);
+                        setEditDraft(null);
+                      }}
+                      disabled={editSavingId === d.Donation_ID}
+                    >
+                      {t('common.cancel')}
+                    </Button>
+                  </div>
+                </div>
+              ) : cancelFormId === d.Donation_ID ? (
+                <div className="stack" style={{ gap: 8, padding: 12, border: '1px solid var(--color-border)', borderRadius: 8 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700 }}>{t('donationsPage.cancelReasonTitle')}</p>
+                  <div className="field">
+                    <textarea
+                      className="input"
+                      rows={2}
+                      style={{ resize: 'vertical' }}
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button
+                      variant="danger"
+                      onClick={() => onCancelDonation(d.Donation_ID)}
+                      disabled={cancelSavingId === d.Donation_ID}
+                    >
+                      {cancelSavingId === d.Donation_ID ? t('donationsPage.uploading') : t('donationsPage.confirmCancel')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setCancelFormId(null)}
+                      disabled={cancelSavingId === d.Donation_ID}
+                    >
+                      {t('common.cancel')}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button variant="secondary" onClick={() => startEdit(d)}>
+                    {t('donationsPage.editAction')}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      setCancelFormId(d.Donation_ID);
+                      setCancelReason('');
+                    }}
+                  >
+                    {t('donationsPage.cancelAction')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
           {/* RC1 admin approval-gate rework, 2026-08-10 — the collection/
               delivery date INPUTS are gone (Admin approves/moderates, it
               doesn't invent a delivery estimate — that's for the
@@ -811,7 +1035,12 @@ export default function AdminDonationsPage() {
                   {
                     key: 'all',
                     label: t('donationsPage.filterAll'),
-                    count: statusCounts.accepted + statusCounts.pending + statusCounts.reserved + statusCounts.delivered,
+                    count:
+                      statusCounts.accepted +
+                      statusCounts.pending +
+                      statusCounts.reserved +
+                      statusCounts.delivered +
+                      statusCounts.cancelled,
                   },
                   // Task 1 — "Reservadas" placed right after "Todas": this is
                   // the staff's operational workspace (find reservation →
@@ -821,7 +1050,12 @@ export default function AdminDonationsPage() {
                   { key: 'pending', label: t('donationsPage.filterPending'), count: statusCounts.pending },
                   { key: 'accepted', label: t('donationsPage.filterAccepted'), count: statusCounts.accepted },
                   { key: 'delivered', label: t('donationsPage.filterDelivered'), count: statusCounts.delivered },
-                ] as { key: 'all' | 'pending' | 'accepted' | 'reserved' | 'delivered'; label: string; count: number }[]
+                  { key: 'cancelled', label: t('donationsPage.filterCancelled'), count: statusCounts.cancelled },
+                ] as {
+                  key: 'all' | 'pending' | 'accepted' | 'reserved' | 'delivered' | 'cancelled';
+                  label: string;
+                  count: number;
+                }[]
               ).map((f) => (
                 <button
                   key={f.key}

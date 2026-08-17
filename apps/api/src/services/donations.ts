@@ -1096,6 +1096,71 @@ export async function adminReplaceDonationPhoto(donationId: string, photoUrl: st
 }
 
 /**
+ * Admin donation edit/cancel (V2, 2026-08-17) — same fields the donor's own
+ * editDonation allows, minus Location/Photos (no Admin UI for map-pin
+ * editing; Photo already has its own dedicated adminReplaceDonationPhoto
+ * action above). Unlike the donor's version, not restricted to 'Pending' —
+ * Admin needs to fix a data-entry mistake on an already-claimed/in-transit
+ * donation too — just blocked once the donation is done (Delivered/Cancelled).
+ */
+export async function adminEditDonation(
+  donationId: string,
+  patch: Pick<Partial<CreateDonationInput>, 'Item_Type' | 'Quantity' | 'Condition' | 'Recipient_Category' | 'Delivery_Method' | 'City' | 'Address'>,
+): Promise<Donation> {
+  const existing = await getDonation(donationId);
+  if (!existing) throw new ValidationError('Doação não encontrada');
+  if (existing.Status === 'Delivered' || existing.Status === 'Cancelled') {
+    throw new ValidationError('Não é possível editar uma doação já entregue ou cancelada');
+  }
+
+  if (patch.Quantity !== undefined) assertValidQuantity(patch.Quantity);
+
+  const rowPatch: Record<string, string> = {};
+  if (patch.Item_Type !== undefined) rowPatch.Item_Type = patch.Item_Type;
+  if (patch.Quantity !== undefined) rowPatch.Quantity = String(patch.Quantity);
+  if (patch.Condition !== undefined) rowPatch.Condition = patch.Condition;
+  if (patch.Recipient_Category !== undefined) rowPatch.Recipient_Category = patch.Recipient_Category;
+  if (patch.Delivery_Method !== undefined) rowPatch.Delivery_Method = patch.Delivery_Method;
+  if (patch.City !== undefined) rowPatch.City = patch.City?.trim() ?? '';
+  if (patch.Address !== undefined) rowPatch.Address = patch.Address?.trim() ?? '';
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, rowPatch);
+  const updated = await getDonation(donationId);
+  if (!updated) throw new Error('Donation vanished after update');
+  return updated;
+}
+
+/**
+ * Admin donation edit/cancel (V2, 2026-08-17) — Admin voids a donation on
+ * the donor's behalf (withdrawal request reaching support, or a data-entry
+ * mistake not worth just editing). Terminal: same shape as rejectDonation's
+ * guard/notify pattern, but for donations already past the approval gate.
+ */
+export async function adminCancelDonation(donationId: string, reason: string): Promise<Donation> {
+  if (!reason || !reason.trim()) throw new ValidationError('O motivo do cancelamento é obrigatório');
+
+  const existing = await getDonation(donationId);
+  if (!existing) throw new ValidationError('Doação não encontrada');
+  if (existing.Status === 'Delivered' || existing.Status === 'Cancelled') {
+    throw new ValidationError('Esta doação já está entregue ou cancelada');
+  }
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, { Status: 'Cancelled' });
+  const updated = await getDonation(donationId);
+  if (!updated) throw new Error('Donation vanished after update');
+
+  await createNotification({
+    recipientUserId: updated.Donor_ID,
+    notificationType: 'donation_cancelled',
+    entityType: 'Donation',
+    entityId: updated.Donation_ID,
+    message: `A sua doação de ${updated.Item_Type} foi cancelada pela equipa Wafina. Motivo: ${reason.trim()}`,
+  });
+
+  return updated;
+}
+
+/**
  * Institution claims a Pending donation. Sheets has no transactions, so this
  * check-then-write has a small race window if two institutions claim at the
  * same instant — accepted as a known V1 limitation given expected launch scale.

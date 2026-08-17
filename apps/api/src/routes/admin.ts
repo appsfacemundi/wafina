@@ -19,7 +19,12 @@ import {
   updateCorporateAccount,
 } from '../services/corporate-accounts';
 import { listCollectionPoints } from '../services/collection-points';
-import { adminReplaceDonationPhoto, listAllDonationsForAdmin } from '../services/donations';
+import {
+  adminCancelDonation,
+  adminEditDonation,
+  adminReplaceDonationPhoto,
+  listAllDonationsForAdmin,
+} from '../services/donations';
 import { listAllOpenDisputes, resolveDispute } from '../services/disputes';
 import { createCountry, listAllCountries, setCountryActive } from '../services/geo-regions';
 import {
@@ -207,6 +212,28 @@ adminRouter.patch(
       req.file.mimetype,
     );
     res.json(await adminReplaceDonationPhoto(req.params.id, photoUrl));
+  }),
+);
+
+/**
+ * Admin donation edit/cancel (V2, 2026-08-17) — a data-entry mistake fix or a
+ * donor withdrawal request reaching Admin instead of the donor themselves.
+ */
+adminRouter.patch(
+  '/admin/donations/:id',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await adminEditDonation(req.params.id, req.body ?? {}));
+  }),
+);
+
+adminRouter.post(
+  '/admin/donations/:id/cancel',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await adminCancelDonation(req.params.id, req.body?.reason));
   }),
 );
 
@@ -551,6 +578,27 @@ adminRouter.patch(
   requireRole('Admin'),
   asyncHandler(async (req, res) => {
     res.json(await updateCorporateAccount(req.params.id, req.body ?? {}));
+  }),
+);
+
+/**
+ * Corporate logo upload (V2, 2026-08-17) — Logo was already a writable field
+ * on CorporateAccount (via the plain PATCH above), just with no way to turn
+ * an uploaded file into that URL. Mirrors the partners logo upload below.
+ */
+adminRouter.patch(
+  '/admin/corporate-accounts/:id/logo',
+  requireAuth,
+  requireRole('Admin'),
+  upload.single('logo'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new ValidationError('O logótipo é obrigatório');
+    const logoUrl = await uploadPhoto(
+      req.file.buffer,
+      `${Date.now()}-${req.file.originalname}`,
+      req.file.mimetype,
+    );
+    res.json(await updateCorporateAccount(req.params.id, { Logo: logoUrl }));
   }),
 );
 

@@ -1,7 +1,8 @@
 'use client';
 
-import type { GeoRegion } from '@wafina/shared';
+import type { AdminInsights, AdminInsightsCountryStat, GeoRegion } from '@wafina/shared';
 import { Badge, Button, Card, EmptyState, Input, useToast } from '@wafina/ui';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
@@ -13,6 +14,9 @@ export default function AdminCountriesPage() {
   const { showToast } = useToast();
 
   const [countries, setCountries] = useState<GeoRegion[] | null>(null);
+  // Per-country statistics view (V2, 2026-08-17) — reuses the existing
+  // Insights aggregation (getAdminInsights) instead of computing counts here.
+  const [statsByCountry, setStatsByCountry] = useState<Record<string, AdminInsightsCountryStat>>({});
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -23,7 +27,12 @@ export default function AdminCountriesPage() {
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
-      setCountries(await apiFetch<GeoRegion[]>('/admin/countries', { idToken }));
+      const [countryList, insights] = await Promise.all([
+        apiFetch<GeoRegion[]>('/admin/countries', { idToken }),
+        apiFetch<AdminInsights>('/admin/insights', { idToken }),
+      ]);
+      setCountries(countryList);
+      setStatsByCountry(Object.fromEntries(insights.byCountry.map((s) => [s.Country_ID, s])));
     } catch {
       setError('Não foi possível carregar os países.');
     }
@@ -113,6 +122,17 @@ export default function AdminCountriesPage() {
                   </div>
                   <Badge tone={c.Active ? 'success' : 'neutral'}>{c.Active ? 'Ativo' : 'Brevemente'}</Badge>
                 </div>
+                {statsByCountry[c.Region_ID] && (
+                  <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                    {statsByCountry[c.Region_ID].institutionsVerified} instituições verificadas ·{' '}
+                    {statsByCountry[c.Region_ID].donations} doações ·{' '}
+                    {statsByCountry[c.Region_ID].donationsDelivered} entregues ·{' '}
+                    {statsByCountry[c.Region_ID].donors} dadores{' '}
+                    <Link href="/insights" style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
+                      Ver estatísticas detalhadas →
+                    </Link>
+                  </p>
+                )}
                 <div>
                   {c.Active ? (
                     <Button

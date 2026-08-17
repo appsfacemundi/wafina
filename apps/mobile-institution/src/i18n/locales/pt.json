@@ -299,7 +299,8 @@
       "claimed": "Aceite",
       "collectionScheduled": "Recolha Agendada",
       "collected": "Recolhida",
-      "delivered": "Entregue"
+      "delivered": "Entregue",
+      "cancelled": "Cancelada"
     },
     "recipientCategory": {
       "people": "👨‍👩‍👧 Pessoas",

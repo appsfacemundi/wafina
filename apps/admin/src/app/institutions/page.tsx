@@ -1,6 +1,6 @@
 'use client';
 
-import type { GeoRegion, Institution, InstitutionReviewEvent } from '@wafina/shared';
+import type { GeoRegion, Institution, InstitutionReviewEvent, User } from '@wafina/shared';
 import { formatDateLabel } from '@wafina/shared';
 import { Badge, Button, Card, CollapsibleGroup, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
@@ -47,6 +47,7 @@ export default function AdminInstitutionsPage() {
 
   const [institutions, setInstitutions] = useState<Institution[] | null>(null);
   const [countries, setCountries] = useState<GeoRegion[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<InstitutionStatus | 'all'>('all');
   const [error, setError] = useState('');
@@ -58,12 +59,14 @@ export default function AdminInstitutionsPage() {
     if (!firebaseUser) return;
     try {
       const idToken = await firebaseUser.getIdToken();
-      const [all, allCountries] = await Promise.all([
+      const [all, allCountries, allUsers] = await Promise.all([
         apiFetch<Institution[]>('/admin/institutions', { idToken }),
         apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken }),
+        apiFetch<User[]>('/admin/users', { idToken }),
       ]);
       setInstitutions(all);
       setCountries(allCountries);
+      setUsers(allUsers);
     } catch {
       setError('Não foi possível carregar as instituições.');
     }
@@ -106,6 +109,43 @@ export default function AdminInstitutionsPage() {
 
   function countryName(countryId: string): string {
     return countries.find((c) => c.Region_ID === countryId)?.Name ?? countryId;
+  }
+
+  // Suspend/reactivate institution (V2) — Institutions are a confirmed 1:1
+  // FK to Users (spec 7.1), and requireAuth already blocks all access the
+  // instant Users.Status !== 'Active'. So suspending the linked user fully
+  // suspends the institution — no new Institutions.Status column needed,
+  // this just reuses the existing per-account suspend/reactivate endpoints.
+  const userStatusByUserId = useMemo(() => new Map(users.map((u) => [u.User_ID, u.Status])), [users]);
+
+  async function onSuspendInstitution(userId: string) {
+    setError('');
+    setBusyId(userId);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch(`/admin/users/${userId}/suspend`, { method: 'POST', idToken });
+      await load();
+      showToast('Instituição suspensa.');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível suspender a instituição.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function onReactivateInstitution(userId: string) {
+    setError('');
+    setBusyId(userId);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch(`/admin/users/${userId}/reactivate`, { method: 'POST', idToken });
+      await load();
+      showToast('Instituição reativada.');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível reativar a instituição.');
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function onApprove(institutionId: string) {
@@ -151,6 +191,7 @@ export default function AdminInstitutionsPage() {
   function renderInstitutionCard(institution: Institution) {
     const status = statusOf(institution);
     const badge = STATUS_BADGE[status];
+    const isSuspended = userStatusByUserId.get(institution.User_ID) === 'Suspended';
     return (
       <Card key={institution.Institution_ID} className="stack">
         <div className="institution-card" style={{ display: 'flex', gap: 12 }}>
@@ -164,6 +205,7 @@ export default function AdminInstitutionsPage() {
               <p style={{ fontWeight: 600, fontSize: 16 }}>{institution.Name}</p>
               <div style={{ display: 'flex', gap: 6 }}>
                 {isResubmitted(institution) && <Badge tone="info">Reenviada</Badge>}
+                {isSuspended && <Badge tone="danger">Suspensa</Badge>}
                 <Badge tone={badge.tone}>{badge.label}</Badge>
               </div>
             </div>
@@ -257,6 +299,27 @@ export default function AdminInstitutionsPage() {
               </Button>
             </div>
           ))}
+
+        {status === 'verified' && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            {isSuspended ? (
+              <Button
+                onClick={() => onReactivateInstitution(institution.User_ID)}
+                disabled={busyId === institution.User_ID}
+              >
+                Reativar
+              </Button>
+            ) : (
+              <Button
+                variant="danger"
+                onClick={() => onSuspendInstitution(institution.User_ID)}
+                disabled={busyId === institution.User_ID}
+              >
+                Suspender
+              </Button>
+            )}
+          </div>
+        )}
       </Card>
     );
   }

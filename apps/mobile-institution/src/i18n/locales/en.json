@@ -299,7 +299,8 @@
       "claimed": "Accepted",
       "collectionScheduled": "Collection Scheduled",
       "collected": "Collected",
-      "delivered": "Delivered"
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
     },
     "recipientCategory": {
       "people": "👨‍👩‍👧 People",

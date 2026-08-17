@@ -1,7 +1,7 @@
 'use client';
 
 import type { AdminCorporateAccountView, GeoRegion, InvitationCode } from '@wafina/shared';
-import { Badge, Button, Card, CollapsibleGroup, EmptyState, Input, Select, useToast } from '@wafina/ui';
+import { Badge, Button, Card, CollapsibleGroup, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
@@ -24,6 +24,9 @@ export default function AdminCompaniesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editCountry, setEditCountry] = useState('');
+
+  // Corporate logo upload (V2, 2026-08-17).
+  const [logoUploadingId, setLogoUploadingId] = useState<string | null>(null);
 
   const [codesById, setCodesById] = useState<Record<string, InvitationCode[]>>({});
   const [managingCodesId, setManagingCodesId] = useState<string | null>(null);
@@ -134,6 +137,23 @@ export default function AdminCompaniesPage() {
     }
   }
 
+  async function onUploadLogo(id: string, file: File) {
+    setError('');
+    setLogoUploadingId(id);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      const form = new FormData();
+      form.append('logo', file);
+      await apiFetch(`/admin/corporate-accounts/${id}/logo`, { method: 'PATCH', idToken, body: form });
+      await load();
+      showToast('Logótipo atualizado.');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível atualizar o logótipo.');
+    } finally {
+      setLogoUploadingId(null);
+    }
+  }
+
   async function loadCodes(id: string) {
     try {
       const idToken = await firebaseUser?.getIdToken();
@@ -218,9 +238,41 @@ export default function AdminCompaniesPage() {
         ) : (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-              <div>
-                <p style={{ fontWeight: 700, fontSize: 15 }}>{c.Company_Name}</p>
-                <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>{c.Country}</p>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div className="stack" style={{ gap: 4, alignItems: 'center' }}>
+                  <Photo
+                    src={c.Logo}
+                    placeholderIcon="🏢"
+                    style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                  />
+                  <label
+                    style={{
+                      position: 'relative',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: 'var(--color-accent)',
+                      cursor: logoUploadingId === c.Corporate_Account_ID ? 'default' : 'pointer',
+                      opacity: logoUploadingId === c.Corporate_Account_ID ? 0.6 : 1,
+                    }}
+                  >
+                    {logoUploadingId === c.Corporate_Account_ID ? 'A enviar…' : 'Logótipo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={logoUploadingId === c.Corporate_Account_ID}
+                      style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (file) onUploadLogo(c.Corporate_Account_ID, file);
+                      }}
+                    />
+                  </label>
+                </div>
+                <div>
+                  <p style={{ fontWeight: 700, fontSize: 15 }}>{c.Company_Name}</p>
+                  <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>{c.Country}</p>
+                </div>
               </div>
               <Badge tone={c.Status === 'Suspended' ? 'warning' : 'success'}>
                 {c.Status === 'Suspended' ? 'Suspensa' : 'Ativa'}
