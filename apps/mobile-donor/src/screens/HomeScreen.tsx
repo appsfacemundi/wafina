@@ -253,8 +253,10 @@ export function HomeScreen({ navigation }: Props) {
               <View style={{ flex: 1 }}>
                 <Text style={styles.tierTitle}>
                   {tierProgress.currentTier
-                    ? t('home.tierCurrent', { tier: tierProgress.currentTier })
-                    : t('home.tierNoneYet')}
+                    ? session?.name
+                      ? t('home.tierCurrentWithName', { name: session.name, tier: tierProgress.currentTier })
+                      : t('home.tierCurrent', { tier: tierProgress.currentTier })
+                    : session?.name || t('home.tierNoneYet')}
                 </Text>
                 <Text style={styles.tierSubtitle}>
                   {tierProgress.nextTier

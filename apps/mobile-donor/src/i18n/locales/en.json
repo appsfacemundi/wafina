@@ -58,6 +58,7 @@
     "institutionsSupported": "Institutions supported",
     "itemsDonated": "Items donated",
     "tierCurrent": "{{tier}} tier",
+    "tierCurrentWithName": "{{name}} has {{tier}} tier",
     "tierNoneYet": "No tier yet",
     "tierProgress": "{{count}} more delivered donations to {{tier}} tier",
     "tierMaxReached": "You've reached the highest tier — thank you for your continued support!",

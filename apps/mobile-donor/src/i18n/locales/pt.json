@@ -58,6 +58,7 @@
     "institutionsSupported": "Instituições apoiadas",
     "itemsDonated": "Itens doados",
     "tierCurrent": "Nível {{tier}}",
+    "tierCurrentWithName": "{{name}} tem o nível {{tier}}",
     "tierNoneYet": "Ainda sem nível",
     "tierProgress": "Faltam {{count}} doações entregues para o nível {{tier}}",
     "tierMaxReached": "Atingiu o nível máximo — obrigado pelo seu apoio contínuo!",
