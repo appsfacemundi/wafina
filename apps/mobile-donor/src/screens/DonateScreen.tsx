@@ -12,7 +12,6 @@ import {
   type DeliveryMethod,
   type RecipientCategory,
 } from '@wafina/shared';
-import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
@@ -125,29 +124,20 @@ type PhotoValue = { uri: string; mimeType?: string };
 
 /** V2 multi-photo (2026-08-17) — mirrors the server's own MAX_PHOTOS cap (assertValidPhotoCount). */
 const MAX_PHOTOS = 10;
-/**
- * Longest edge, in px, after resize — large enough to show genuine detail
- * (a car's dashboard/odometer/damage), small enough to keep upload time and
- * Drive storage reasonable. Requirement was previously unmet even for the
- * single-photo case (quality: 0.8 alone only affects JPEG re-encoding, not
- * pixel dimensions).
- */
-const MAX_PHOTO_DIMENSION = 1600;
 
-async function compressPhotoAsset(asset: { uri: string; width?: number; height?: number }): Promise<PhotoValue> {
-  const actions: ImageManipulator.Action[] =
-    asset.width && asset.height && Math.max(asset.width, asset.height) > MAX_PHOTO_DIMENSION
-      ? [
-          asset.width >= asset.height
-            ? { resize: { width: MAX_PHOTO_DIMENSION } }
-            : { resize: { height: MAX_PHOTO_DIMENSION } },
-        ]
-      : [];
-  const result = await ImageManipulator.manipulateAsync(asset.uri, actions, {
-    compress: 0.8,
-    format: ImageManipulator.SaveFormat.JPEG,
-  });
-  return { uri: result.uri, mimeType: 'image/jpeg' };
+/**
+ * Real-device finding, 2026-08-17 — `expo-image-manipulator` (originally
+ * used here to also cap pixel dimensions at upload time, not just re-encode
+ * quality) throws "Cannot find native module 'ExpoImageManipulator'" on
+ * Expo Go — that native module isn't bundled into the current Expo Go
+ * client at all, on any SDK 57 build, and getting it would mean a custom
+ * EAS dev-client build. Reverted to exactly the same quality-only
+ * compression the original single-photo flow already used successfully
+ * (ImagePicker's own `quality: 0.8`) — no pixel-dimension cap, but zero new
+ * native dependencies, so every photo just passes through as picked.
+ */
+function toPhotoValue(asset: { uri: string; mimeType?: string }): PhotoValue {
+  return { uri: asset.uri, mimeType: asset.mimeType };
 }
 
 export function DonateScreen({ navigation, route }: Props) {
@@ -259,7 +249,8 @@ export function DonateScreen({ navigation, route }: Props) {
   //
   // V2 multi-photo (2026-08-17) — camera stays one-shot-per-tap (that's how
   // capture works); the library picker now allows selecting several at once,
-  // up to whatever room is left. Both compress before adding to state.
+  // up to whatever room is left. `quality: 0.8` (below) is the only
+  // compression applied — see toPhotoValue's comment for why.
   async function onPickFromCamera() {
     if (photos.length >= MAX_PHOTOS) return;
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -269,8 +260,7 @@ export function DonateScreen({ navigation, route }: Props) {
     }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
     if (!result.canceled && result.assets[0]) {
-      const compressed = await compressPhotoAsset(result.assets[0]);
-      setPhotos((prev) => [...prev, compressed].slice(0, MAX_PHOTOS));
+      setPhotos((prev) => [...prev, toPhotoValue(result.assets[0])].slice(0, MAX_PHOTOS));
     }
   }
 
@@ -288,8 +278,7 @@ export function DonateScreen({ navigation, route }: Props) {
       selectionLimit: MAX_PHOTOS - photos.length,
     });
     if (!result.canceled && result.assets.length > 0) {
-      const compressed = await Promise.all(result.assets.map(compressPhotoAsset));
-      setPhotos((prev) => [...prev, ...compressed].slice(0, MAX_PHOTOS));
+      setPhotos((prev) => [...prev, ...result.assets.map(toPhotoValue)].slice(0, MAX_PHOTOS));
     }
   }
 
