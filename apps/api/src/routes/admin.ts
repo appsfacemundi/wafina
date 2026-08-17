@@ -33,7 +33,7 @@ import {
   rejectInstitution,
   verifyInstitution,
 } from '../services/institutions';
-import { createInvitationCode, deactivateCode, listCodesForAccount } from '../services/invitation-codes';
+import { createAndSendInvitation, createInvitationCode, deactivateCode, listCodesForAccount } from '../services/invitation-codes';
 import {
   broadcastNotification,
   listAdminSentNotifications,
@@ -637,6 +637,19 @@ adminRouter.post(
     const maxUses = Number(req.body?.maxUses) || 1;
     const expiresAt = req.body?.expiresAt || null;
     res.json(await createInvitationCode(req.params.id, maxUses, expiresAt));
+  }),
+);
+
+/**
+ * Corporate secure invitations (V2, 2026-08-17) — Admin targets one specific
+ * person's email instead of generating an anonymous shareable code.
+ */
+adminRouter.post(
+  '/admin/corporate-accounts/:id/invite',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    res.json(await createAndSendInvitation(req.params.id, req.body?.email));
   }),
 );
 

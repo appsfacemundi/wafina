@@ -33,6 +33,10 @@ export default function AdminCompaniesPage() {
   const [maxUses, setMaxUses] = useState('1');
   const [expiresAt, setExpiresAt] = useState('');
 
+  // Corporate secure invitations (V2, 2026-08-17).
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+
   async function load() {
     if (!firebaseUser) return;
     try {
@@ -195,6 +199,30 @@ export default function AdminCompaniesPage() {
     }
   }
 
+  async function onSendInvite(id: string) {
+    if (!inviteEmail.trim() || !inviteEmail.includes('@')) {
+      setError('Indique um endereço de email válido.');
+      return;
+    }
+    setError('');
+    setInvitingId(id);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch(`/admin/corporate-accounts/${id}/invite`, {
+        method: 'POST',
+        idToken,
+        body: { email: inviteEmail.trim() },
+      });
+      setInviteEmail('');
+      await loadCodes(id);
+      showToast('Convite enviado por email.');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível enviar o convite.');
+    } finally {
+      setInvitingId(null);
+    }
+  }
+
   async function onCopyCode(code: string) {
     await navigator.clipboard.writeText(code);
     showToast('Código copiado.');
@@ -318,6 +346,29 @@ export default function AdminCompaniesPage() {
             style={{ marginTop: 8, padding: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}
           >
             <p style={{ fontWeight: 700, fontSize: 13.5 }}>Códigos de convite</p>
+
+            {/* Corporate secure invitations (V2, 2026-08-17) — additive to the
+                anonymous shareable-code form below, not a replacement: this
+                sends a single-use code by email, locked to that address. */}
+            <p style={{ fontSize: 12.5, color: 'var(--color-text-faint)' }}>Convidar por email (uso único)</p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <Input
+                label="Email do colaborador"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+              <Button
+                onClick={() => onSendInvite(c.Corporate_Account_ID)}
+                disabled={invitingId === c.Corporate_Account_ID}
+              >
+                {invitingId === c.Corporate_Account_ID ? 'A enviar…' : 'Enviar convite'}
+              </Button>
+            </div>
+
+            <p style={{ fontSize: 12.5, color: 'var(--color-text-faint)', marginTop: 8 }}>
+              Ou gerar um código partilhável (várias utilizações)
+            </p>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <Input
                 label="Utilizações máximas"
@@ -342,6 +393,9 @@ export default function AdminCompaniesPage() {
                   <p className="mono" style={{ fontSize: 14, fontWeight: 700 }}>
                     {code.Code}
                   </p>
+                  {code.Invited_Email && (
+                    <p style={{ fontSize: 12.5, color: 'var(--color-accent)' }}>📧 Convidado: {code.Invited_Email}</p>
+                  )}
                   <p style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
                     {code.Uses_Count}/{code.Max_Uses} utilizações
                     {code.Expires_At ? ` · expira ${code.Expires_At.slice(0, 10)}` : ''}

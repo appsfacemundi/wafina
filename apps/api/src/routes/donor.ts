@@ -52,7 +52,7 @@ donorRouter.post(
     if (!inviteCode) throw new ValidationError('O código de convite é obrigatório');
 
     // redeemInvitationCode already verifies the company exists and isn't suspended before returning.
-    const corporateAccountId = await redeemInvitationCode(inviteCode);
+    const corporateAccountId = await redeemInvitationCode(inviteCode, user.email);
     const account = await getCorporateAccountById(corporateAccountId);
 
     await linkCorporateAccount(user.userId, corporateAccountId);
