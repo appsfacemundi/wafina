@@ -17,3 +17,4 @@ export * from './impact-feed-visibility';
 export * from './donation-approval-status';
 export * from './individual-donation-state';
 export * from './institution-type';
+export * from './donor-tier';

@@ -46,4 +46,14 @@ export interface User {
    * other role and for Donors who haven't completed their profile yet.
    */
   Wafina_ID: string | null;
+  /**
+   * Donor loyalty milestones (2026-08-17) — the highest tier *threshold
+   * number* (5/10/25/50, see DONOR_TIER_THRESHOLDS) already emailed for,
+   * never the tier name itself — a threshold change later doesn't strand
+   * this value. Null means no milestone email sent yet (including every
+   * Institution/Admin/Animal_Shelter row, where this never applies). Doubles
+   * as the donor's current tier for display (Admin's Users list): the
+   * highest tier whose threshold is <= this number.
+   */
+  Highest_Milestone_Notified: number | null;
 }

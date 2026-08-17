@@ -1,6 +1,6 @@
 'use client';
 
-import type { GeoRegion, RegistrableRole, User } from '@wafina/shared';
+import { getDonorTierProgress, type DonorTier, type GeoRegion, type RegistrableRole, type User } from '@wafina/shared';
 import { Badge, Button, Card, CollapsibleGroup, EmptyState, Input, useToast } from '@wafina/ui';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useEffect, useMemo, useState } from 'react';
@@ -14,6 +14,21 @@ const ROLE_LABEL: Record<string, string> = {
   Institution: 'Instituição',
   Admin: 'Admin',
   Animal_Shelter: 'Abrigo de Animais',
+};
+
+/**
+ * Donor loyalty milestones (2026-08-17) — Admin-parity policy: an Admin-side
+ * view of who's hit a milestone. Highest_Milestone_Notified already IS the
+ * highest threshold reached (updated every time a new tier is crossed), so
+ * feeding it back into getDonorTierProgress as if it were a live delivered
+ * count reconstructs the correct current tier with no extra Donations join —
+ * cheap enough to compute per row in this list.
+ */
+const TIER_EMOJI: Record<DonorTier, string> = {
+  Bronze: '🥉',
+  Silver: '🥈',
+  Gold: '🥇',
+  Platinum: '💎',
 };
 
 export default function AdminUsersPage() {
@@ -136,6 +151,7 @@ export default function AdminUsersPage() {
   }
 
   function renderUserCard(u: User) {
+    const tier = u.Role === 'Donor' ? getDonorTierProgress(u.Highest_Milestone_Notified ?? 0).currentTier : null;
     return (
       <Card key={u.User_ID} className="stack" style={{ gap: 6 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
@@ -143,9 +159,12 @@ export default function AdminUsersPage() {
             <p style={{ fontWeight: 700, fontSize: 15 }}>{u.Name || '(sem nome)'}</p>
             <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>{u.Email}</p>
           </div>
-          <Badge tone={u.Status === 'Suspended' ? 'warning' : 'success'}>
-            {u.Status === 'Suspended' ? 'Suspensa' : 'Ativa'}
-          </Badge>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {tier && <Badge tone="neutral">{TIER_EMOJI[tier]} {tier}</Badge>}
+            <Badge tone={u.Status === 'Suspended' ? 'warning' : 'success'}>
+              {u.Status === 'Suspended' ? 'Suspensa' : 'Ativa'}
+            </Badge>
+          </div>
         </div>
         <p style={{ fontSize: 13.5, color: 'var(--color-text-muted)' }}>
           {ROLE_LABEL[u.Role] ?? u.Role}

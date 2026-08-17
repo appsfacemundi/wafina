@@ -3,7 +3,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { Donation, GeoRegion, Notification, Partner, SuccessStory } from '@wafina/shared';
+import { getDonorTierProgress, type Donation, type DonorTier, type GeoRegion, type Notification, type Partner, type SuccessStory } from '@wafina/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +27,14 @@ type Props = CompositeScreenProps<
   BottomTabScreenProps<AppTabParamList, 'Home'>,
   NativeStackScreenProps<RootStackParamList>
 >;
+
+/** Donor loyalty milestones (2026-08-17) — Bronze/Silver/Gold/Platinum, matching the email's own tier names. */
+const TIER_EMOJI: Record<DonorTier, string> = {
+  Bronze: '🥉',
+  Silver: '🥈',
+  Gold: '🥇',
+  Platinum: '💎',
+};
 
 /**
  * Full redesign, 2026-08-08 (stakeholder-provided reference mockup) — Home
@@ -97,6 +105,16 @@ export function HomeScreen({ navigation }: Props) {
       institutions: institutionIds.size,
       quantity: donations.reduce((sum, d) => sum + (Number.isSafeInteger(d.Quantity) ? d.Quantity : 0), 0),
     };
+  }, [donations]);
+
+  // Donor loyalty milestones (2026-08-17) — Delivered only, matching the
+  // server-side milestone-email trigger exactly (see donor-tiers.ts): a
+  // milestone means the item actually reached someone, not just "submitted"
+  // (which is what the stats.total card above already counts).
+  const tierProgress = useMemo(() => {
+    if (!donations) return null;
+    const deliveredCount = donations.filter((d) => d.Status === 'Delivered').length;
+    return getDonorTierProgress(deliveredCount);
   }, [donations]);
 
   const quickActions: {
@@ -222,6 +240,40 @@ export function HomeScreen({ navigation }: Props) {
               <Text style={styles.statLabel}>{t('home.itemsDonated')}</Text>
             </View>
           </View>
+        )}
+
+        {/* Donor loyalty milestones (2026-08-17) — shown from the very first
+            visit (even at 0 delivered), same "always visible once stats
+            exist" precedent as the stats row above, to invite engagement
+            rather than only appearing after a donor already has momentum. */}
+        {tierProgress && (
+          <Card style={styles.tierCard}>
+            <View style={styles.tierHeaderRow}>
+              <Text style={styles.tierEmoji}>{tierProgress.currentTier ? TIER_EMOJI[tierProgress.currentTier] : '🎖️'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.tierTitle}>
+                  {tierProgress.currentTier
+                    ? t('home.tierCurrent', { tier: tierProgress.currentTier })
+                    : t('home.tierNoneYet')}
+                </Text>
+                <Text style={styles.tierSubtitle}>
+                  {tierProgress.nextTier
+                    ? t('home.tierProgress', { count: tierProgress.remainingToNextTier, tier: tierProgress.nextTier })
+                    : t('home.tierMaxReached')}
+                </Text>
+              </View>
+            </View>
+            {tierProgress.nextThreshold !== null && (
+              <View style={styles.tierBarTrack}>
+                <View
+                  style={[
+                    styles.tierBarFill,
+                    { width: `${Math.min(100, (tierProgress.deliveredCount / tierProgress.nextThreshold) * 100)}%` },
+                  ]}
+                />
+              </View>
+            )}
+          </Card>
         )}
 
         <Text style={[styles.sectionTitle, { marginBottom: spacing[3] }]}>{t('home.quickActions')}</Text>
@@ -507,6 +559,40 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     lineHeight: 14,
+  },
+  // Donor loyalty milestones (2026-08-17)
+  tierCard: {
+    gap: spacing[3],
+  },
+  tierHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  tierEmoji: {
+    fontSize: 32,
+  },
+  tierTitle: {
+    fontFamily: fonts.display,
+    fontSize: 15,
+    color: colors.text,
+  },
+  tierSubtitle: {
+    fontFamily: 'Manrope-400',
+    fontSize: 12.5,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  tierBarTrack: {
+    height: 8,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface2,
+    overflow: 'hidden',
+  },
+  tierBarFill: {
+    height: '100%',
+    borderRadius: radius.full,
+    backgroundColor: colors.accent,
   },
   quickActionsRow: {
     flexDirection: 'row',

@@ -17,6 +17,7 @@ import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetLatLong, nowIso, parseSheetDate, sequenceSuffix, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
+import { checkAndNotifyMilestone } from './donor-tiers';
 import { EMAIL_BRAND_COLOR, EMAIL_LOGO_HTML, sendEmail } from './email';
 import { getRegionById } from './geo-regions';
 import { createNotification } from './notifications';
@@ -1323,6 +1324,9 @@ export async function confirmIndividualPickup(
     updated.Receiver_Thank_You_Message,
     updated.Receiver_Thank_You_Photo,
   );
+  // Donor loyalty milestones, 2026-08-17 — Email #3, checked on every
+  // confirmed delivery (self-contained, never throws — see its own comment).
+  await checkAndNotifyMilestone(updated.Donor_ID);
 
   return updated;
 }
@@ -1412,6 +1416,9 @@ export async function confirmDelivery(
     updated.Receiver_Thank_You_Message,
     updated.Receiver_Thank_You_Photo,
   );
+  // Donor loyalty milestones, 2026-08-17 — Email #3, checked on every
+  // confirmed delivery (self-contained, never throws — see its own comment).
+  await checkAndNotifyMilestone(updated.Donor_ID);
 
   return updated;
 }

@@ -58,6 +58,8 @@ export interface UserRow {
   Status: string;
   /** RC1 RECEBER — assigned once, on first profile completion, only for Role === 'Donor'. See completeProfile. */
   Wafina_ID: string;
+  /** Donor loyalty milestones (2026-08-17) — see the shared User type's field comment. */
+  Highest_Milestone_Notified: string;
 }
 
 function rowToUser(row: UserRow): User {
@@ -77,6 +79,7 @@ function rowToUser(row: UserRow): User {
     Show_Name_To_Institutions: row.Show_Name_To_Institutions === 'TRUE',
     Status: (row.Status as UserStatus) || 'Active',
     Wafina_ID: row.Wafina_ID || null,
+    Highest_Milestone_Notified: row.Highest_Milestone_Notified ? Number(row.Highest_Milestone_Notified) : null,
   };
 }
 
@@ -121,6 +124,7 @@ export async function createUser(email: string, role: RegistrableRole): Promise<
     Email_Notifications_Enabled: toSheetBool(true),
     Status: 'Active',
     Wafina_ID: '',
+    Highest_Milestone_Notified: '',
   };
 
   await appendRow(SHEET_TABS.users, row as unknown as Record<string, string>);
