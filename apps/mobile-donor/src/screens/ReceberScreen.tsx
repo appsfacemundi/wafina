@@ -1,8 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { daysAgoLabel, type CollectionPoint, type Donation, type ReceberEligibility } from '@wafina/shared';
+import {
+  daysAgoLabel,
+  haversineDistanceKm,
+  type CollectionPoint,
+  type Donation,
+  type ReceberEligibility,
+} from '@wafina/shared';
 import type * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -230,6 +237,12 @@ export function ReceberScreen({ navigation }: Props) {
   // for that country yet, and the UI says so instead of showing fake data).
   const [collectionPoint, setCollectionPoint] = useState<CollectionPoint | null>(null);
   const [collectionPointFetchFailed, setCollectionPointFetchFailed] = useState(false);
+  // V2 GPS distance (2026-08-17) — informational only, no confirm dialog (see
+  // the plan's RECEBER scoping decision): the fixed collection point is the
+  // same physical place regardless of which donation was reserved, so
+  // there's nothing to choose between. Ephemeral — computed client-side each
+  // time, never persisted (same precedent as geo-detect.ts's country guess).
+  const [collectionPointDistanceKm, setCollectionPointDistanceKm] = useState<number | null>(null);
   const [codeInput, setCodeInput] = useState('');
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [codeError, setCodeError] = useState('');
@@ -318,6 +331,39 @@ export function ReceberScreen({ navigation }: Props) {
       }
     })();
   }, [status?.reason, firebaseUser]);
+
+  // V2 GPS distance (2026-08-17) — one-time read once the collection point
+  // itself is known and has a geocoded Location. Same permission pattern as
+  // DonateScreen; on denial, missing Location, or any read failure this just
+  // stays null — the line below simply doesn't render, never an error
+  // banner, never blocking (per the approved requirement).
+  useEffect(() => {
+    const collectionPointLocation = collectionPoint?.Location;
+    if (!collectionPointLocation) {
+      setCollectionPointDistanceKm(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { status: permStatus } = await Location.requestForegroundPermissionsAsync();
+        if (permStatus !== 'granted') return;
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (cancelled) return;
+        setCollectionPointDistanceKm(
+          haversineDistanceKm(
+            { lat: position.coords.latitude, lng: position.coords.longitude },
+            collectionPointLocation,
+          ),
+        );
+      } catch {
+        // Graceful degrade — hide the line, never block Receber's main flow.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [collectionPoint?.Location]);
 
   useFocusEffect(
     useCallback(() => {
@@ -689,6 +735,12 @@ export function ReceberScreen({ navigation }: Props) {
                     <Text style={styles.collectionPointName}>{collectionPoint.Name}</Text>
                     <Text style={styles.locationText}>{collectionPoint.Address}</Text>
                     {collectionPoint.City && <Text style={styles.locationText}>{collectionPoint.City}</Text>}
+                    {/* V2 GPS distance (2026-08-17) — informational only, no confirm dialog; simply absent when GPS/geocoding isn't available. */}
+                    {collectionPointDistanceKm !== null && (
+                      <Text style={styles.locationText}>
+                        📍 {t('receber.collection.distanceFromYou', { distance: Math.round(collectionPointDistanceKm) })}
+                      </Text>
+                    )}
                     {collectionPoint.Opening_Hours && (
                       <Text style={styles.locationText}>
                         {t('receber.collection.hours', { hours: collectionPoint.Opening_Hours })}

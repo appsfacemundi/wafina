@@ -146,6 +146,18 @@ export interface Donation {
   Receiver_Thank_You_Message: string | null;
   /** Same note as Receiver_Thank_You_Message — optional, email-only, not the Success Story photo. */
   Receiver_Thank_You_Photo: string | null;
+  /**
+   * V2 GPS distance (2026-08-17) — computed, never stored (see
+   * rowToDonation: always null there). Set by whichever caller actually has
+   * a single relevant "other" location to compare against: the claiming/
+   * browsing institution's own Location (InstitutionDonationView contexts),
+   * or the claiming institution's Location resolved for the donor's own
+   * "accepted X km from you" transparency line. Null when there's no
+   * meaningful single point to compare to (e.g. People-category browsing,
+   * Admin's mixed-institution lists, or a donation still Pending/unclaimed
+   * on the donor's own list).
+   */
+  Distance_Km: number | null;
 }
 
 /**

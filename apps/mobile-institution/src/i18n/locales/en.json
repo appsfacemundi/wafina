@@ -61,7 +61,15 @@
       "claiming": "Claiming…",
       "claimButton": "Claim Donation",
       "claimSuccess": "Donation claimed successfully! You can now schedule pickup in \"Claimed Donations\".",
-      "claimError": "We couldn't claim the donation."
+      "claimError": "We couldn't claim the donation.",
+      "sortByDistance": "Sort by distance",
+      "distanceLine": "{{distance}} km from you",
+      "locationUnknown": "location not provided",
+      "confirmDistanceTitle": "Confirm claim",
+      "confirmDistanceTitleFar": "This donation is quite far",
+      "confirmDistanceMessage": "This donation is approximately {{distance}} km from you, in {{location}}. Do you still want to claim it?",
+      "confirmDistanceCancel": "No, Go Back",
+      "confirmDistanceAccept": "Yes, Claim"
     },
     "claimed": {
       "title": "Claimed Donations",

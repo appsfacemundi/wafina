@@ -227,6 +227,7 @@
     "viewAgain": "Ver novamente",
     "collection": {
       "whereToCollect": "📍 Onde levantar",
+      "distanceFromYou": "{{distance}} km do ponto de recolha",
       "hours": "Horário: {{hours}}",
       "directions": "Como chegar →",
       "whatsapp": "💬 Contactar pelo WhatsApp",
@@ -332,6 +333,7 @@
     "corporateDonationWithCompany": "🏢 Doação da Empresa – {{company}}",
     "expectedCollection": "Recolha estimada: {{date}}",
     "expectedDelivery": "Entrega estimada: {{date}}",
+    "acceptedDistance": "Aceite por uma instituição a ~{{distance}} km de si",
     "impactStoryLabel": "História de impacto",
     "rejectionReasonLabel": "Motivo:",
     "editButton": "✏️ Editar",

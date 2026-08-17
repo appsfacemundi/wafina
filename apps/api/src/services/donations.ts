@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { DELIVERY_METHOD_LABEL, DELIVERY_METHODS, RECIPIENT_CATEGORIES } from '@wafina/shared';
+import { DELIVERY_METHOD_LABEL, DELIVERY_METHODS, haversineDistanceKm, RECIPIENT_CATEGORIES } from '@wafina/shared';
 import type {
   AdminDonationView,
   DeliveryMethod,
   Donation,
   DonationApprovalStatus,
   DonationStatus,
+  GeoPoint,
   IndividualDonationState,
   InstitutionDonationView,
   ReceberEligibility,
@@ -96,6 +97,10 @@ function rowToDonation(row: Record<string, string>): Donation {
     Individual_Delivered_At: row.Individual_Delivered_At || null,
     Receiver_Thank_You_Message: row.Receiver_Thank_You_Message || null,
     Receiver_Thank_You_Photo: toProxiedUrl(row.Receiver_Thank_You_Photo),
+    // V2 GPS distance (2026-08-17) — never stored, always computed by a
+    // caller that has a single relevant "other" location to compare
+    // against (see the field's doc comment on the shared Donation type).
+    Distance_Km: null,
   };
 }
 
@@ -681,14 +686,46 @@ export async function listDonationsByDonor(donorId: string): Promise<Donation[]>
   // Real-device finding, 2026-08-04/05 — this was logged in the very first
   // batch (matching every sibling list function) but missed in the big
   // implementation sweep; only the Institution equivalent got fixed then.
-  return rows
+  const own = rows
     .filter((row) => row.Donor_ID === donorId)
     .sort(
       (a, b) =>
         parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted) ||
         sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
-    )
-    .map(rowToDonation);
+    );
+
+  // V2 GPS distance (2026-08-17) — donor transparency: "accepted ~32km from
+  // you", using the same Distance_Km the claiming institution already saw.
+  // Batched (one extra Sheets read total, not one per claimed donation) —
+  // same reasoning as resolveDonorDisplays above.
+  const claimedInstitutionIds = new Set(
+    own.map((row) => row.Claimed_By_Institution_ID).filter((id): id is string => !!id),
+  );
+  const institutionLocationById =
+    claimedInstitutionIds.size > 0 ? await resolveInstitutionLocations(claimedInstitutionIds) : new Map();
+
+  return own.map((row) => {
+    const donation = rowToDonation(row);
+    const institutionLocation = row.Claimed_By_Institution_ID
+      ? institutionLocationById.get(row.Claimed_By_Institution_ID)
+      : undefined;
+    return {
+      ...donation,
+      Distance_Km: institutionLocation ? haversineDistanceKm(donation.Location, institutionLocation) : null,
+    };
+  });
+}
+
+/** V2 GPS distance (2026-08-17) — batched Institution.Location lookup for listDonationsByDonor's transparency line. */
+async function resolveInstitutionLocations(institutionIds: Set<string>): Promise<Map<string, GeoPoint>> {
+  const institutionRows = await getRows(SHEET_TABS.institutions);
+  const result = new Map<string, GeoPoint>();
+  for (const row of institutionRows) {
+    if (!institutionIds.has(row.Institution_ID)) continue;
+    const location = fromSheetLatLong(row.Location ?? '');
+    if (location) result.set(row.Institution_ID, location);
+  }
+  return result;
 }
 
 /**
@@ -764,17 +801,28 @@ function buildStoryStatusByDonationId(
   return new Map(successStoryRows.map((r) => [r.Donation_ID, r.Status as SuccessStoryStatus]));
 }
 
+/**
+ * V2 GPS distance (2026-08-17) — `institutionLocation`, when given, is the
+ * single browsing/claiming institution's own registered Location; every row
+ * gets a Distance_Km computed against it. Omitted by toAdminDonationViews
+ * (which mixes rows across many different institutions — no single "other"
+ * point to compare against), so Distance_Km stays null there, matching the
+ * shared Donation type's own doc comment.
+ */
 async function toInstitutionDonationViews(
   rows: Record<string, string>[],
+  institutionLocation?: GeoPoint,
 ): Promise<InstitutionDonationView[]> {
   const displays = await resolveDonorDisplays(new Set(rows.map((r) => r.Donor_ID)));
   return rows.map((row) => {
     const display = displays.get(row.Donor_ID) ?? { name: null, logo: null, phone: null };
+    const donation = rowToDonation(row);
     return {
-      ...rowToDonation(row),
+      ...donation,
       Donor_Display_Name: display.name,
       Donor_Display_Logo: display.logo,
       Donor_Phone: display.phone,
+      Distance_Km: institutionLocation ? haversineDistanceKm(donation.Location, institutionLocation) : null,
     };
   });
 }
@@ -841,6 +889,7 @@ async function toAdminDonationViews(rows: Record<string, string>[]): Promise<Adm
 export async function listAvailableDonations(
   category: RecipientCategory,
   countryId: string,
+  institutionLocation?: GeoPoint,
 ): Promise<InstitutionDonationView[]> {
   const rows = await getRows(SHEET_TABS.donations);
   // Pilot feedback, 2026-08-05: unsorted — same missing-sort pattern already
@@ -853,7 +902,7 @@ export async function listAvailableDonations(
         parseSheetDate(b.Date_Submitted) - parseSheetDate(a.Date_Submitted) ||
         sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
     );
-  return toInstitutionDonationViews(filtered);
+  return toInstitutionDonationViews(filtered, institutionLocation);
 }
 
 /**
@@ -905,6 +954,7 @@ export async function listDonationsReservedByIndividual(userId: string): Promise
 /** "Claimed by Me" (spec 9.2) — includes both Claimed and Delivered so history isn't lost. */
 export async function listDonationsClaimedByInstitution(
   institutionId: string,
+  institutionLocation?: GeoPoint,
 ): Promise<InstitutionDonationView[]> {
   const rows = await getRows(SHEET_TABS.donations);
   // Real-device finding, 2026-08-04: unsorted, same missing-sort pattern as
@@ -916,7 +966,7 @@ export async function listDonationsClaimedByInstitution(
         parseSheetDate(b.Date_Claimed) - parseSheetDate(a.Date_Claimed) ||
         sequenceSuffix(b.Public_Donation_Code) - sequenceSuffix(a.Public_Donation_Code),
     );
-  return toInstitutionDonationViews(filtered);
+  return toInstitutionDonationViews(filtered, institutionLocation);
 }
 
 /**

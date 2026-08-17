@@ -1,3 +1,5 @@
+import type { GeoPoint } from './geo-point';
+
 /**
  * RECEBER collection-point flow, 2026-08-10 — the physical Wafina-run
  * location a People-category recipient goes to collect a reserved donation.
@@ -9,6 +11,13 @@ export interface CollectionPoint {
   Country_ID: string;
   Name: string;
   Address: string;
+  /**
+   * V2 GPS distance (2026-08-17) — added so RECEBER can show "X km do ponto
+   * de recolha" (informational only, no confirm dialog — see the plan's
+   * RECEBER scoping decision). Null until geocoded; the informational line
+   * simply doesn't render for a country whose point predates this field.
+   */
+  Location: GeoPoint | null;
   City: string | null;
   Phone: string | null;
   Email: string | null;

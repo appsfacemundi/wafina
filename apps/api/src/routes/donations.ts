@@ -228,7 +228,7 @@ donationsRouter.get(
     // RC1 RECEBER — role-aware so this route keeps working unchanged once
     // Phase 2 adds Animal_Shelter to requireRole above.
     const category = req.user!.role === 'Animal_Shelter' ? 'Animal_Shelters' : 'Institutions';
-    res.json(await listAvailableDonations(category, institution.Country_ID));
+    res.json(await listAvailableDonations(category, institution.Country_ID, institution.Location));
   }),
 );
 
@@ -240,7 +240,7 @@ donationsRouter.get(
   requireVerified,
   asyncHandler(async (req, res) => {
     const institution = await requireOwnInstitution(req.user!.userId);
-    res.json(await listDonationsClaimedByInstitution(institution.Institution_ID));
+    res.json(await listDonationsClaimedByInstitution(institution.Institution_ID, institution.Location));
   }),
 );
 

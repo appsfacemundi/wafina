@@ -364,6 +364,12 @@ export function MyDonationsScreen({ route, navigation }: Props) {
                 {item.Delivery_Method ? t(DELIVERY_METHOD_LABEL_KEY[item.Delivery_Method]) : '—'}
               </Text>
               <Text style={styles.donationId}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
+              {/* V2 GPS distance (2026-08-17) — donor transparency: same Distance_Km the claiming institution saw, surfaced back once claimed. Never shown for a still-Pending (unclaimed) donation. */}
+              {item.Distance_Km !== null && (
+                <Text style={styles.donationId}>
+                  📍 {t('donations.acceptedDistance', { distance: Math.round(item.Distance_Km) })}
+                </Text>
+              )}
               {(item.Expected_Collection_Date || item.Expected_Delivery_Date) && (
                 <Text style={styles.donationId}>
                   {item.Expected_Collection_Date &&

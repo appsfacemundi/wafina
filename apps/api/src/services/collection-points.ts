@@ -1,5 +1,6 @@
 import type { CollectionPoint } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
+import { fromSheetLatLong } from '../config/sheet-values';
 import { findRow, getRows } from '../config/sheets';
 
 function rowToCollectionPoint(row: Record<string, string>): CollectionPoint {
@@ -13,6 +14,10 @@ function rowToCollectionPoint(row: Record<string, string>): CollectionPoint {
     Email: row.Email || null,
     Opening_Hours: row.Opening_Hours || null,
     Directions: row.Directions || null,
+    // V2 GPS distance (2026-08-17) — null until geocoded; see the plan's
+    // note on the two currently-configured points not having a real
+    // geocodable address yet.
+    Location: fromSheetLatLong(row.Location ?? ''),
   };
 }
 

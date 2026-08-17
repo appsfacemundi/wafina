@@ -61,7 +61,15 @@
       "claiming": "A aceitar…",
       "claimButton": "Aceitar Doação",
       "claimSuccess": "Doação aceite com sucesso! Já pode agendar a recolha em \"Doações Aceites\".",
-      "claimError": "Não foi possível aceitar a doação."
+      "claimError": "Não foi possível aceitar a doação.",
+      "sortByDistance": "Ordenar por distância",
+      "distanceLine": "{{distance}} km de si",
+      "locationUnknown": "localização não indicada",
+      "confirmDistanceTitle": "Confirmar aceitação",
+      "confirmDistanceTitleFar": "Esta doação está bastante longe",
+      "confirmDistanceMessage": "Esta doação está a aproximadamente {{distance}} km de si, em {{location}}. Pretende aceitar mesmo assim?",
+      "confirmDistanceCancel": "Não, Voltar",
+      "confirmDistanceAccept": "Sim, Aceitar"
     },
     "claimed": {
       "title": "Doações Aceites",

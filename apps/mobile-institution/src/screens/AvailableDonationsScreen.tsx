@@ -2,14 +2,17 @@ import {
   daysAgoLabel,
   DELIVERY_METHOD_LABEL_KEY,
   DELIVERY_METHODS,
+  getDistanceThresholds,
+  getDistanceTier,
   RECIPIENT_CATEGORY_LABEL_KEY,
+  requiresDistanceConfirmation,
   type DeliveryMethod,
   type GeoRegion,
   type InstitutionDonationView,
 } from '@wafina/shared';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/Button';
@@ -38,6 +41,10 @@ export function AvailableDonationsScreen() {
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | 'all'>('all');
   // V2 multi-photo (2026-08-17) — which card's full gallery is open, if any.
   const [galleryDonation, setGalleryDonation] = useState<InstitutionDonationView | null>(null);
+  // V2 GPS distance (2026-08-17) — country's own ISO_Code, for per-country
+  // threshold lookup (see getDistanceThresholds); sortByDistance toggle.
+  const [countryIsoCode, setCountryIsoCode] = useState<string | null>(null);
+  const [sortByDistance, setSortByDistance] = useState(false);
 
   async function load() {
     if (!firebaseUser) return;
@@ -66,7 +73,9 @@ export function AvailableDonationsScreen() {
       try {
         const idToken = await firebaseUser.getIdToken();
         const countries = await apiFetch<GeoRegion[]>('/geo-regions/all-countries', { idToken });
-        setCountryName(countries.find((c) => c.Region_ID === institution.Country_ID)?.Name ?? '');
+        const country = countries.find((c) => c.Region_ID === institution.Country_ID);
+        setCountryName(country?.Name ?? '');
+        setCountryIsoCode(country?.ISO_Code ?? null);
       } catch {
         // Non-critical — the card just omits the country name if this fails.
       }
@@ -85,8 +94,17 @@ export function AvailableDonationsScreen() {
     if (deliveryFilter !== 'all') {
       result = result.filter((d) => d.Delivery_Method === deliveryFilter);
     }
+    // V2 GPS distance (2026-08-17) — nulls (no computable distance) sort last, never first.
+    if (sortByDistance) {
+      result = [...result].sort((a, b) => {
+        if (a.Distance_Km === null && b.Distance_Km === null) return 0;
+        if (a.Distance_Km === null) return 1;
+        if (b.Distance_Km === null) return -1;
+        return a.Distance_Km - b.Distance_Km;
+      });
+    }
     return result;
-  }, [donations, query, deliveryFilter]);
+  }, [donations, query, deliveryFilter, sortByDistance]);
 
   async function onClaim(donationId: string) {
     setClaimingId(donationId);
@@ -101,6 +119,36 @@ export function AvailableDonationsScreen() {
     } finally {
       setClaimingId(null);
     }
+  }
+
+  /**
+   * V2 GPS distance (2026-08-17) — the ONLY path allowed to skip straight to
+   * onClaim is a distance under the country's own `warn` threshold (or an
+   * unknown distance) — never automatic, per the approved decision. Above
+   * `warn`, this shows a confirm dialog naming the donation's own location
+   * and the approximate distance; onClaim only fires from the dialog's
+   * explicit "Sim, Aceitar", never from the raw button tap.
+   */
+  function onClaimPress(item: InstitutionDonationView) {
+    if (item.Distance_Km === null) {
+      onClaim(item.Donation_ID);
+      return;
+    }
+    const thresholds = getDistanceThresholds(countryIsoCode);
+    if (!requiresDistanceConfirmation(item.Distance_Km, thresholds)) {
+      onClaim(item.Donation_ID);
+      return;
+    }
+    const tier = getDistanceTier(item.Distance_Km, thresholds);
+    const location = [item.Address, item.City].filter(Boolean).join(', ') || t('donations.available.locationUnknown');
+    Alert.alert(
+      tier === 'farWarn' ? t('donations.available.confirmDistanceTitleFar') : t('donations.available.confirmDistanceTitle'),
+      t('donations.available.confirmDistanceMessage', { distance: Math.round(item.Distance_Km), location }),
+      [
+        { text: t('donations.available.confirmDistanceCancel'), style: 'cancel' },
+        { text: t('donations.available.confirmDistanceAccept'), onPress: () => onClaim(item.Donation_ID) },
+      ],
+    );
   }
 
   return (
@@ -132,6 +180,17 @@ export function AvailableDonationsScreen() {
                       </Text>
                     </Pressable>
                   ))}
+                  {/* V2 GPS distance (2026-08-17) — optional, off by default (newest-first stays the default order). */}
+                  <Pressable
+                    onPress={() => setSortByDistance((v) => !v)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: sortByDistance }}
+                    style={[styles.filterChip, sortByDistance && styles.filterChipActive]}
+                  >
+                    <Text style={[styles.filterChipText, sortByDistance && styles.filterChipTextActive]}>
+                      {t('donations.available.sortByDistance')}
+                    </Text>
+                  </Pressable>
                 </View>
               </>
             )}
@@ -196,6 +255,29 @@ export function AvailableDonationsScreen() {
                 </View>
               )}
               {/*
+                V2 GPS distance (2026-08-17) — always visible per the
+                approved decision ("distance is a decision factor, not
+                simply a filter"), not just above the warning threshold.
+                Tone shifts (default -> warning -> danger color) with the
+                same tier the confirm dialog uses, so the card itself hints
+                at what a tap will trigger before the institution commits.
+              */}
+              {item.Distance_Km !== null && (
+                <Text
+                  style={[
+                    styles.meta,
+                    (() => {
+                      const tier = getDistanceTier(item.Distance_Km, getDistanceThresholds(countryIsoCode));
+                      if (tier === 'farWarn') return styles.metaDanger;
+                      if (tier === 'warn') return styles.metaWarning;
+                      return undefined;
+                    })(),
+                  ]}
+                >
+                  📏 {t('donations.available.distanceLine', { distance: Math.round(item.Distance_Km) })}
+                </Text>
+              )}
+              {/*
                 RC1 pickup-location fix, 2026-08-07 — the map pin alone left
                 no way to identify the exact spot (which door/apartment) or
                 to reach the donor if they couldn't be found there. Address
@@ -215,7 +297,7 @@ export function AvailableDonationsScreen() {
                 </Pressable>
               )}
               <Text style={styles.dateLabel}>📅 {daysAgoLabel(item.Date_Submitted)}</Text>
-              <Button onPress={() => onClaim(item.Donation_ID)} disabled={claimingId === item.Donation_ID} fullWidth>
+              <Button onPress={() => onClaimPress(item)} disabled={claimingId === item.Donation_ID} fullWidth>
                 {claimingId === item.Donation_ID
                   ? t('donations.available.claiming')
                   : t('donations.available.claimButton')}
@@ -337,6 +419,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-400',
     fontSize: 13.5,
     color: colors.textMuted,
+  },
+  // V2 GPS distance (2026-08-17) — same tier the confirm dialog gates on.
+  metaWarning: {
+    color: colors.warning,
+    fontFamily: 'Manrope-600',
+  },
+  metaDanger: {
+    color: colors.danger,
+    fontFamily: 'Manrope-600',
   },
   mono: {
     fontFamily: fonts.mono,
