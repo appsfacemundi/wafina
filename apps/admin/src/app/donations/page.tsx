@@ -17,7 +17,19 @@ import {
   type GeoRegion,
   type RecipientCategory,
 } from '@wafina/shared';
-import { Badge, Button, Card, CollapsibleGroup, DonationTimeline, EmptyState, Input, Photo, Select, useToast } from '@wafina/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  CollapsibleGroup,
+  DonationTimeline,
+  EmptyState,
+  Input,
+  Photo,
+  PhotoGalleryModal,
+  Select,
+  useToast,
+} from '@wafina/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppShell } from '@/components/AppShell';
@@ -62,6 +74,8 @@ export default function AdminDonationsPage() {
   const [reasonFormId, setReasonFormId] = useState<string | null>(null);
   const [reasonMode, setReasonMode] = useState<'remove' | null>(null);
   const [reasonText, setReasonText] = useState('');
+  // V2 multi-photo (2026-08-17) — which donation's full gallery is open, if any.
+  const [galleryDonation, setGalleryDonation] = useState<AdminDonationView | null>(null);
 
   async function load() {
     if (!firebaseUser) return;
@@ -321,16 +335,41 @@ export default function AdminDonationsPage() {
       <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ display: 'flex', gap: 12, padding: 'var(--space-4)' }}>
           <div className="stack" style={{ gap: 4, flexShrink: 0 }}>
-            <Photo
-              src={d.Photo}
-              style={{
-                width: 96,
-                height: 96,
-                borderRadius: 8,
-                objectFit: 'contain',
-                background: 'var(--color-surface-2)',
-              }}
-            />
+            {/* V2 multi-photo (2026-08-17) — click to open the full gallery; badge only shows once there's more than one photo. */}
+            <button
+              type="button"
+              onClick={() => d.Photos.length > 0 && setGalleryDonation(d)}
+              aria-label="Ver todas as fotos"
+              style={{ position: 'relative', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+            >
+              <Photo
+                src={d.Photo}
+                style={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: 8,
+                  objectFit: 'contain',
+                  background: 'var(--color-surface-2)',
+                }}
+              />
+              {d.Photos.length > 1 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: 4,
+                    right: 4,
+                    background: 'rgba(15, 23, 42, 0.7)',
+                    color: '#ffffff',
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    padding: '2px 7px',
+                  }}
+                >
+                  📷 {d.Photos.length}
+                </span>
+              )}
+            </button>
             <label
               style={{
                 fontSize: 11.5,
@@ -807,6 +846,11 @@ export default function AdminDonationsPage() {
           </div>
         )}
       </div>
+      <PhotoGalleryModal
+        open={!!galleryDonation}
+        photos={galleryDonation?.Photos ?? []}
+        onClose={() => setGalleryDonation(null)}
+      />
     </AppShell>
   );
 }

@@ -6,6 +6,7 @@ export * from './Badge';
 export * from './Icon';
 export * from './EmptyState';
 export * from './Photo';
+export * from './PhotoGalleryModal';
 export * from './Toast';
 export * from './DonationTimeline';
 export * from './CollapsibleGroup';

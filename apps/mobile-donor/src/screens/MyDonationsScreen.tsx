@@ -24,6 +24,7 @@ import { Card } from '@/components/Card';
 import { DonationTimeline } from '@/components/DonationTimeline';
 import { EmptyState } from '@/components/EmptyState';
 import { Input } from '@/components/Input';
+import { PhotoGalleryModal } from '@/components/PhotoGalleryModal';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { ApiError, apiFetch } from '@/lib/api';
@@ -60,6 +61,8 @@ export function MyDonationsScreen({ route, navigation }: Props) {
   // RC1 rejection-loop fix, 2026-08-13 — tracks which card's "Reenviar" is
   // in flight so only that one card's button shows a loading state.
   const [resubmittingId, setResubmittingId] = useState<string | null>(null);
+  // V2 multi-photo (2026-08-17) — which card's full gallery is open, if any.
+  const [galleryDonation, setGalleryDonation] = useState<Donation | null>(null);
 
   const load = useCallback(async () => {
     if (!firebaseUser) return;
@@ -300,7 +303,17 @@ export function MyDonationsScreen({ route, navigation }: Props) {
                 item.Donation_ID === highlightId && styles.highlightedCard,
               ]}
             >
-              {item.Photo && <Image source={{ uri: item.Photo }} style={styles.itemPhoto} resizeMode="cover" />}
+              {/* V2 multi-photo (2026-08-17) — tap the cover to open the full gallery; the badge only shows once there's more than one photo. */}
+              {item.Photo && (
+                <Pressable onPress={() => setGalleryDonation(item)} style={styles.photoWrap} accessibilityRole="button">
+                  <Image source={{ uri: item.Photo }} style={styles.itemPhoto} resizeMode="cover" />
+                  {item.Photos.length > 1 && (
+                    <View style={styles.photoCountBadge}>
+                      <Text style={styles.photoCountBadgeText}>📷 {item.Photos.length}</Text>
+                    </View>
+                  )}
+                </Pressable>
+              )}
               <View style={styles.donationRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemType}>{item.Item_Type}</Text>
@@ -376,6 +389,11 @@ export function MyDonationsScreen({ route, navigation }: Props) {
             </Card>
           );
         }}
+      />
+      <PhotoGalleryModal
+        visible={!!galleryDonation}
+        photos={galleryDonation?.Photos ?? []}
+        onClose={() => setGalleryDonation(null)}
       />
     </View>
   );
@@ -457,11 +475,29 @@ const styles = StyleSheet.create({
   // Bug fix, 2026-08-11 — same 'contain'-in-a-small-box issue as the
   // DonateScreen upload preview: switched to 'cover' so the donor's own
   // photo fills the card instead of rendering as a tiny letterboxed strip.
+  // V2 multi-photo (2026-08-17) — wraps the cover Image so the photo-count badge can anchor to it.
+  photoWrap: {
+    position: 'relative',
+  },
   itemPhoto: {
     width: '100%',
     height: 180,
     borderRadius: radius.md,
     backgroundColor: colors.surface2,
+  },
+  photoCountBadge: {
+    position: 'absolute',
+    bottom: spacing[2],
+    right: spacing[2],
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    borderRadius: radius.full,
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+  },
+  photoCountBadgeText: {
+    fontFamily: 'Manrope-700',
+    fontSize: 11,
+    color: '#ffffff',
   },
   highlightedCard: {
     borderColor: colors.accent,

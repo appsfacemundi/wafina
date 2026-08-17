@@ -28,7 +28,34 @@ import { ValidationError } from './validation-error';
  */
 const DONATION_TYPE_PHYSICAL_GOODS = 'Bens';
 
+/**
+ * V2 multi-photo (2026-08-17) — Photos is stored as a JSON-array-in-cell,
+ * same pattern as Institution.Review_History. Malformed/blank cells (every
+ * row written before this shipped) parse to an empty array rather than
+ * throwing, so rowToDonation's fallback-to-legacy-Photo path below always
+ * has a clean signal for "this row predates Photos."
+ */
+function parsePhotosArray(raw: string | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
 function rowToDonation(row: Record<string, string>): Donation {
+  // V2 multi-photo (2026-08-17) — Photos blank/missing means this row
+  // predates the feature; derive a 1-photo array from the legacy Photo
+  // column so every pre-existing donation keeps working unchanged. Photo
+  // itself becomes a read-only alias for Photos[0] either way, so the two
+  // can never disagree.
+  const storedPhotos = parsePhotosArray(row.Photos);
+  const photos = (storedPhotos.length > 0 ? storedPhotos : [row.Photo].filter(Boolean))
+    .map((url) => toProxiedUrl(url))
+    .filter((url): url is string => !!url);
+
   return {
     Donation_ID: row.Donation_ID,
     Public_Donation_Code: row.Public_Donation_Code,
@@ -39,7 +66,8 @@ function rowToDonation(row: Record<string, string>): Donation {
     Condition: row.Condition,
     Recipient_Category: (row.Recipient_Category || null) as RecipientCategory | null,
     Delivery_Method: (row.Delivery_Method || null) as DeliveryMethod | null,
-    Photo: toProxiedUrl(row.Photo) ?? '',
+    Photo: photos[0] ?? '',
+    Photos: photos,
     Location: fromSheetLatLong(row.Location ?? '') ?? { lat: 0, lng: 0 },
     Status: row.Status as DonationStatus,
     Claimed_By_Institution_ID: row.Claimed_By_Institution_ID || null,
@@ -381,11 +409,20 @@ function assertValidQuantity(quantity: number): void {
   }
 }
 
+/** V2 multi-photo (2026-08-17) — max mirrors multer's `files: 10` limit on the upload routes. */
+const MAX_PHOTOS = 10;
+
+export function assertValidPhotoCount(count: number): void {
+  if (count < 1) throw new ValidationError('É necessária pelo menos uma fotografia');
+  if (count > MAX_PHOTOS) throw new ValidationError(`São permitidas no máximo ${MAX_PHOTOS} fotografias`);
+}
+
 export interface CreateDonationInput {
   Item_Type: string;
   Quantity: number;
   Condition: string;
-  Photo: string;
+  /** V2 multi-photo (2026-08-17) — up to 10 Drive URLs, first = cover. See Donation.Photos. */
+  Photos: string[];
   Location: { lat: number; lng: number };
   /** Free text, optional (e.g. "Luanda") — see the City field comment on the shared Donation type. */
   City?: string;
@@ -398,12 +435,12 @@ export interface CreateDonationInput {
 }
 
 /**
- * Validates everything except Photo. Exported so the route can check these
+ * Validates everything except Photos. Exported so the route can check these
  * *before* uploading to Drive — otherwise a bad Quantity/Location would leave
- * an orphaned file behind after the donation creation itself fails.
+ * orphaned files behind after the donation creation itself fails.
  */
 export function assertValidDonationFields(
-  input: Omit<CreateDonationInput, 'Photo'>,
+  input: Omit<CreateDonationInput, 'Photos'>,
 ): void {
   if (!input.Item_Type) throw new ValidationError('O tipo de item é obrigatório');
   if (!input.Condition) throw new ValidationError('O estado é obrigatório');
@@ -439,7 +476,7 @@ export async function createDonation(
   corporateAccountId: string | null = null,
 ): Promise<Donation> {
   assertValidDonationFields(input);
-  if (!input.Photo) throw new ValidationError('A fotografia é obrigatória');
+  assertValidPhotoCount(input.Photos.length);
   if (!activeCountryId) {
     throw new ValidationError('Complete o seu perfil (incluindo o país) antes de doar');
   }
@@ -454,7 +491,13 @@ export async function createDonation(
     Condition: input.Condition,
     Recipient_Category: input.Recipient_Category,
     Delivery_Method: input.Delivery_Method,
-    Photo: input.Photo,
+    // V2 multi-photo (2026-08-17) — Photo stays written as a plain-string
+    // mirror of Photos[0] for one release cycle (see the plan's migration
+    // section): decoupled EAS/Render deploys mean an old mobile build could
+    // theoretically still be talking to the new API for a short window, and
+    // this keeps that build's Photo-only reads correct either way.
+    Photo: input.Photos[0],
+    Photos: JSON.stringify(input.Photos),
     Location: toSheetLatLong(input.Location),
     Status: 'Pending',
     Date_Submitted: nowIso(),
@@ -957,7 +1000,14 @@ export async function editDonation(
   if (patch.Condition !== undefined) rowPatch.Condition = patch.Condition;
   if (patch.Recipient_Category !== undefined) rowPatch.Recipient_Category = patch.Recipient_Category;
   if (patch.Delivery_Method !== undefined) rowPatch.Delivery_Method = patch.Delivery_Method;
-  if (patch.Photo !== undefined) rowPatch.Photo = patch.Photo;
+  // V2 multi-photo (2026-08-17) — editing photos replaces the whole set
+  // (matches how the mobile UI manages the full array client-side and
+  // submits the final result), not an add/remove-single-photo API.
+  if (patch.Photos !== undefined) {
+    assertValidPhotoCount(patch.Photos.length);
+    rowPatch.Photo = patch.Photos[0];
+    rowPatch.Photos = JSON.stringify(patch.Photos);
+  }
   if (patch.Location !== undefined) rowPatch.Location = toSheetLatLong(patch.Location);
   if (patch.City !== undefined) rowPatch.City = patch.City?.trim() ?? '';
   if (patch.Address !== undefined) rowPatch.Address = patch.Address?.trim() ?? '';
@@ -975,10 +1025,20 @@ export async function editDonation(
  * any point in a donation's lifecycle, and only Admin can act on it.
  */
 export async function adminReplaceDonationPhoto(donationId: string, photoUrl: string): Promise<Donation> {
-  const existing = await getDonation(donationId);
-  if (!existing) throw new ValidationError('Doação não encontrada');
+  const row = await findRow(SHEET_TABS.donations, (r) => r.Donation_ID === donationId);
+  if (!row) throw new ValidationError('Doação não encontrada');
 
-  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, { Photo: photoUrl });
+  // V2 multi-photo (2026-08-17) — Photo is now derived from Photos[0], so an
+  // Admin replacement has to update both, or it would silently have no
+  // effect on any donation that already has a Photos array. Only the cover
+  // slot is swapped; any other photos the donor added are left as-is.
+  const existingPhotos = parsePhotosArray(row.Photos);
+  const newPhotos = existingPhotos.length > 0 ? [photoUrl, ...existingPhotos.slice(1)] : [photoUrl];
+
+  await updateRow(SHEET_TABS.donations, 'Donation_ID', donationId, {
+    Photo: photoUrl,
+    Photos: JSON.stringify(newPhotos),
+  });
   const updated = await getDonation(donationId);
   if (!updated) throw new Error('Donation vanished after update');
   return updated;

@@ -7,7 +7,7 @@ import {
   type AdminDonationView,
   type GeoRegion,
 } from '@wafina/shared';
-import { Badge, Button, Card, EmptyState, Photo, useToast } from '@wafina/ui';
+import { Badge, Button, Card, EmptyState, Photo, PhotoGalleryModal, useToast } from '@wafina/ui';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth, useRequireAdminSession } from '@/context/AuthContext';
@@ -38,6 +38,10 @@ export default function ApproveDonationsPage() {
   const [reasonFormId, setReasonFormId] = useState<string | null>(null);
   const [reasonMode, setReasonMode] = useState<'reject' | 'correction' | null>(null);
   const [reasonText, setReasonText] = useState('');
+  // V2 multi-photo (2026-08-17) — reviewing every angle matters most right
+  // here, before approval, so this queue gets the same gallery viewer as
+  // the main Doações page.
+  const [galleryDonation, setGalleryDonation] = useState<AdminDonationView | null>(null);
 
   async function load() {
     if (!firebaseUser) return;
@@ -151,17 +155,47 @@ export default function ApproveDonationsPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 12, padding: 'var(--space-4)' }}>
-                  <Photo
-                    src={d.Photo}
+                  <button
+                    type="button"
+                    onClick={() => d.Photos.length > 0 && setGalleryDonation(d)}
+                    aria-label="Ver todas as fotos"
                     style={{
-                      width: 120,
-                      height: 120,
-                      borderRadius: 8,
-                      objectFit: 'contain',
-                      background: 'var(--color-surface-2)',
+                      position: 'relative',
+                      padding: 0,
+                      border: 'none',
+                      background: 'none',
+                      cursor: 'pointer',
                       flexShrink: 0,
                     }}
-                  />
+                  >
+                    <Photo
+                      src={d.Photo}
+                      style={{
+                        width: 120,
+                        height: 120,
+                        borderRadius: 8,
+                        objectFit: 'contain',
+                        background: 'var(--color-surface-2)',
+                      }}
+                    />
+                    {d.Photos.length > 1 && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          bottom: 4,
+                          right: 4,
+                          background: 'rgba(15, 23, 42, 0.7)',
+                          color: '#ffffff',
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          borderRadius: 999,
+                          padding: '2px 7px',
+                        }}
+                      >
+                        📷 {d.Photos.length}
+                      </span>
+                    )}
+                  </button>
                   <div className="stack" style={{ gap: 4, flex: 1 }}>
                     <p style={{ fontWeight: 700, fontSize: 17 }}>{d.Item_Type}</p>
                     <p className="mono" style={{ fontSize: 12, color: 'var(--color-text-faint)' }}>
@@ -252,6 +286,11 @@ export default function ApproveDonationsPage() {
           </div>
         )}
       </div>
+      <PhotoGalleryModal
+        open={!!galleryDonation}
+        photos={galleryDonation?.Photos ?? []}
+        onClose={() => setGalleryDonation(null)}
+      />
     </AppShell>
   );
 }

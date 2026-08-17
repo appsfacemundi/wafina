@@ -6,6 +6,7 @@ import { requireAuth, requireRole, requireVerified } from '../middleware/auth';
 import {
   approveDonation,
   assertValidDonationFields,
+  assertValidPhotoCount,
   checkReceberEligibility,
   claimDonation,
   confirmDelivery,
@@ -44,24 +45,92 @@ export const donationsRouter = Router();
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 },
+  // V2 multi-photo (2026-08-17) — `files: 10` bounds a broken/malicious
+  // client's file count before assertValidPhotoCount's own 10-photo check
+  // even runs.
+  limits: { fileSize: 8 * 1024 * 1024, files: 10 },
   fileFilter: (_req, file, cb) => {
     cb(null, file.mimetype.startsWith('image/'));
   },
 });
 
 /**
- * Spec 11.1.1 / 12.1 — Donor_ID always comes from the session, never the
- * request body. Multipart because the donation photo goes straight to Drive.
+ * V2 multi-photo (2026-08-17) — accepts the new plural `photos` field (up to
+ * 10) and still recognizes the legacy singular `photo` field, so a donor
+ * still running a pre-V2 mobile build keeps working against this API without
+ * forcing every installed build to update simultaneously (decoupled EAS/
+ * Render deploys — see the plan's migration section).
+ */
+const uploadPhotos = upload.fields([
+  { name: 'photos', maxCount: 10 },
+  { name: 'photo', maxCount: 1 },
+]);
+
+function extractPhotoFiles(req: { files?: unknown }): Express.Multer.File[] {
+  const files = req.files as { photos?: Express.Multer.File[]; photo?: Express.Multer.File[] } | undefined;
+  return files?.photos?.length ? files.photos : (files?.photo ?? []);
+}
+
+/**
+ * V2 multi-photo (2026-08-17) — a single-photo upload endpoint, used by
+ * mobile-donor's new multi-photo picker: `expo-file-system`'s `uploadAsync`
+ * (the existing, device-tested fix for RN FormData breaking on Android —
+ * see mobile-donor's lib/api.ts) only ever sends ONE file per multipart
+ * request, so a 10-photo submission uploads each photo individually here
+ * first, then creates/edits the donation as a plain JSON request carrying
+ * the resulting URLs (see the JSON-body branch on POST /donations and
+ * PATCH /donations/:id below). Legacy single-multipart-request clients are
+ * unaffected — they never call this route at all.
  */
 donationsRouter.post(
-  '/donations',
+  '/donations/photos',
   requireAuth,
   requireRole('Donor'),
   upload.single('photo'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('A fotografia é obrigatória');
+    const url = await uploadPhoto(req.file.buffer, `${Date.now()}-${req.file.originalname}`, req.file.mimetype);
+    res.status(201).json({ url });
+  }),
+);
 
+/**
+ * Reads the photo URLs for this request regardless of how they arrived:
+ * multipart files (legacy single-request clients, via `extractPhotoFiles`)
+ * take priority; otherwise falls back to a JSON `Photos` array of URLs
+ * already uploaded via POST /donations/photos (current mobile-donor).
+ */
+async function resolvePhotoUrls(req: {
+  files?: unknown;
+  body: Record<string, unknown>;
+}): Promise<string[]> {
+  const photoFiles = extractPhotoFiles(req);
+  if (photoFiles.length > 0) {
+    assertValidPhotoCount(photoFiles.length);
+    return Promise.all(
+      photoFiles.map((file) => uploadPhoto(file.buffer, `${Date.now()}-${file.originalname}`, file.mimetype)),
+    );
+  }
+  const photos = req.body.Photos;
+  if (Array.isArray(photos) && photos.every((p) => typeof p === 'string')) {
+    assertValidPhotoCount(photos.length);
+    return photos as string[];
+  }
+  return [];
+}
+
+/**
+ * Spec 11.1.1 / 12.1 — Donor_ID always comes from the session, never the
+ * request body. Accepts either a legacy single-request multipart upload or
+ * (current mobile-donor) plain JSON with pre-uploaded photo URLs — see
+ * resolvePhotoUrls.
+ */
+donationsRouter.post(
+  '/donations',
+  requireAuth,
+  requireRole('Donor'),
+  uploadPhotos,
+  asyncHandler(async (req, res) => {
     const fields = {
       Item_Type: req.body.Item_Type,
       Quantity: Number(req.body.Quantity),
@@ -72,14 +141,14 @@ donationsRouter.post(
       City: req.body.City as string | undefined,
       Address: req.body.Address as string | undefined,
     };
-    // Validate everything else before spending a Drive upload on a request that would fail anyway.
+    // Validate everything else first: for a legacy multipart client this
+    // avoids spending a Drive upload (inside resolvePhotoUrls, next) on a
+    // request that would fail anyway; for the JSON-URLs path the photos are
+    // already uploaded either way, so this ordering costs nothing there.
     assertValidDonationFields(fields);
 
-    const photoUrl = await uploadPhoto(
-      req.file.buffer,
-      `${Date.now()}-${req.file.originalname}`,
-      req.file.mimetype,
-    );
+    const photoUrls = await resolvePhotoUrls(req);
+    assertValidPhotoCount(photoUrls.length);
 
     // RC1: donor chooses per-donation, never trusted as an arbitrary ID from
     // the client — only ever their own session's linked company, or null.
@@ -91,7 +160,7 @@ donationsRouter.post(
     const donation = await createDonation(
       req.user!.userId,
       req.user!.activeCountryId,
-      { ...fields, Photo: photoUrl },
+      { ...fields, Photos: photoUrls },
       corporateAccountId,
     );
     res.status(201).json(donation);
@@ -115,14 +184,17 @@ donationsRouter.get(
  * correcting a rejected donation can also replace the photo, matching the
  * create route's shape. The photo is optional here (unlike create): a
  * correction that's purely textual (wrong Item_Type, wrong quantity) doesn't
- * need to re-upload the existing one. `upload.single('photo')` leaves
- * `req.file` undefined when no file is sent, which multer handles natively.
+ * need to re-upload the existing one. V2 multi-photo (2026-08-17) — photo
+ * replacement is now whole-set: sending any `photos`/`photo` files replaces
+ * the entire array (matches how the mobile UI manages the full set
+ * client-side), not an add/remove-single-photo API. No files present leaves
+ * the existing Photos untouched.
  */
 donationsRouter.patch(
   '/donations/:id',
   requireAuth,
   requireRole('Donor'),
-  upload.single('photo'),
+  uploadPhotos,
   asyncHandler(async (req, res) => {
     const patch: Record<string, unknown> = {};
     if (req.body.Item_Type !== undefined) patch.Item_Type = req.body.Item_Type;
@@ -135,9 +207,8 @@ donationsRouter.patch(
     if (req.body.Location_lat !== undefined && req.body.Location_lng !== undefined) {
       patch.Location = { lat: Number(req.body.Location_lat), lng: Number(req.body.Location_lng) };
     }
-    if (req.file) {
-      patch.Photo = await uploadPhoto(req.file.buffer, `${Date.now()}-${req.file.originalname}`, req.file.mimetype);
-    }
+    const photoUrls = await resolvePhotoUrls(req);
+    if (photoUrls.length > 0) patch.Photos = photoUrls;
     const donation = await editDonation(req.user!.userId, req.params.id, patch);
     res.json(donation);
   }),

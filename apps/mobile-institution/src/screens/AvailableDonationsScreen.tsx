@@ -17,6 +17,7 @@ import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Input } from '@/components/Input';
 import { Photo } from '@/components/Photo';
+import { PhotoGalleryModal } from '@/components/PhotoGalleryModal';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
@@ -35,6 +36,8 @@ export function AvailableDonationsScreen() {
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryMethod | 'all'>('all');
+  // V2 multi-photo (2026-08-17) — which card's full gallery is open, if any.
+  const [galleryDonation, setGalleryDonation] = useState<InstitutionDonationView | null>(null);
 
   async function load() {
     if (!firebaseUser) return;
@@ -158,7 +161,15 @@ export function AvailableDonationsScreen() {
         keyExtractor={(item) => item.Donation_ID}
         renderItem={({ item }) => (
           <Card style={styles.card}>
-            <Photo uri={item.Photo} style={styles.photo} resizeMode="contain" />
+            {/* V2 multi-photo (2026-08-17) — tap to open the full gallery; badge only shows once there's more than one photo. */}
+            <Pressable onPress={() => setGalleryDonation(item)} accessibilityRole="button" style={styles.photoWrap}>
+              <Photo uri={item.Photo} style={styles.photo} resizeMode="contain" />
+              {item.Photos.length > 1 && (
+                <View style={styles.photoCountBadge}>
+                  <Text style={styles.photoCountBadgeText}>📷 {item.Photos.length}</Text>
+                </View>
+              )}
+            </Pressable>
             <View style={styles.cardBody}>
               <View style={styles.rowBetween}>
                 <Text style={styles.itemType}>{item.Item_Type}</Text>
@@ -212,6 +223,11 @@ export function AvailableDonationsScreen() {
             </View>
           </Card>
         )}
+      />
+      <PhotoGalleryModal
+        visible={!!galleryDonation}
+        photos={galleryDonation?.Photos ?? []}
+        onClose={() => setGalleryDonation(null)}
       />
     </View>
   );
@@ -279,10 +295,28 @@ const styles = StyleSheet.create({
     gap: 0,
     marginBottom: spacing[4],
   },
+  // V2 multi-photo (2026-08-17) — wraps the cover Photo so the photo-count badge can anchor to it.
+  photoWrap: {
+    position: 'relative',
+  },
   photo: {
     width: '100%',
     height: 180,
     backgroundColor: colors.surface2,
+  },
+  photoCountBadge: {
+    position: 'absolute',
+    bottom: spacing[2],
+    right: spacing[2],
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+  },
+  photoCountBadgeText: {
+    fontFamily: 'Manrope-700',
+    fontSize: 11,
+    color: '#ffffff',
   },
   cardBody: {
     padding: spacing[4],

@@ -85,3 +85,16 @@ export async function uploadFile<T>(
   }
   return data as T;
 }
+
+/**
+ * V2 multi-photo (2026-08-17) — `uploadAsync` above only ever sends one file
+ * per request, so a multi-photo donation uploads each photo individually
+ * (sequentially, from the caller) via this endpoint, then the donation
+ * itself is created/edited as a plain JSON `apiFetch` call carrying the
+ * resulting URLs. Already-remote photos (kept, unchanged, in edit mode)
+ * skip this entirely — see DonateScreen's onSubmit.
+ */
+export async function uploadDonationPhoto(fileUri: string, idToken: string | null | undefined, mimeType: string): Promise<string> {
+  const { url } = await uploadFile<{ url: string }>('/donations/photos', 'photo', fileUri, { idToken, mimeType });
+  return url;
+}

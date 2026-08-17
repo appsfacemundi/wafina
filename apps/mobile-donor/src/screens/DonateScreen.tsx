@@ -12,6 +12,7 @@ import {
   type DeliveryMethod,
   type RecipientCategory,
 } from '@wafina/shared';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
@@ -25,7 +26,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { ApiError, apiFetch, uploadFile } from '@/lib/api';
+import { ApiError, apiFetch, uploadDonationPhoto } from '@/lib/api';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, radius, spacing } from '@/theme/tokens';
 
@@ -114,8 +115,40 @@ const CONDITION_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
  * freshly-picked local asset (ImagePicker.ImagePickerAsset) or the existing
  * remote URL prefilled in edit mode. Only the fields this screen actually
  * reads are required, so both shapes satisfy it structurally.
+ *
+ * V2 multi-photo (2026-08-17) — a local (freshly-picked, not yet uploaded)
+ * entry always has a `file://`/`content://`/`ph://`-style uri; a remote
+ * (already on Drive, kept as-is) entry always has an `http(s)://` uri —
+ * onSubmit uses that prefix to decide which entries need uploading.
  */
 type PhotoValue = { uri: string; mimeType?: string };
+
+/** V2 multi-photo (2026-08-17) — mirrors the server's own MAX_PHOTOS cap (assertValidPhotoCount). */
+const MAX_PHOTOS = 10;
+/**
+ * Longest edge, in px, after resize — large enough to show genuine detail
+ * (a car's dashboard/odometer/damage), small enough to keep upload time and
+ * Drive storage reasonable. Requirement was previously unmet even for the
+ * single-photo case (quality: 0.8 alone only affects JPEG re-encoding, not
+ * pixel dimensions).
+ */
+const MAX_PHOTO_DIMENSION = 1600;
+
+async function compressPhotoAsset(asset: { uri: string; width?: number; height?: number }): Promise<PhotoValue> {
+  const actions: ImageManipulator.Action[] =
+    asset.width && asset.height && Math.max(asset.width, asset.height) > MAX_PHOTO_DIMENSION
+      ? [
+          asset.width >= asset.height
+            ? { resize: { width: MAX_PHOTO_DIMENSION } }
+            : { resize: { height: MAX_PHOTO_DIMENSION } },
+        ]
+      : [];
+  const result = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+    compress: 0.8,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
+  return { uri: result.uri, mimeType: 'image/jpeg' };
+}
 
 export function DonateScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
@@ -151,7 +184,16 @@ export function DonateScreen({ navigation, route }: Props) {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(
     editDonation?.Delivery_Method ?? DELIVERY_METHODS[0],
   );
-  const [photo, setPhoto] = useState<PhotoValue | null>(editDonation ? { uri: editDonation.Photo } : null);
+  // V2 multi-photo (2026-08-17) — up to MAX_PHOTOS, first = cover. Prefilled
+  // from the full Photos array in edit mode (falling back to the single
+  // legacy Photo for the rare pre-Photos donation row — see rowToDonation).
+  const [photos, setPhotos] = useState<PhotoValue[]>(
+    editDonation
+      ? (editDonation.Photos.length > 0 ? editDonation.Photos : [editDonation.Photo].filter(Boolean)).map((uri) => ({
+          uri,
+        }))
+      : [],
+  );
 
   const [corporateAccount, setCorporateAccount] = useState<CorporateAccount | null>(null);
   const [isCorporateDonation, setIsCorporateDonation] = useState(false);
@@ -214,24 +256,41 @@ export function DonateScreen({ navigation, route }: Props) {
   // Pilot feedback, 2026-08-05: only the gallery was ever offered here —
   // Institution's success-story photo already got a camera option
   // (2026-08-04); this was the last of the three upload points to catch up.
+  //
+  // V2 multi-photo (2026-08-17) — camera stays one-shot-per-tap (that's how
+  // capture works); the library picker now allows selecting several at once,
+  // up to whatever room is left. Both compress before adding to state.
   async function onPickFromCamera() {
+    if (photos.length >= MAX_PHOTOS) return;
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       setError(t('donate.cameraPermissionError'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (!result.canceled && result.assets[0]) setPhoto(result.assets[0]);
+    if (!result.canceled && result.assets[0]) {
+      const compressed = await compressPhotoAsset(result.assets[0]);
+      setPhotos((prev) => [...prev, compressed].slice(0, MAX_PHOTOS));
+    }
   }
 
   async function onPickFromLibrary() {
+    if (photos.length >= MAX_PHOTOS) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       setError(t('donate.libraryPermissionError'));
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (!result.canceled && result.assets[0]) setPhoto(result.assets[0]);
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_PHOTOS - photos.length,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      const compressed = await Promise.all(result.assets.map(compressPhotoAsset));
+      setPhotos((prev) => [...prev, ...compressed].slice(0, MAX_PHOTOS));
+    }
   }
 
   function onPickPhoto() {
@@ -240,6 +299,31 @@ export function DonateScreen({ navigation, route }: Props) {
       { text: t('donate.chooseFromLibrary'), onPress: onPickFromLibrary },
       { text: t('common.cancel'), style: 'cancel' },
     ]);
+  }
+
+  /** V2 multi-photo (2026-08-17) — non-cover thumbnails also offer "make cover"; the cover thumbnail only offers remove. */
+  function onPhotoThumbnailPress(index: number) {
+    const options: { text: string; onPress?: () => void; style?: 'cancel' | 'destructive' }[] = [];
+    if (index !== 0) {
+      options.push({ text: t('donate.makeCover'), onPress: () => onMakeCover(index) });
+    }
+    options.push({ text: t('donate.removePhoto'), onPress: () => onRemovePhoto(index), style: 'destructive' });
+    options.push({ text: t('common.cancel'), style: 'cancel' });
+    Alert.alert(t('donate.photoOptionsTitle'), undefined, options);
+  }
+
+  function onRemovePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function onMakeCover(index: number) {
+    setPhotos((prev) => {
+      if (index <= 0 || index >= prev.length) return prev;
+      const copy = [...prev];
+      const [item] = copy.splice(index, 1);
+      copy.unshift(item);
+      return copy;
+    });
   }
 
   const hasValidLocation =
@@ -307,7 +391,7 @@ export function DonateScreen({ navigation, route }: Props) {
       quantityInputRef.current?.focus();
       return;
     }
-    if (!photo) {
+    if (photos.length === 0) {
       setPhotoMissing(true);
       setError(t('donate.photoRequiredErrorFull'));
       scrollToSection(photoSectionRef.current);
@@ -323,66 +407,62 @@ export function DonateScreen({ navigation, route }: Props) {
     try {
       const idToken = await firebaseUser?.getIdToken();
 
+      // V2 multi-photo (2026-08-17) — `uploadAsync` only ever sends one file
+      // per request (see lib/api.ts), so each photo uploads individually,
+      // sequentially (bounds concurrency on a possibly-poor mobile
+      // connection); an already-remote entry (kept, unchanged, edit mode
+      // only) is never re-uploaded — its http(s) URL is reused as-is.
+      const photoUrls: string[] = [];
+      for (const p of photos) {
+        photoUrls.push(p.uri.startsWith('http') ? p.uri : await uploadDonationPhoto(p.uri, idToken, p.mimeType ?? 'image/jpeg'));
+      }
+
       if (isEditMode) {
-        // RC1 rejection-loop fix, 2026-08-13 — only re-upload the photo if
-        // the donor actually picked a new one (photo.uri still equal to the
-        // original remote URL means they left it untouched); otherwise a
-        // plain JSON PATCH avoids re-uploading a file that's already on
-        // Drive. Both shapes hit the same PATCH route (see routes/donations.ts).
-        const photoChanged = photo.uri !== editDonation!.Photo;
-        if (photoChanged) {
-          await uploadFile(`/donations/${editDonation!.Donation_ID}`, 'photo', photo.uri, {
-            method: 'PATCH',
-            idToken,
-            mimeType: photo.mimeType ?? 'image/jpeg',
-            parameters: {
-              Item_Type: itemType,
-              Quantity: quantity,
-              Condition: condition,
-              Recipient_Category: recipientCategory,
-              Delivery_Method: deliveryMethod,
-              Address: address,
-              Location_lat: lat,
-              Location_lng: lng,
-            },
-          });
-        } else {
-          await apiFetch(`/donations/${editDonation!.Donation_ID}`, {
-            method: 'PATCH',
-            idToken,
-            body: {
-              Item_Type: itemType,
-              Quantity: Number(quantity),
-              Condition: condition,
-              Recipient_Category: recipientCategory,
-              Delivery_Method: deliveryMethod,
-              Address: address,
-              Location: { lat: Number(lat), lng: Number(lng) },
-            },
-          });
-        }
+        // RC1 rejection-loop fix, 2026-08-13 / V2 multi-photo, 2026-08-17 —
+        // only send Photos in the patch if the set actually changed
+        // (added/removed/reordered/re-uploaded); otherwise a plain field-only
+        // PATCH leaves the existing Photos untouched.
+        const photosChanged =
+          photoUrls.length !== editDonation!.Photos.length ||
+          photoUrls.some((url, i) => url !== editDonation!.Photos[i]);
+
+        await apiFetch(`/donations/${editDonation!.Donation_ID}`, {
+          method: 'PATCH',
+          idToken,
+          body: {
+            Item_Type: itemType,
+            Quantity: Number(quantity),
+            Condition: condition,
+            Recipient_Category: recipientCategory,
+            Delivery_Method: deliveryMethod,
+            Address: address,
+            Location: { lat: Number(lat), lng: Number(lng) },
+            ...(photosChanged ? { Photos: photoUrls } : {}),
+          },
+        });
         showToast(t('donate.editSuccess'));
         navigation.navigate('Tabs', { screen: 'MyDonations' });
         return;
       }
 
-      await uploadFile('/donations', 'photo', photo.uri, {
+      await apiFetch('/donations', {
+        method: 'POST',
         idToken,
-        mimeType: photo.mimeType ?? 'image/jpeg',
-        parameters: {
+        body: {
           Item_Type: itemType,
-          Quantity: quantity,
+          Quantity: Number(quantity),
           Condition: condition,
           Recipient_Category: recipientCategory,
           Delivery_Method: deliveryMethod,
           Address: address,
           Location_lat: lat,
           Location_lng: lng,
+          Photos: photoUrls,
           ...(corporateAccount ? { isCorporateDonation: String(isCorporateDonation) } : {}),
         },
       });
       setQuantity('1');
-      setPhoto(null);
+      setPhotos([]);
       showToast(t('donate.submitSuccess'));
       // Real-device finding, 2026-08-04: staying on the form after a
       // successful submit read as "did this actually work?" — the toast
@@ -595,19 +675,48 @@ export function DonateScreen({ navigation, route }: Props) {
                 <Text style={styles.requiredPillText}>{t('donate.required')}</Text>
               </View>
             </View>
-            {photo ? (
-              <Pressable onPress={onPickPhoto} style={styles.previewWrap}>
-                <Image source={{ uri: photo.uri }} style={styles.preview} resizeMode="cover" />
-                <Pressable
-                  style={styles.removePhotoBtn}
-                  onPress={() => setPhoto(null)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('donate.removePhoto')}
-                  hitSlop={8}
-                >
-                  <Ionicons name="close" size={16} color={colors.accentText} />
-                </Pressable>
-              </Pressable>
+            {photos.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.photoRow}
+              >
+                {photos.map((p, index) => (
+                  <Pressable
+                    key={`${p.uri}-${index}`}
+                    onPress={() => onPhotoThumbnailPress(index)}
+                    style={styles.photoThumbWrap}
+                    accessibilityRole="button"
+                    accessibilityLabel={index === 0 ? t('donate.coverBadge') : t('donate.photoOptionsTitle')}
+                  >
+                    <Image source={{ uri: p.uri }} style={styles.photoThumb} resizeMode="cover" />
+                    {index === 0 && (
+                      <View style={styles.coverBadge}>
+                        <Text style={styles.coverBadgeText}>{t('donate.coverBadge')}</Text>
+                      </View>
+                    )}
+                    <Pressable
+                      style={styles.removePhotoBtn}
+                      onPress={() => onRemovePhoto(index)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('donate.removePhoto')}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="close" size={14} color={colors.accentText} />
+                    </Pressable>
+                  </Pressable>
+                ))}
+                {photos.length < MAX_PHOTOS && (
+                  <Pressable
+                    style={styles.addPhotoTile}
+                    onPress={onPickPhoto}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('donate.addPhoto')}
+                  >
+                    <Ionicons name="add" size={26} color={colors.textMuted} />
+                  </Pressable>
+                )}
+              </ScrollView>
             ) : (
               <Pressable
                 style={[styles.uploadWell, photoMissing && styles.uploadWellInvalid]}
@@ -626,6 +735,9 @@ export function DonateScreen({ navigation, route }: Props) {
                 </Text>
                 <Text style={styles.uploadHint}>{t('donate.photoHint')}</Text>
               </Pressable>
+            )}
+            {photos.length > 0 && (
+              <Text style={styles.hint}>{t('donate.photoCountHint', { count: photos.length, max: MAX_PHOTOS })}</Text>
             )}
             {photoMissing && <Text style={styles.fieldErrorText}>{t('donate.photoRequiredError')}</Text>}
           </View>
@@ -904,18 +1016,47 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: colors.textFaint,
   },
-  previewWrap: {
-    position: 'relative',
+  // V2 multi-photo (2026-08-17) — horizontal thumbnail row replacing the old
+  // single full-width preview.
+  photoRow: {
+    flexDirection: 'row',
+    gap: spacing[2],
   },
-  // Bug fix, 2026-08-11 — 'contain' inside a fixed 200px-tall box let a
-  // portrait photo render as a small centered strip with large empty
-  // margins (see the RECEBER card fix for the same pattern). 'cover' + a
-  // taller box fills the frame edge-to-edge for portrait photos too.
-  preview: {
-    width: '100%',
-    height: 280,
+  photoThumbWrap: {
+    position: 'relative',
+    width: 92,
+    height: 92,
+  },
+  photoThumb: {
+    width: 92,
+    height: 92,
     borderRadius: radius.md,
     backgroundColor: colors.surface2,
+  },
+  coverBadge: {
+    position: 'absolute',
+    bottom: spacing[1],
+    left: spacing[1],
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    borderRadius: radius.full,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  coverBadgeText: {
+    fontFamily: 'Manrope-700',
+    fontSize: 9.5,
+    color: '#ffffff',
+    letterSpacing: 0.3,
+  },
+  addPhotoTile: {
+    width: 92,
+    height: 92,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   removePhotoBtn: {
     position: 'absolute',

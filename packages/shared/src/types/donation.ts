@@ -37,8 +37,22 @@ export interface Donation {
   Recipient_Category: RecipientCategory | null;
   /** Epic 0.6, 2026-08-06 — required going forward; nullable for the same pre-existing-row reason above. */
   Delivery_Method: DeliveryMethod | null;
-  /** Google Drive file reference — a public-read, directly viewable URL. */
+  /**
+   * Google Drive file reference — a public-read, directly viewable URL.
+   * V2 multi-photo (2026-08-17) — derived read-only convenience field,
+   * always equal to Photos[0] (the cover photo). Kept so every existing
+   * call site that reads Photo (many, across 3 apps + Admin + emails) keeps
+   * working unchanged; new code should read Photos for the full gallery.
+   */
   Photo: string;
+  /**
+   * V2 multi-photo (2026-08-17) — up to 10 photos, first = cover, same
+   * order the donor arranged them in. JSON-array-in-cell in Sheets (same
+   * pattern as Institution.Review_History). Blank/missing on rows created
+   * before this shipped — rowToDonation derives a 1-photo array from the
+   * legacy Photo field in that case, so old rows keep working unchanged.
+   */
+  Photos: string[];
   Location: GeoPoint;
   Status: DonationStatus;
   Claimed_By_Institution_ID: string | null;

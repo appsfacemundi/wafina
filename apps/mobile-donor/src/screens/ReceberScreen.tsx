@@ -24,6 +24,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Photo } from '@/components/Photo';
+import { PhotoGalleryModal } from '@/components/PhotoGalleryModal';
 import { ThankYouNoteModal } from '@/components/ThankYouNoteModal';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
@@ -153,6 +154,16 @@ function SwipeCard({
         <View style={styles.wafinaBadge}>
           <Text style={styles.wafinaBadgeText}>{t('receber.wafinaBadge')}</Text>
         </View>
+        {/* V2 multi-photo (2026-08-17) — informational only, no tap: the whole
+            card is the swipe gesture's drag surface (PanResponder), so this
+            deliberately does NOT open a gallery viewer here — that lives on
+            the "Mais informações" item photo instead, after reserving. */}
+        {donation.Photos.length > 1 && (
+          <View style={styles.photoCountBadge}>
+            <Ionicons name="images-outline" size={12} color="#ffffff" />
+            <Text style={styles.photoCountBadgeText}>{donation.Photos.length}</Text>
+          </View>
+        )}
         {isTop && (
           <>
             {/* Bug fix, 2026-08-11 — this used to read "QUERO RECEBER" during a
@@ -230,6 +241,8 @@ export function ReceberScreen({ navigation }: Props) {
   // here or navigating away loses nothing — the reservation still stands.
   const [justReserved, setJustReserved] = useState(false);
   const [moreInfoExpanded, setMoreInfoExpanded] = useState(false);
+  // V2 multi-photo (2026-08-17) — gallery viewer for the reserved item's photo (safe: not on the swipe stack's gesture surface).
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const pan = useRef(new Animated.ValueXY()).current;
 
@@ -640,12 +653,23 @@ export function ReceberScreen({ navigation }: Props) {
               <Text style={styles.reservedCode}>{reserved.Public_Donation_Code}</Text>
 
               <View style={styles.reservedItemRow}>
-                <Photo
-                  uri={reserved.Photo}
-                  style={styles.reservedItemPhoto}
-                  placeholderIcon="🎁"
-                  resizeMode="cover"
-                />
+                <Pressable
+                  onPress={() => reserved.Photos.length > 0 && setGalleryOpen(true)}
+                  accessibilityRole="button"
+                  style={{ position: 'relative' }}
+                >
+                  <Photo
+                    uri={reserved.Photo}
+                    style={styles.reservedItemPhoto}
+                    placeholderIcon="🎁"
+                    resizeMode="cover"
+                  />
+                  {reserved.Photos.length > 1 && (
+                    <View style={styles.photoCountBadgeSmall}>
+                      <Text style={styles.photoCountBadgeText}>{reserved.Photos.length}</Text>
+                    </View>
+                  )}
+                </Pressable>
                 <View style={styles.reservedItemInfo}>
                   <Text style={styles.itemType} numberOfLines={2}>
                     {reserved.Item_Type}
@@ -750,6 +774,7 @@ export function ReceberScreen({ navigation }: Props) {
           onSkip={() => onConfirmReceived()}
           onSubmit={(message, photo) => onConfirmReceived(message, photo)}
         />
+        <PhotoGalleryModal visible={galleryOpen} photos={reserved.Photos} onClose={() => setGalleryOpen(false)} />
       </View>
     );
   }
@@ -1000,6 +1025,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#ffffff',
     letterSpacing: 0.3,
+  },
+  // V2 multi-photo (2026-08-17)
+  photoCountBadge: {
+    position: 'absolute',
+    bottom: spacing[3],
+    left: spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: radius.full,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+  },
+  photoCountBadgeText: {
+    fontFamily: 'Manrope-700',
+    fontSize: 11,
+    color: '#ffffff',
   },
   stamp: {
     position: 'absolute',
@@ -1335,6 +1378,15 @@ const styles = StyleSheet.create({
   reservedItemInfo: {
     flex: 1,
     gap: 2,
+  },
+  photoCountBadgeSmall: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    borderRadius: radius.full,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
   },
   sectionCard: {
     backgroundColor: colors.surface,
