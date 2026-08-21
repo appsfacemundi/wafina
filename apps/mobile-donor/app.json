@@ -49,7 +49,14 @@
           }
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "color": "#B50C5E",
+          "defaultChannel": "default"
+        }
+      ]
     ]
   }
 }

@@ -1,7 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { NavigationContainer } from '@react-navigation/native';
+import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as Notifications from 'expo-notifications';
+import { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +11,8 @@ import { useAuth } from '@/context/AuthContext';
 import { SplashView } from '@/components/SplashView';
 import { WhatsAppFloat } from '@/components/WhatsAppFloat';
 import { useOwnInstitution } from '@/hooks/useOwnInstitution';
+import { navigateForEntity } from '@/lib/notification-nav';
+import { registerForPushNotifications } from '@/lib/push-notifications';
 import { AvailableDonationsScreen } from '@/screens/AvailableDonationsScreen';
 import { ClaimedByMeScreen } from '@/screens/ClaimedByMeScreen';
 import { DisputesListScreen } from '@/screens/DisputesListScreen';
@@ -23,6 +27,8 @@ import { SignInScreen } from '@/screens/SignInScreen';
 import { SignUpScreen } from '@/screens/SignUpScreen';
 import { VerificationStatusScreen } from '@/screens/VerificationStatusScreen';
 import { colors, radius } from '@/theme/tokens';
+
+const navigationRef = createNavigationContainerRef();
 
 export type AuthStackParamList = {
   SignIn: undefined;
@@ -136,10 +142,44 @@ function ClaimedByMeNavigator() {
 }
 
 export function RootNavigator() {
-  const { session, loading: authLoading } = useAuth();
+  const { session, loading: authLoading, firebaseUser } = useAuth();
   const { institution, loading: institutionLoading, refetch: refetchInstitution } = useOwnInstitution();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const lastHandledNotificationId = useRef<string | null>(null);
+
+  // Push notifications prep (2026-08-21) — register (or refresh) this
+  // device's Expo push token once a session exists (not gated on
+  // institution.Verified — an unverified institution can still get a
+  // verification-status push).
+  useEffect(() => {
+    if (!session || !firebaseUser) return;
+    firebaseUser.getIdToken().then(registerForPushNotifications).catch(() => {});
+  }, [session, firebaseUser]);
+
+  // Push notifications prep (2026-08-21) — tap-to-navigate, covering
+  // foreground/background taps (the listener) and the killed-state case
+  // (getLastNotificationResponseAsync, checked once on mount). Dedupes on
+  // notification ID so a killed-state cold start doesn't double-navigate if
+  // the listener also fires for the same tap.
+  useEffect(() => {
+    function handleResponse(response: Notifications.NotificationResponse) {
+      const notificationId = response.notification.request.identifier;
+      if (lastHandledNotificationId.current === notificationId) return;
+      lastHandledNotificationId.current = notificationId;
+      const data = response.notification.request.content.data as { entityType?: string; entityId?: string };
+      if (data?.entityType && navigationRef.isReady()) {
+        navigateForEntity(navigationRef, data.entityType as any, data.entityId);
+      }
+    }
+
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) handleResponse(response);
+    });
+
+    const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    return () => sub.remove();
+  }, []);
 
   // Real-device finding, 2026-08-07 — both of these used to render nothing,
   // which showed as a jarring blank white flash between the branded
@@ -149,7 +189,7 @@ export function RootNavigator() {
   if (authLoading) return <SplashView />;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {!session ? (
         <AuthStack.Navigator screenOptions={{ headerShown: false }}>
           <AuthStack.Screen name="SignIn" component={SignInScreen} />

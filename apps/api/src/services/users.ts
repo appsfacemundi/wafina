@@ -60,6 +60,8 @@ export interface UserRow {
   Wafina_ID: string;
   /** Donor loyalty milestones (2026-08-17) — see the shared User type's field comment. */
   Highest_Milestone_Notified: string;
+  /** Push notifications prep (2026-08-21) — Expo push token for this device, or '' if never registered/opted out/stale. Internal only, never surfaced via rowToUser. */
+  Push_Token: string;
 }
 
 function rowToUser(row: UserRow): User {
@@ -125,6 +127,7 @@ export async function createUser(email: string, role: RegistrableRole): Promise<
     Status: 'Active',
     Wafina_ID: '',
     Highest_Milestone_Notified: '',
+    Push_Token: '',
   };
 
   await appendRow(SHEET_TABS.users, row as unknown as Record<string, string>);
@@ -218,6 +221,16 @@ export async function updateImpactFeedVisibility(userId: string, visibility: Imp
  */
 export async function updateEmailNotificationsEnabled(userId: string, enabled: boolean): Promise<void> {
   await updateRow(SHEET_TABS.users, 'User_ID', userId, { Email_Notifications_Enabled: toSheetBool(enabled) });
+}
+
+/**
+ * Push notifications prep (2026-08-21) — registers/clears this device's Expo
+ * push token. An empty string explicitly clears it (sign-out, or the OS
+ * permission being revoked), so a shared/reused device never keeps receiving
+ * a previous user's pushes.
+ */
+export async function updatePushToken(userId: string, token: string): Promise<void> {
+  await updateRow(SHEET_TABS.users, 'User_ID', userId, { Push_Token: token });
 }
 
 /**

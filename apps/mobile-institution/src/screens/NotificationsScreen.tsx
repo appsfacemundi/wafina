@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
+import { navigateForEntity } from '@/lib/notification-nav';
 import type { AppTabParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
@@ -31,37 +32,6 @@ export function NotificationsScreen({ navigation }: Props) {
     })();
   }, [firebaseUser]);
 
-  // Phase 3A Module 2 — real per-notification deep-linking, using Entity_Type
-  // now that it exists, instead of always navigating to the same fixed screen.
-  // Institution App Polish QA review (2026-07-31) — Success_Story now routes
-  // to its own moderation-status list instead of falling back to ClaimedByMe.
-  function navigateForEntity(n: Notification) {
-    switch (n.Entity_Type) {
-      case 'Dispute':
-        navigation.navigate('Disputes', { screen: 'DisputesList' });
-        return;
-      case 'Change_Request':
-      case 'Institution':
-        navigation.navigate('Settings');
-        return;
-      case 'Success_Story':
-        navigation.navigate('ClaimedByMe', { screen: 'MySuccessStories' });
-        return;
-      case 'Donation':
-        // Real-device finding, 2026-08-07 — this always dropped the
-        // institution at the top of the list with no indication of which
-        // donation the notification was about; Entity_ID lets
-        // ClaimedByMeScreen scroll to and highlight it specifically.
-        navigation.navigate('ClaimedByMe', {
-          screen: 'ClaimedByMeList',
-          params: { donationId: n.Entity_ID },
-        });
-        return;
-      default:
-        navigation.navigate('ClaimedByMe');
-    }
-  }
-
   async function onOpen(n: Notification) {
     if (n.Status !== 'Read') {
       try {
@@ -76,7 +46,7 @@ export function NotificationsScreen({ navigation }: Props) {
         // Non-critical — still navigate even if marking read failed.
       }
     }
-    navigateForEntity(n);
+    navigateForEntity(navigation, n.Entity_Type, n.Entity_ID);
   }
 
   return (

@@ -10,6 +10,7 @@ import {
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
 import { firebaseAuth } from '@/lib/firebase';
+import { clearPushToken } from '@/lib/push-notifications';
 
 /** This app now hosts two registrable roles (RC1 RECEBER: Instituição vs Abrigo de Animais). */
 type InstitutionAppRole = 'Institution' | 'Animal_Shelter';
@@ -150,6 +151,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await createUserWithEmailAndPassword(firebaseAuth, email.trim(), password);
     },
     async signOutUser() {
+      // Push notifications prep (2026-08-21) — clear the push token while
+      // still authenticated; must happen before signOut invalidates the
+      // ability to auth this request, so a shared/reused device doesn't keep
+      // receiving this user's pushes after they've signed out.
+      if (firebaseAuth.currentUser) {
+        const idToken = await firebaseAuth.currentUser.getIdToken();
+        await clearPushToken(idToken);
+      }
       await signOut(firebaseAuth);
     },
     async resetPassword(email) {

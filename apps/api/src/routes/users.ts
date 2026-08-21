@@ -6,6 +6,7 @@ import {
   updateActiveCountry,
   updateEmailNotificationsEnabled,
   updateImpactFeedVisibility,
+  updatePushToken,
   updateShowNameToInstitutions,
   updateSwitchPreference,
   updateUserName,
@@ -82,6 +83,22 @@ usersRouter.patch(
     if (typeof enabled !== 'boolean') throw new ValidationError('enabled must be a boolean');
     await updateEmailNotificationsEnabled(req.user!.userId, enabled);
     res.json({ emailNotificationsEnabled: enabled });
+  }),
+);
+
+/**
+ * Push notifications prep (2026-08-21) — registers this device's Expo push
+ * token, or clears it with an empty string (called on sign-out). See
+ * services/users.ts updatePushToken.
+ */
+usersRouter.patch(
+  '/users/me/push-token',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const token = req.body?.token;
+    if (typeof token !== 'string') throw new ValidationError('token must be a string');
+    await updatePushToken(req.user!.userId, token);
+    res.json({ ok: true });
   }),
 );
 

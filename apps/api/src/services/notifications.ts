@@ -3,6 +3,7 @@ import type { EntityType, Notification, NotificationPriority, NotificationType, 
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso } from '../config/sheet-values';
 import { appendRow, getRows, updateRow } from '../config/sheets';
+import { sendPushBestEffort } from './push-notifications';
 import { ValidationError } from './validation-error';
 
 function rowToNotification(row: Record<string, string>): Notification {
@@ -79,6 +80,14 @@ export async function createNotification(input: CreateNotificationInput): Promis
   } catch (err) {
     console.error('createNotification failed (swallowed, does not fail the caller\'s action):', err);
   }
+
+  // Push notifications prep (2026-08-21) — best-effort side channel on top of
+  // the in-app row above; see sendPushBestEffort's own doc comment for why
+  // this can never throw or affect the caller's action either.
+  await sendPushBestEffort(input.recipientUserId, 'Wafina', input.message, {
+    entityType: input.entityType,
+    entityId: input.entityId,
+  });
 }
 
 /** Inbox (spec 9.1) — newest first. */

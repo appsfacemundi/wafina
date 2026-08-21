@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
+import { navigateForEntity } from '@/lib/notification-nav';
 import type { AppTabParamList } from '@/navigation/RootNavigator';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
@@ -31,26 +32,6 @@ export function NotificationsScreen({ navigation }: Props) {
     })();
   }, [firebaseUser, t]);
 
-  // Phase 3A Module 2 — real per-notification deep-linking, using Entity_Type
-  // now that it exists, instead of always navigating to the same fixed screen.
-  // Institution App Polish QA review (2026-07-31) — expanded once a
-  // dedicated donor Impact screen existed to link Success_Story notifications to.
-  function navigateForEntity(n: Notification) {
-    if (n.Entity_Type === 'Corporate_Account') {
-      navigation.navigate('Settings');
-      return;
-    }
-    if (n.Entity_Type === 'Success_Story') {
-      navigation.navigate('Impact');
-      return;
-    }
-    // Real-device finding, 2026-08-07 — 'Donation' notifications (claimed,
-    // delivered) always dropped the donor at the top of the list with no
-    // way to tell which item it was about. Passing Entity_ID lets
-    // MyDonationsScreen scroll to and highlight that specific donation.
-    navigation.navigate('MyDonations', n.Entity_Type === 'Donation' ? { donationId: n.Entity_ID } : undefined);
-  }
-
   async function onOpen(n: Notification) {
     if (n.Status !== 'Read') {
       try {
@@ -65,7 +46,7 @@ export function NotificationsScreen({ navigation }: Props) {
         // Non-critical — still navigate even if marking read failed.
       }
     }
-    navigateForEntity(n);
+    navigateForEntity(navigation, n.Entity_Type, n.Entity_ID);
   }
 
   return (
