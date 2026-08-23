@@ -1630,6 +1630,90 @@ re-confirmed clean here too.
 
 ---
 
+### Session 2026-08-23: Home tier-card animation, real-device bug fixes, and push-notification credential gap closed
+
+**Note:** this file had not been updated since 2026-07-31 despite substantial work landing on `main`
+through 2026-08-22 (donor loyalty tiers, corporate accounts/invitations, Admin parity, GPS distance,
+multi-photo donations, OS push-notification prep — all visible in git history but never logged here).
+Also confirmed directly with the stakeholder this session: **V1 has effectively launched** — iOS
+(Donor + Institution) live on the App Store, Android Donor live on Google Play, Android Institution
+submitted and awaiting Google's review. See `RC1_RELEASE_ROADMAP.md`'s "Current Position" for the full
+corrected picture.
+
+**Feature: Home tier-loyalty card now animates.** Stakeholder reference was the Google Play Points
+screen (badge + progress bar + a "17/150"-style counter that visibly ticks up). Implemented in
+`apps/mobile-donor/src/screens/HomeScreen.tsx`: the progress bar fill now animates via `Animated.timing`
+(900ms ease-out) instead of snapping to width instantly, and a new `{deliveredCount}/{nextThreshold}`
+counter next to the tier title counts up using an `Animated.Value` listener — both driven off the same
+real tier-progress data already computed from `getDonorTierProgress()` (`packages/shared`), no new
+backend work. No new dependency — uses React Native's built-in `Animated`, matching existing usage
+elsewhere in the app. Typechecked clean; not yet visually verified in a running build (see real-device
+bugs below, found while attempting exactly that verification).
+
+**Bug found and fixed: Expo Go red-screen crash on real device, unrelated to the above.** Root cause:
+the phone's Expo Go app had drifted out of SDK-version sync with this project (`expo ~57.0.10`), causing
+`Cannot find native module 'ExpoSharing'` at app boot (eager top-level import in
+`ImpactScreen.tsx`). Confirmed via a controlled test — stashed the tier-card change and reproduced the
+identical crash, proving it pre-existed and was unrelated. Fixed by installing the SDK-57-matched Expo
+Go build from `expo.dev/go` instead of the Play Store's (newer) default version.
+
+**Bug found and fixed: Impact Story photos not loading.** Root cause: `apps/api/.env`'s
+`API_PUBLIC_URL` (used to build every proxied Drive-photo URL — see `config/drive.ts`'s
+`toProxiedUrl`) was hardcoded to a stale LAN IP (`.138`) left over from before the Mac's network address
+changed to `.206`. Every photo link the backend generated was pointing at an address no longer reachable
+from the test phone. Fixed the `.env` value and restarted the API server (which had been running since
+9:23am under a separate concurrent session — restarted with the user's confirmation).
+
+**Follow-up: added `scripts/sync-lan-ip.sh`** — detects the Mac's current LAN IP and rewrites it into
+all three `.env` files that hardcode it (`apps/api`, `apps/mobile-donor`, `apps/mobile-institution`), so
+this exact class of bug (silent breakage after a network change) doesn't require manual re-diagnosis
+next time. Manual, not wired into any startup script — run before a LAN testing session, then restart
+affected dev servers.
+
+**Security gap found and fixed:** a live Firebase service-account private key (downloaded to set up push
+notifications, see below) was sitting **untracked and un-gitignored** directly in the repo root —
+one `git add -A` away from being committed. Added `.gitignore` rules (`*firebase-adminsdk*.json`,
+`*-adminsdk-*.json`, `fcm-key.json`) before proceeding further.
+
+**Investigation: is OS push notification delivery actually ready?** The 2026-08-22 commit
+(`19a29fd`) explicitly says "infrastructure only, not shipped in the build currently in App Store
+review" — confirmed this means zero real users have this feature yet, regardless of anything else.
+Stakeholder specifically asked whether the iOS APNs credential had been fixed — it had not. Checked via
+`eas credentials` for both apps on both platforms and confirmed a real, previously-undocumented gap:
+**neither platform had its push delivery credential configured at all** (Android: FCM V1 showed "None
+assigned yet"; iOS: same for the APNs Push Key). Without these, a push send would have silently failed
+for every single user on both platforms regardless of how correct the app-side code was.
+
+**Fixed, live-verified via `eas credentials` output at every step:**
+- Android FCM V1 — uploaded a new Firebase service account key (project `wafina-98a3a`) and assigned it
+  to both `wafina-donor` and `wafina-institution`'s production credentials.
+- iOS APNs — generated one new Push Key (Apple limits accounts to 2 active keys, account-wide; the
+  stakeholder revoked an old unused key first, at `developer.apple.com/account/resources/authkeys/list`,
+  to make room) and assigned it to `wafina-donor`, then reused the *same* key for `wafina-institution`
+  (APNs keys are Apple-Team-wide, not per-app, confirmed via web search against Apple's own developer
+  forums before proceeding).
+
+**Still open, not done this session:** no build exists yet containing the push-notification code, so
+none of this is testable end-to-end on a real device yet — that needs a fresh `eas build` (preview
+profile, for a direct-install test) or a production rebuild + store resubmission to reach real users.
+Blocked as of this session on the stakeholder's EAS cloud build allowance (Free tier: 15 Android + 15
+iOS builds/month, confirmed via Expo's own docs) — stakeholder was checking actual usage at
+`expo.dev/accounts/zuinder/settings/billing` when this session ended. Local builds were explicitly
+declined by the stakeholder as an alternative (iOS local build is also blocked regardless: no full Xcode
+installed, only Command Line Tools, and only ~9.4GB free disk — tight for a ~15GB+ Xcode install).
+
+**Database implications:** none (all fixes were config/credentials/animation, no schema changes).
+
+**Verified:** `npm run tsc --noEmit` clean for the tier-card change. Both bug fixes (Expo Go crash,
+broken images) confirmed resolved live on the stakeholder's real Android phone via Expo Go. Push
+credential assignments confirmed via `eas credentials`' own summary screens showing real Key
+IDs/timestamps for both apps on both platforms (not assumed from the "success" message alone).
+
+**Commit:** tier-card change and `.gitignore`/`scripts/sync-lan-ip.sh` additions not yet committed as of
+this entry — pending stakeholder review.
+
+---
+
 ## Next Steps
 
 1. Stakeholder reviews `PHASE3_ARCHITECTURE_REVIEW.md` and approves/adjusts which Medium/Major items to

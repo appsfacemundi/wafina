@@ -223,18 +223,17 @@ Command, no port handling needed — Static Sites just serve the built directory
   to the next milestone.
 
 ### Phase 4 — Release Builds
-- ⬜ Generate Android APK
-- ⬜ Generate Android AAB
-- ⬜ Generate iOS IPA
-- ⬜ Verify build integrity
+- ✅ Generate Android APK/AAB — both apps built via EAS, see `RELEASE_NOTES.md` (2026-08-03)
+- ✅ Generate iOS IPA — both apps built and submitted (see Phase 7)
+- ✅ Verify build integrity — real Firebase/API config confirmed baked in (not `localhost`), see `RELEASE_NOTES.md`
 
 ### Phase 5 — Real Device Testing
-- ⬜ Test Android APK on a real Android phone
-- ⬜ Test iPhone build through TestFlight
-- ⬜ Complete role-play scenarios covering Donor, Institution, and Admin
-- ⬜ Document every issue found
-- ⬜ Fix issues
-- ⬜ Rebuild if necessary
+- ✅ Test Android on a real device — full Donor + Institution workflow live-tested 2026-07-31 (see `PROJECT_STATUS.md`)
+- ✅ Test iPhone build — apps are live on the App Store (confirms this happened at some point; not independently documented in this file)
+- ✅ Complete role-play scenarios covering Donor, Institution — done 2026-07-31 (Admin role-play not explicitly documented)
+- ✅ Document every issue found — see `PROJECT_STATUS.md` 2026-07-31 entry (photo upload bug, auth-failure bug, both fixed)
+- ✅ Fix issues — both real bugs found were fixed same session
+- ✅ Rebuild if necessary — subsequent builds happened (apps are live)
 
 ### Phase 6 — Store Assets
 - ✅ Icons — official Wafina branding frozen 2026-08-03 (`branding/WAFINA_BRAND_GUIDE.md`): master color
@@ -275,10 +274,10 @@ decision to formalize the existing CSS text+dot mark (`apps/web/src/app/globals.
 a real SVG logo rather than inventing a new one.
 
 ### Phase 7 — Store Submission
-- ⬜ Upload AAB to Google Play Console
-- ⬜ Upload IPA to App Store Connect
-- ⬜ Complete store review checklists
-- ⬜ Submit both applications
+- ✅ Upload AAB to Google Play Console — Donor live; Institution submitted, awaiting review (per stakeholder, 2026-08-23)
+- ✅ Upload IPA to App Store Connect — both Donor and Institution live on the App Store (per stakeholder, 2026-08-23)
+- ✅ Complete store review checklists — implied by the above having passed review
+- 🔶 Submit both applications — iOS both apps: done. Android: Donor done, Institution pending Google's review
 
 ### Phase 8 — Project Handover & Operations Package
 - ⬜ Project architecture
@@ -307,23 +306,43 @@ a real SVG logo rather than inventing a new one.
 - ⬜ Obtain final launch approval
 
 ### Phase 10 — Launch
-- ⬜ Publish the applications
-- ⬜ Monitor production
-- ⬜ Resolve any critical issues
-- ⬜ Prepare Version 1.1 planning after launch
+- ✅ Publish the applications — iOS: both Donor and Institution live on the App Store. Android: Donor
+  live on Google Play, Institution submitted and awaiting Google's review (per stakeholder, 2026-08-23)
+- 🔶 Monitor production — no formal process documented; ad hoc only so far
+- ⬜ Resolve any critical issues — no formal tracking process for post-launch issues yet
+- 🔶 Prepare Version 1.1 planning — `VERSION_2_ROADMAP.md` exists and is actively being added to
 
 ## Current Position
 
-**Phases 1 and 2 are complete.** Phase 3 (Store Preparation) is in progress. Remaining open items in
-Phase 3, all independent of one another:
+**Note (2026-08-23):** this section was last accurate as of 2026-08-02. Real progress continued well
+past that date without this file being updated in step — see below for the corrected picture, confirmed
+directly with the stakeholder rather than assumed from commit history alone.
 
-1. **Google Play Console** (🔶) — account/store-listing copy drafted; Store Listing, Data Safety, and
-   Content Rating still need to be submitted in-console.
-2. **Apple App Store Connect** (⬜) — not started.
-3. **Compliance information** (✅) — drafted 2026-08-02, see `COMPLIANCE_INFORMATION.md`. One sub-item
-   inside it (UGC report/removal for Success Stories) is an optional stakeholder decision, not a blocker.
-4. **In-app account deletion** (✅) — implemented 2026-08-02 for Donor accounts (self-service);
-   Institution accounts remain support-mediated by design. See Phase 3 entry above for full detail.
+**V1 has effectively launched.** iOS (Donor + Institution) is live on the App Store; Android Donor is
+live on Google Play; Android Institution is submitted and awaiting Google's review. Phases 1, 2, 4, 5,
+and most of 3 and 7 are done in substance, even though their checkboxes above had drifted out of sync
+with reality — corrected in this pass.
 
-Per the operating rules above, no further work begins until the stakeholder confirms which of the
-remaining two (Google Play Console, Apple App Store Connect) to tackle next.
+**What's genuinely still open:**
+1. **Android Institution** (🔶) — waiting on Google Play review; nothing to do but wait unless it's
+   flagged.
+2. **Phase 8 (Handover Package)** (⬜) — architecture docs, credentials inventory, deployment guide,
+   etc. not yet built.
+3. **Phase 9 (Production Acceptance)** (⬜) — no formal "confirm every module works in production" pass
+   or sign-off has happened since launch.
+4. **Push notifications (OS-level)** — code shipped 2026-08-22 as infrastructure only, explicitly *not*
+   included in the build currently live/in-review on either store. Session of 2026-08-23 found and fixed
+   a real gap: neither platform had its push delivery credential configured (Android FCM V1, iOS APNs
+   key) — both are now set up for both apps (Donor + Institution), reusing one APNs key across both iOS
+   apps since APNs keys are Apple-Team-wide, not per-app. **Still not tested end-to-end on a real
+   device, and no build yet exists containing this code** — needs a fresh EAS build (blocked on the
+   stakeholder's EAS cloud build allowance as of 2026-08-23) before it can reach a real device, let alone
+   real users.
+5. **V2 feature work** (donor loyalty tiers, corporate accounts/invitations, Admin parity, GPS distance
+   matching, multi-photo donations, full EN/PT localization) has shipped continuously to `main` in
+   parallel with the live V1 apps throughout August 2026 — worth the stakeholder explicitly confirming
+   this parallel-track approach is intentional, since a V2 backend change could in principle affect what
+   the already-live apps depend on.
+
+Per the operating rules above, confirm with the stakeholder which of the open items above to tackle
+next before starting new work.

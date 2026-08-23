@@ -34,3 +34,8 @@ reference-screenshots/
 
 # Local build artifacts — never commit
 local-build-output/
+
+# Firebase/Google service account private keys — never commit
+*firebase-adminsdk*.json
+*-adminsdk-*.json
+fcm-key.json

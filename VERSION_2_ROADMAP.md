@@ -85,6 +85,64 @@ will come up that aren't here yet.
   form-fill) entirely instead of just providing an exit from it. Needs a session/role check added early in
   each app's `RootNavigator.tsx`, before the `!session.profileComplete` branch.
 
+- **Multiple photos per donation (max 10, first = cover)** — stakeholder request, 2026-08-13: today
+  `Donation.Photo` is a single string; a high-value item (the stated example: a car) needs several
+  angles (front/rear/sides/interior/odometer/damage) to be properly assessed by a recipient before
+  claiming. Full audit + implementation plan already written:
+  [`V2_MULTIPHOTO_AND_DISTANCE_PLAN.md`](V2_MULTIPHOTO_AND_DISTANCE_PLAN.md) §1 — new `Photos:
+  string[]` field (JSON-in-cell, same pattern as `Institution.Review_History`), `Photo` becomes a
+  derived cover alias for backward compatibility, `multer.single()` → `multer.array('photos', 10)`,
+  client-side resize via `expo-image-manipulator` (new dependency) before upload, gallery viewer needed
+  on 4 screens (MyDonations, AvailableDonations, Receber, Admin donation detail). Fully additive — no
+  migration needed, old rows/builds keep working. **Why V2:** new functionality, not a bug fix, plus
+  needs a fresh EAS build for mobile-donor to reach real users regardless of freeze status.
+
+- **GPS-based distance + confirm-before-claim (Institution/Animal Shelter)** — stakeholder request,
+  2026-08-13, same session as above: a donation may match a recipient's category but be impractically
+  far (the stated example: donor in Porto, recipient in Lisboa). Full plan in
+  [`V2_MULTIPHOTO_AND_DISTANCE_PLAN.md`](V2_MULTIPHOTO_AND_DISTANCE_PLAN.md) §2 — new shared
+  `haversineDistanceKm()` util, `Distance_Km` computed onto `InstitutionDonationView` from the
+  already-stored `Donation.Location`/`Institution.Location` (no schema change needed for this part), a
+  confirm dialog ("Sim, Aceitar" / "Não, Voltar") shown on `AvailableDonationsScreen` above a
+  configurable threshold tier, never an automatic rejection. Recommended thresholds (10/30/75/150km)
+  are geography-aware, not a literal copy of the stakeholder's example numbers — see the plan's
+  reasoning. **Important open finding, not yet resolved:** this doesn't map cleanly onto the
+  People/RECEBER category — every individual recipient already picks up from one fixed per-country
+  Collection_Point, not the donor's own location, so a per-donation distance has no natural meaning
+  there. Three scoping options are laid out in the plan's §2.1; needs a stakeholder decision before any
+  RECEBER-side code gets written. **Why V2:** new functionality, plus needs a fresh EAS build for
+  mobile-institution (and mobile-donor if the RECEBER piece is approved) to reach real users.
+
+## Donor Loyalty / Gifts
+
+- **Donation-count milestones + gift emails** — stakeholder idea, 2026-08-13: after a donor crosses a
+  threshold number of completed donations (e.g. 5/10/25), automatically send a congratulations email letting
+  them know they've earned a gift and inviting them to contact Wafina to claim it (no in-app redemption flow
+  — contact-to-claim only). Straightforward to build on top of existing data: every donation already carries
+  `Donor_ID` and reaches `Status: 'Delivered'`, so the milestone count is just "how many Delivered donations
+  does this donor have" — no new tracking scaffolding needed. The natural trigger point is `confirmDelivery()`
+  in `apps/api/src/services/donations.ts`, the same place Email #2 (thank-you) already fires. Needs: a
+  milestone→gift config (candidate: Admin-editable rather than hardcoded, so thresholds/gifts can change
+  without a deploy), a third email template, a per-donor "already notified for this milestone" flag to avoid
+  re-sending, and — per the Admin-parity policy — an Admin-side view of who's hit a milestone and whether
+  they've been contacted/redeemed. **Why V2:** new functionality, not a bug fix, and both apps are currently
+  in App Store/Play Store review — falls squarely under the Version 1 Feature Freeze.
+
+## Email Branding
+
+- **Branded password-reset email** — today's reset flow uses Firebase Auth's own built-in
+  `sendPasswordResetEmail()` (client SDK, confirmed in all three `AuthContext.tsx` files), which sends
+  Firebase's default plain-text template — no Wafina logo, no bougainvillea pink, unlike the 3 Resend-based
+  lifecycle emails. Attempted to customize the template directly in Firebase Console
+  (Authentication → Templates → Password reset, project `wafina-98a3a`) on 2026-08-13, but the console
+  returned "Email template updates are currently unavailable for this project. For assistance with template
+  changes, contact Firebase Support" — a Firebase-side restriction, not fixable from the codebase. The
+  underlying reset flow still works fine today; this is purely cosmetic. Real V2 fix: stop using Firebase's
+  built-in reset email entirely and build a custom reset-link flow through the existing Resend pipeline
+  (`apps/api/src/services/email.ts`), matching `EMAIL_LOGO_HTML`/`EMAIL_BRAND_COLOR` like the other 3
+  lifecycle emails — more code work (custom token generation/verification) but full control over branding.
+  **Why V2:** cosmetic polish, not a launch blocker, and new functionality under the Version 1 Feature Freeze.
+
 ## Cross-cutting / Infrastructure
 
 - **Automated test suite** — not currently a "new feature," but noted here because building one is itself a
