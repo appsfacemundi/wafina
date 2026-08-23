@@ -14,7 +14,8 @@
       "bundleIdentifier": "com.zuinder.wafina.doador",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "A Wafina usa a sua localização para registar onde a doação pode ser recolhida.",
-        "NSPhotoLibraryUsageDescription": "A Wafina precisa de acesso às suas fotografias para anexar uma imagem da doação.",
+        "NSPhotoLibraryUsageDescription": "A Wafina precisa de acesso às suas fotografias para anexares, por exemplo, uma foto de uma peça de roupa ou de um brinquedo que estás a doar.",
+        "NSCameraUsageDescription": "A Wafina precisa de acesso à câmara para tirares uma fotografia do artigo que estás a doar, por exemplo uma peça de roupa ou um brinquedo, para mostrar a quem vai recebê-lo o estado em que se encontra.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -50,6 +51,13 @@
         }
       ],
       "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "A Wafina precisa de acesso às suas fotografias para anexares, por exemplo, uma foto de uma peça de roupa ou de um brinquedo que estás a doar.",
+          "cameraPermission": "A Wafina precisa de acesso à câmara para tirares uma fotografia do artigo que estás a doar, por exemplo uma peça de roupa ou um brinquedo, para mostrar a quem vai recebê-lo o estado em que se encontra."
+        }
+      ],
       [
         "expo-notifications",
         {
