@@ -4,8 +4,8 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getDonorTierProgress, type Donation, type DonorTier, type GeoRegion, type Notification, type Partner, type SuccessStory } from '@wafina/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/Card';
@@ -116,6 +116,31 @@ export function HomeScreen({ navigation }: Props) {
     const deliveredCount = donations.filter((d) => d.Status === 'Delivered').length;
     return getDonorTierProgress(deliveredCount);
   }, [donations]);
+
+  // Play Points-style tier bar (2026-08-18, stakeholder reference: Google
+  // Play Points screen) — the bar fill and the "N/threshold" count animate
+  // up to the new value instead of snapping, so a fresh delivery visibly
+  // ticks the counter forward rather than the card just re-rendering static.
+  const tierAnim = useRef(new Animated.Value(0)).current;
+  const [displayedDeliveredCount, setDisplayedDeliveredCount] = useState(0);
+  useEffect(() => {
+    if (!tierProgress) return;
+    const listenerId = tierAnim.addListener(({ value }) => setDisplayedDeliveredCount(Math.round(value)));
+    Animated.timing(tierAnim, {
+      toValue: tierProgress.deliveredCount,
+      duration: 900,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+    return () => tierAnim.removeListener(listenerId);
+  }, [tierAnim, tierProgress?.deliveredCount]);
+  const tierBarWidth = tierProgress?.nextThreshold
+    ? tierAnim.interpolate({
+        inputRange: [0, tierProgress.nextThreshold],
+        outputRange: ['0%', '100%'],
+        extrapolate: 'clamp',
+      })
+    : '100%';
 
   const quickActions: {
     key: string;
@@ -264,15 +289,15 @@ export function HomeScreen({ navigation }: Props) {
                     : t('home.tierMaxReached')}
                 </Text>
               </View>
+              {tierProgress.nextThreshold !== null && (
+                <Text style={styles.tierCount}>
+                  {displayedDeliveredCount}/{tierProgress.nextThreshold}
+                </Text>
+              )}
             </View>
             {tierProgress.nextThreshold !== null && (
               <View style={styles.tierBarTrack}>
-                <View
-                  style={[
-                    styles.tierBarFill,
-                    { width: `${Math.min(100, (tierProgress.deliveredCount / tierProgress.nextThreshold) * 100)}%` },
-                  ]}
-                />
+                <Animated.View style={[styles.tierBarFill, { width: tierBarWidth }]} />
               </View>
             )}
           </Card>
@@ -584,6 +609,11 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  tierCount: {
+    fontFamily: fonts.display,
+    fontSize: 13,
+    color: colors.accent,
   },
   tierBarTrack: {
     height: 8,
