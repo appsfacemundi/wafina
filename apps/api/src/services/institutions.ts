@@ -199,7 +199,13 @@ export async function getInstitutionById(institutionId: string): Promise<Institu
  * today but is kept available for a future explicit "browse all countries" view.
  */
 export async function listVerifiedInstitutions(countryId?: string): Promise<Institution[]> {
-  const rows = await getRows(SHEET_TABS.institutions);
+  const [rows, userRows] = await Promise.all([getRows(SHEET_TABS.institutions), getRows(SHEET_TABS.users)]);
+  // Bug fix, 2026-08-24: suspending an institution (Admin) only ever updated
+  // its Users row (Status: 'Suspended') — this list never cross-checked that,
+  // so a suspended institution kept appearing to donors as an active partner
+  // even though requireAuth already blocks it from signing in at all. Real
+  // finding: Admin suspended a real institution and it was still visible here.
+  const suspendedUserIds = new Set(userRows.filter((u) => u.Status === 'Suspended').map((u) => u.User_ID));
   // Epic 0.5, 2026-08-06: newest-registered first, now that Created_At exists —
   // same `|| ''` fallback idiom as Donations/SuccessStories, so institutions
   // registered before this field existed sort last rather than erroring.
@@ -209,7 +215,12 @@ export async function listVerifiedInstitutions(countryId?: string): Promise<Inst
   // equivalent incrementing sequence to break the tie with, so Name is the
   // best available deterministic (if not truly chronological) fallback.
   const verifiedRows = rows
-    .filter((row) => fromSheetBool(row.Verified ?? '') && (!countryId || row.Country_ID === countryId))
+    .filter(
+      (row) =>
+        fromSheetBool(row.Verified ?? '') &&
+        !suspendedUserIds.has(row.User_ID) &&
+        (!countryId || row.Country_ID === countryId),
+    )
     .sort(
       (a, b) => parseSheetDate(b.Created_At) - parseSheetDate(a.Created_At) || a.Name.localeCompare(b.Name, 'pt'),
     );
