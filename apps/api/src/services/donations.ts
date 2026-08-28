@@ -18,7 +18,7 @@ import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetLatLong, nowIso, parseSheetDate, sequenceSuffix, toSheetLatLong } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { checkAndNotifyMilestone } from './donor-tiers';
-import { EMAIL_BRAND_COLOR, EMAIL_LOGO_HTML, sendEmail } from './email';
+import { EMAIL_BRAND_COLOR, EMAIL_LOGO_HTML, escapeHtml, sendEmail } from './email';
 import { getRegionById } from './geo-regions';
 import { createNotification } from './notifications';
 import { findUserById } from './users';
@@ -103,16 +103,6 @@ function rowToDonation(row: Record<string, string>): Donation {
     // against (see the field's doc comment on the shared Donation type).
     Distance_Km: null,
   };
-}
-
-/** Donation lifecycle emails, 2026-08-11 — the thank-you message is receiver-authored free text, unlike Item_Type (a fixed picklist); escaped before interpolating into email HTML. */
-function escapeHtml(input: string): string {
-  return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /**

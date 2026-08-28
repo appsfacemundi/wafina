@@ -23,6 +23,24 @@ export const EMAIL_LOGO_HTML = `
 `;
 
 /**
+ * Security fix, 2026-08-28 — hoisted here from donations.ts (its original,
+ * only prior use) so success-stories.ts can share it too: institution-authored
+ * free text (success story Title/Description) was being interpolated raw into
+ * the donor-facing email, unlike donations.ts's receiver thank-you message,
+ * which already went through this same escaping. Any caller building email
+ * HTML from user-supplied free text (not a fixed picklist/enum value) should
+ * escape it with this first.
+ */
+export function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Notification preferences module, 2026-08-08 — the only email-sending path
  * in the app. Uses Resend's REST API directly (no SDK) to avoid a new
  * dependency for a single POST call. Failures are swallowed (logged, not

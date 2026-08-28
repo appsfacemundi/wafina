@@ -5,7 +5,7 @@ import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso, parseSheetDate } from '../config/sheet-values';
 import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
 import { getDonation } from './donations';
-import { EMAIL_BRAND_COLOR, EMAIL_LOGO_HTML, sendEmail } from './email';
+import { EMAIL_BRAND_COLOR, EMAIL_LOGO_HTML, escapeHtml, sendEmail } from './email';
 import { getInstitutionById } from './institutions';
 import { createNotification } from './notifications';
 import { findUserById } from './users';
@@ -53,6 +53,12 @@ async function sendImpactStoryEmail(donorId: string, story: { Title: string; Des
   try {
     const donor = await findUserById(donorId);
     if (!donor?.Email || donor.Email_Notifications_Enabled === 'FALSE') return;
+    // Security fix, 2026-08-28 — Title/Description are institution-authored
+    // free text (via POST /success-stories, only length-validated), unlike
+    // Image (a proxied Drive URL this server itself constructs). Same escaping
+    // donations.ts already applies to its own free-text email content.
+    const title = escapeHtml(story.Title);
+    const description = escapeHtml(story.Description);
     await sendEmail({
       to: donor.Email,
       subject: `Wafina — ${story.Title}`,
@@ -61,8 +67,8 @@ async function sendImpactStoryEmail(donorId: string, story: { Title: string; Des
           ${EMAIL_LOGO_HTML}
           <h2 style="color: ${EMAIL_BRAND_COLOR};">A sua doação chegou a quem precisava! ❤️</h2>
           <img src="${story.Image}" alt="" style="width: 100%; border-radius: 8px; margin: 16px 0;" />
-          <h3>${story.Title}</h3>
-          <p style="color: #475569; line-height: 1.5;">${story.Description}</p>
+          <h3>${title}</h3>
+          <p style="color: #475569; line-height: 1.5;">${description}</p>
           <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">
             Recebeu este email porque tem as notificações por email ativadas nas definições da sua conta Wafina.
           </p>
