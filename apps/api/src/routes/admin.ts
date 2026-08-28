@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { REGISTRABLE_ROLES, type RegistrableRole } from '@wafina/shared';
 import { uploadPhoto } from '../config/drive';
+import { isValidImageBuffer } from '../config/image-validation';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { getAdminDashboardStats } from '../services/admin-stats';
@@ -206,6 +207,7 @@ adminRouter.patch(
   upload.single('photo'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('A fotografia é obrigatória');
+    if (!isValidImageBuffer(req.file.buffer)) throw new ValidationError('O ficheiro enviado não é uma imagem válida');
     const photoUrl = await uploadPhoto(
       req.file.buffer,
       `${Date.now()}-${req.file.originalname}`,
@@ -249,6 +251,7 @@ adminRouter.post(
   upload.single('image'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('A imagem é obrigatória');
+    if (!isValidImageBuffer(req.file.buffer)) throw new ValidationError('O ficheiro enviado não é uma imagem válida');
     const imageUrl = await uploadPhoto(
       req.file.buffer,
       `${Date.now()}-${req.file.originalname}`,
@@ -331,6 +334,7 @@ adminRouter.patch(
   upload.single('image'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('A imagem é obrigatória');
+    if (!isValidImageBuffer(req.file.buffer)) throw new ValidationError('O ficheiro enviado não é uma imagem válida');
     const imageUrl = await uploadPhoto(
       req.file.buffer,
       `${Date.now()}-${req.file.originalname}`,
@@ -371,6 +375,7 @@ adminRouter.post(
   upload.single('logo'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('O logótipo é obrigatório');
+    if (!isValidImageBuffer(req.file.buffer)) throw new ValidationError('O ficheiro enviado não é uma imagem válida');
     const logoUrl = await uploadPhoto(
       req.file.buffer,
       `${Date.now()}-${req.file.originalname}`,
@@ -392,6 +397,9 @@ adminRouter.patch(
   requireRole('Admin'),
   upload.single('logo'),
   asyncHandler(async (req, res) => {
+    if (req.file && !isValidImageBuffer(req.file.buffer)) {
+      throw new ValidationError('O ficheiro enviado não é uma imagem válida');
+    }
     const logoUrl = req.file
       ? await uploadPhoto(req.file.buffer, `${Date.now()}-${req.file.originalname}`, req.file.mimetype)
       : undefined;
@@ -593,6 +601,7 @@ adminRouter.patch(
   upload.single('logo'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('O logótipo é obrigatório');
+    if (!isValidImageBuffer(req.file.buffer)) throw new ValidationError('O ficheiro enviado não é uma imagem válida');
     const logoUrl = await uploadPhoto(
       req.file.buffer,
       `${Date.now()}-${req.file.originalname}`,

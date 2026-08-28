@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { uploadPhoto } from '../config/drive';
+import { isValidImageBuffer } from '../config/image-validation';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole } from '../middleware/auth';
 import {
@@ -38,6 +39,8 @@ institutionsRouter.post(
   upload.single('logo'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('O logótipo da instituição é obrigatório');
+    // Security fix, 2026-08-28 — see config/image-validation.ts doc comment.
+    if (!isValidImageBuffer(req.file.buffer)) throw new ValidationError('O ficheiro enviado não é uma imagem válida');
 
     const logoUrl = await uploadPhoto(
       req.file.buffer,
@@ -80,6 +83,7 @@ institutionsRouter.patch(
   upload.single('logo'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('A imagem do logótipo é obrigatória');
+    if (!isValidImageBuffer(req.file.buffer)) throw new ValidationError('O ficheiro enviado não é uma imagem válida');
 
     const institution = await getInstitutionByUserId(req.user!.userId);
     if (!institution) throw new ValidationError('Esta conta não tem um perfil de Instituição');

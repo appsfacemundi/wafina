@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { uploadPhoto } from '../config/drive';
+import { isValidImageBuffer } from '../config/image-validation';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole, requireVerified } from '../middleware/auth';
 import { getInstitutionByUserId } from '../services/institutions';
@@ -37,6 +38,7 @@ successStoriesRouter.post(
   upload.single('image'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('A imagem é obrigatória');
+    if (!isValidImageBuffer(req.file.buffer)) throw new ValidationError('O ficheiro enviado não é uma imagem válida');
 
     const institutionId = await requireOwnInstitutionId(req.user!.userId);
     const imageUrl = await uploadPhoto(

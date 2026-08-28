@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { uploadPhoto } from '../config/drive';
+import { isValidImageBuffer } from '../config/image-validation';
 import { asyncHandler } from '../middleware/async-handler';
 import { requireAuth, requireRole, requireVerified } from '../middleware/auth';
 import {
@@ -72,6 +73,20 @@ function extractPhotoFiles(req: { files?: unknown }): Express.Multer.File[] {
 }
 
 /**
+ * Security fix, 2026-08-28 — multer's fileFilter only checks the
+ * client-declared Content-Type, not the actual bytes. This rejects anything
+ * whose real content doesn't match a known raster image format, regardless
+ * of what the upload claimed to be — see config/image-validation.ts.
+ */
+function assertValidImageFiles(files: Express.Multer.File[]): void {
+  for (const file of files) {
+    if (!isValidImageBuffer(file.buffer)) {
+      throw new ValidationError('O ficheiro enviado não é uma imagem válida');
+    }
+  }
+}
+
+/**
  * V2 multi-photo (2026-08-17) — a single-photo upload endpoint, used by
  * mobile-donor's new multi-photo picker: `expo-file-system`'s `uploadAsync`
  * (the existing, device-tested fix for RN FormData breaking on Android —
@@ -89,6 +104,7 @@ donationsRouter.post(
   upload.single('photo'),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('A fotografia é obrigatória');
+    assertValidImageFiles([req.file]);
     const url = await uploadPhoto(req.file.buffer, `${Date.now()}-${req.file.originalname}`, req.file.mimetype);
     res.status(201).json({ url });
   }),
@@ -107,6 +123,7 @@ async function resolvePhotoUrls(req: {
   const photoFiles = extractPhotoFiles(req);
   if (photoFiles.length > 0) {
     assertValidPhotoCount(photoFiles.length);
+    assertValidImageFiles(photoFiles);
     return Promise.all(
       photoFiles.map((file) => uploadPhoto(file.buffer, `${Date.now()}-${file.originalname}`, file.mimetype)),
     );
@@ -300,6 +317,7 @@ donationsRouter.post(
   upload.single('photo'),
   asyncHandler(async (req, res) => {
     const institution = await requireOwnInstitution(req.user!.userId);
+    if (req.file) assertValidImageFiles([req.file]);
     const thankYouPhoto = req.file
       ? await uploadPhoto(req.file.buffer, `${Date.now()}-${req.file.originalname}`, req.file.mimetype)
       : undefined;
@@ -457,6 +475,7 @@ donationsRouter.post(
   requireRole('Donor'),
   upload.single('photo'),
   asyncHandler(async (req, res) => {
+    if (req.file) assertValidImageFiles([req.file]);
     const thankYouPhoto = req.file
       ? await uploadPhoto(req.file.buffer, `${Date.now()}-${req.file.originalname}`, req.file.mimetype)
       : undefined;
