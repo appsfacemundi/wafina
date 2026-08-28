@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   institutionFieldLabel,
+  INSTITUTION_FIELD_LABELS,
   type AdminChangeRequestView,
   type ChangeRequest,
   type ChangeRequestStatus,
@@ -43,6 +44,16 @@ export async function createChangeRequest(
   reason: string,
 ): Promise<ChangeRequest> {
   if (!fieldRequested) throw new ValidationError('O campo a alterar é obrigatório');
+  // Security fix, 2026-08-28 — fieldRequested used to be written to the row
+  // (and, on approval, used directly as an Institution column key) with no
+  // check against the actual set of requestable profile fields. A verified
+  // Institution could submit e.g. Field_Requested: "User_ID" or "Verified"
+  // and have Admin unknowingly write to it — see ALL_PROFILE_FIELDS in
+  // institutions.ts, whose keys are exactly INSTITUTION_FIELD_LABELS here
+  // (the same "single source of truth" the notification text already uses).
+  if (!(fieldRequested in INSTITUTION_FIELD_LABELS)) {
+    throw new ValidationError('Campo inválido para pedido de alteração');
+  }
   if (!reason || reason.trim().length < MIN_REASON_LENGTH) {
     throw new ValidationError(`O motivo deve ter pelo menos ${MIN_REASON_LENGTH} caracteres`);
   }
@@ -114,6 +125,11 @@ export async function approveChangeRequest(requestId: string, newValue: string):
 
   const request = await getChangeRequestOrThrow(requestId);
   if (request.Status !== 'Pending') throw new ValidationError('Só é possível aprovar um pedido pendente');
+  // Defense in depth alongside the createChangeRequest check above — re-validated
+  // here too in case a row predates that fix, or the sheet was ever edited directly.
+  if (!(request.Field_Requested in INSTITUTION_FIELD_LABELS)) {
+    throw new ValidationError('Campo inválido para pedido de alteração');
+  }
 
   const institution = await getInstitutionById(request.Institution_ID);
   if (!institution) throw new ValidationError('Instituição não encontrada');
