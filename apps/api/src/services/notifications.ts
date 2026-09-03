@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { EntityType, Notification, NotificationPriority, NotificationType, Role } from '@wafina/shared';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { nowIso } from '../config/sheet-values';
-import { appendRow, getRows, updateRow } from '../config/sheets';
+import { appendRow, deleteRow, getRows, updateRow } from '../config/sheets';
 import { sendPushBestEffort } from './push-notifications';
 import { ValidationError } from './validation-error';
 
@@ -170,4 +170,29 @@ export async function listAdminSentNotifications(): Promise<Notification[]> {
     .filter((row) => row.Notification_Type === 'admin_message')
     .map(rowToNotification)
     .sort((a, b) => (a.Created_At < b.Created_At ? 1 : -1));
+}
+
+/**
+ * Admin donation delete follow-up, 2026-08-28 — called after a hard delete
+ * (e.g. adminDeleteDonation) so existing notifications don't keep pointing at
+ * an Entity_ID that no longer exists. Deliberately sequential (one deleteRow
+ * fully completes, including its cache invalidation, before the next one
+ * reads the tab) — deleteRow shifts every row below the one it removes, so
+ * two deletes racing on the same tab could each compute a position the
+ * other's delete has already shifted out from under it. Best-effort: logs
+ * and stops on the first failure rather than throwing, matching
+ * createNotification's own "never fail the caller's real action over this"
+ * philosophy — the caller has usually already done the action that matters
+ * (e.g. deleted the donation itself) by the time this runs.
+ */
+export async function deleteNotificationsForEntity(entityType: EntityType, entityId: string): Promise<void> {
+  try {
+    const rows = await getRows(SHEET_TABS.notifications);
+    const toDelete = rows.filter((r) => r.Entity_Type === entityType && r.Entity_ID === entityId);
+    for (const row of toDelete) {
+      await deleteRow(SHEET_TABS.notifications, 'Notification_ID', row.Notification_ID);
+    }
+  } catch (err) {
+    console.error('deleteNotificationsForEntity failed (swallowed, does not fail the caller\'s action):', err);
+  }
 }

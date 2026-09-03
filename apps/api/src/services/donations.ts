@@ -20,7 +20,7 @@ import { appendRow, deleteRow, findRow, getRows, updateRow } from '../config/she
 import { checkAndNotifyMilestone } from './donor-tiers';
 import { EMAIL_BRAND_COLOR, EMAIL_LOGO_HTML, escapeHtml, sendEmail } from './email';
 import { getRegionById } from './geo-regions';
-import { createNotification } from './notifications';
+import { createNotification, deleteNotificationsForEntity } from './notifications';
 import { findUserById } from './users';
 import { ValidationError } from './validation-error';
 
@@ -1162,6 +1162,18 @@ export async function adminCancelDonation(donationId: string, reason: string): P
  * reason this exists. No reason required (stakeholder decision, 2026-08-28)
  * and no donor notification is sent — unlike cancel, the donor already knows
  * about their donation; a silent cleanup of bad data shouldn't re-surface it.
+ *
+ * Also deletes every Notification row referencing this donation (stakeholder
+ * follow-up, 2026-08-28) — otherwise a donor's existing "your donation was
+ * approved/claimed/..." notifications would keep pointing at a Donation_ID
+ * that no longer exists. Sequential, not parallel (see deleteNotificationsForDonation's
+ * own doc comment): each deleteRow call must fully finish — including its
+ * cache invalidation — before the next one reads the tab, since two
+ * concurrent deletes on the same tab could each compute a row position that
+ * the other's delete has since shifted out from under it. Best-effort: a
+ * failure here is logged, not thrown — the donation itself is already gone
+ * by this point, and a stray orphaned notification is a far smaller problem
+ * than the delete action itself failing/rolling back partially.
  */
 export async function adminDeleteDonation(donationId: string): Promise<void> {
   const existing = await getDonation(donationId);
@@ -1171,6 +1183,7 @@ export async function adminDeleteDonation(donationId: string): Promise<void> {
   }
 
   await deleteRow(SHEET_TABS.donations, 'Donation_ID', donationId);
+  await deleteNotificationsForEntity('Donation', donationId);
 }
 
 /**
