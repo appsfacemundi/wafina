@@ -247,6 +247,31 @@ export async function updateRow(
 }
 
 /**
+ * Real-world finding, 2026-09-03 — Admin's bulk-delete UI (many sequential
+ * deleteRow calls in one burst) revealed that resolving sheetId via a full
+ * `spreadsheets.get` on every single call was a real, avoidable cost: a
+ * tab's numeric sheetId never changes at runtime once created, so fetching
+ * it repeatedly did nothing but burn Sheets' per-minute quota faster — the
+ * root cause of several 503s during a bulk delete of ~40 donations (each
+ * with its own linked-notification cleanup multiplying the call count
+ * further). Cached here, resolved once per tab per server lifetime.
+ */
+const sheetIdCache = new Map<string, number>();
+
+async function resolveSheetId(tab: string): Promise<number> {
+  const cached = sheetIdCache.get(tab);
+  if (cached !== undefined) return cached;
+
+  const sheets = getClient();
+  const meta = await withRetry(() => sheets.spreadsheets.get({ spreadsheetId: env.googleSheets.spreadsheetId! }));
+  const sheetId = meta.data.sheets?.find((s) => s.properties?.title === tab)?.properties?.sheetId;
+  if (sheetId === undefined || sheetId === null) throw new Error(`Could not resolve sheetId for tab "${tab}"`);
+
+  sheetIdCache.set(tab, sheetId);
+  return sheetId;
+}
+
+/**
  * Admin donation delete, 2026-08-28 — the one deliberate exception to
  * updateRow's own "nothing ever deletes or reorders rows" invariant (see its
  * doc comment above). Because this shifts every row below it up by one,
@@ -257,9 +282,10 @@ export async function updateRow(
  * that starts after this one never computes a position against a now-shifted
  * row set. A concurrent call that already read a cached snapshot in the same
  * instant this runs could still target the wrong row — an accepted, narrow
- * trade-off given Sheets has no transactions at all, and this path is
- * Admin-only, manual, and rare (unlike the high-frequency writes updateRow
- * serves).
+ * trade-off given Sheets has no transactions at all. Originally documented
+ * as "rare" — no longer true since Admin's bulk-delete UI can fire many of
+ * these in one burst (see resolveSheetId's own doc comment for the quota
+ * issue that surfaced from exactly that).
  */
 export async function deleteRow(tab: string, keyColumn: string, keyValue: string): Promise<void> {
   const sheets = getClient();
@@ -277,9 +303,7 @@ export async function deleteRow(tab: string, keyColumn: string, keyValue: string
     throw new Error(`No row in "${tab}" where ${keyColumn}=${keyValue}`);
   }
 
-  const meta = await withRetry(() => sheets.spreadsheets.get({ spreadsheetId }));
-  const sheetId = meta.data.sheets?.find((s) => s.properties?.title === tab)?.properties?.sheetId;
-  if (sheetId === undefined) throw new Error(`Could not resolve sheetId for tab "${tab}"`);
+  const sheetId = await resolveSheetId(tab);
 
   // +1: 0-based row index for deleteDimension, plus the header row.
   const targetRow = rowIndex + 1;

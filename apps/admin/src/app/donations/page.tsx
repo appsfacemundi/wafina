@@ -394,13 +394,21 @@ export default function AdminDonationsPage() {
     let failed = 0;
     try {
       const idToken = await firebaseUser?.getIdToken();
-      for (const id of ids) {
+      for (const [i, id] of ids.entries()) {
         try {
           await apiFetch(`/admin/donations/${id}`, { method: 'DELETE', idToken });
           succeeded += 1;
         } catch {
           failed += 1;
         }
+        // Real-world finding, 2026-09-03 — deleting ~40 donations back-to-back
+        // with no pause hit Google Sheets' per-minute quota (each delete does
+        // several Sheets API calls on its own, plus more per linked
+        // notification), surfacing as some deletes failing with a transient
+        // 503 mid-batch. A small pause between each keeps a large batch under
+        // that quota — trades a bit of total time for the batch actually
+        // finishing correctly.
+        if (i < ids.length - 1) await new Promise((resolve) => setTimeout(resolve, 400));
       }
       setSelectedIds(new Set());
       setBulkDeleteConfirming(false);
