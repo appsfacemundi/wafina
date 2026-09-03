@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import type { Donation } from '@wafina/shared';
+import type { Donation, Notification } from '@wafina/shared';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -225,7 +225,7 @@ export function RootNavigator() {
       lastHandledNotificationId.current = notificationId;
       const data = response.notification.request.content.data as { entityType?: string; entityId?: string };
       if (data?.entityType && navigationRef.isReady()) {
-        navigateForEntity(navigationRef, data.entityType as any, data.entityId);
+        navigateForEntity(navigationRef, data.entityType as Notification['Entity_Type'], data.entityId);
       }
     }
 

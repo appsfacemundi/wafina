@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
+import type { Notification } from '@wafina/shared';
 import { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -169,7 +170,7 @@ export function RootNavigator() {
       lastHandledNotificationId.current = notificationId;
       const data = response.notification.request.content.data as { entityType?: string; entityId?: string };
       if (data?.entityType && navigationRef.isReady()) {
-        navigateForEntity(navigationRef, data.entityType as any, data.entityId);
+        navigateForEntity(navigationRef, data.entityType as Notification['Entity_Type'], data.entityId);
       }
     }
 

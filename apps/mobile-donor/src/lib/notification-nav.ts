@@ -2,7 +2,7 @@ import type { Notification } from '@wafina/shared';
 
 /** Minimal shape both a screen's `navigation` prop and the root `NavigationContainerRef` satisfy. */
 interface Navigator {
-  navigate: (...args: any[]) => void;
+  navigate(...args: unknown[]): void;
 }
 
 /**
