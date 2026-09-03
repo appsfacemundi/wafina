@@ -1174,12 +1174,31 @@ export async function adminCancelDonation(donationId: string, reason: string): P
  * failure here is logged, not thrown — the donation itself is already gone
  * by this point, and a stray orphaned notification is a far smaller problem
  * than the delete action itself failing/rolling back partially.
+ *
+ * Full cross-app audit, 2026-09-03 — checked every other entity that could
+ * reference a Donation_ID (Success_Stories, Change_Requests, Corporate/
+ * Institution/Admin stats, donor tier progress) for staleness on delete.
+ * Only one real gap found: Disputes (`createDispute` allows one on a
+ * Claimed donation, not just Delivered — so a disputed-but-not-yet-Delivered
+ * donation was deletable, orphaning the Dispute). Fixed by blocking delete
+ * outright when any Dispute references this donation — same principle as
+ * the Delivered guard above: a Dispute is real accountability history
+ * (open or already resolved), not incidental data, so it's protected the
+ * same way rather than silently deleted or left dangling. Everything else
+ * audited is either live-computed on every read (no stored/stale aggregate
+ * exists anywhere) or structurally unreachable (Success_Stories require
+ * Delivered, which is already blocked).
  */
 export async function adminDeleteDonation(donationId: string): Promise<void> {
   const existing = await getDonation(donationId);
   if (!existing) throw new ValidationError('Doação não encontrada');
   if (existing.Status === 'Delivered') {
     throw new ValidationError('Não é possível eliminar uma doação já entregue');
+  }
+
+  const disputeRows = await getRows(SHEET_TABS.disputes);
+  if (disputeRows.some((row) => row.Donation_ID === donationId)) {
+    throw new ValidationError('Não é possível eliminar uma doação com uma ocorrência associada');
   }
 
   await deleteRow(SHEET_TABS.donations, 'Donation_ID', donationId);
