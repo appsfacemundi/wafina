@@ -89,6 +89,11 @@
     "cancelRequired": "需要填写原因。",
     "cancelSuccess": "捐赠已取消。",
     "cancelError": "无法取消捐赠。",
+    "deleteAction": "删除",
+    "deleteConfirmTitle": "确定要永久删除此捐赠吗？此操作无法撤销。",
+    "confirmDelete": "确认删除",
+    "deleteSuccess": "捐赠已删除。",
+    "deleteError": "无法删除捐赠。",
     "rejectedBadge": "已拒绝",
     "rejectionReason": "原因：{{reason}}",
     "card": {

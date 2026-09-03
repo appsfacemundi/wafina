@@ -94,6 +94,10 @@ export default function AdminDonationsPage() {
   const [cancelFormId, setCancelFormId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelSavingId, setCancelSavingId] = useState<string | null>(null);
+  // Admin donation delete (2026-08-28) — real, permanent removal, unlike
+  // Cancel above. No reason field (stakeholder decision) — just a confirm.
+  const [deleteFormId, setDeleteFormId] = useState<string | null>(null);
+  const [deleteSavingId, setDeleteSavingId] = useState<string | null>(null);
 
   async function load() {
     if (!firebaseUser) return;
@@ -316,6 +320,24 @@ export default function AdminDonationsPage() {
       showToast(message, 'error');
     } finally {
       setCancelSavingId(null);
+    }
+  }
+
+  async function onDeleteDonation(donationId: string) {
+    setError('');
+    setDeleteSavingId(donationId);
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      await apiFetch(`/admin/donations/${donationId}`, { method: 'DELETE', idToken });
+      setDeleteFormId(null);
+      await load();
+      showToast(t('donationsPage.deleteSuccess'));
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : t('donationsPage.deleteError');
+      setError(message);
+      showToast(message, 'error');
+    } finally {
+      setDeleteSavingId(null);
     }
   }
 
@@ -932,6 +954,41 @@ export default function AdminDonationsPage() {
                     {t('donationsPage.cancelAction')}
                   </Button>
                 </div>
+              )}
+            </div>
+          )}
+          {/* Admin donation delete (2026-08-28) — real, permanent removal.
+              Deliberately its own block, separate from the edit/cancel guard
+              above: unlike those, delete stays available on a Cancelled
+              donation too (clearing out a mistake is the main reason this
+              exists) — only Delivered is off-limits, since that's the one
+              state with a real linked Success Story/impact history. */}
+          {d.Status !== 'Delivered' && (
+            <div className="stack" style={{ gap: 8 }}>
+              {deleteFormId === d.Donation_ID ? (
+                <div className="stack" style={{ gap: 8, padding: 12, border: '1px solid var(--color-border)', borderRadius: 8 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700 }}>{t('donationsPage.deleteConfirmTitle')}</p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button
+                      variant="danger"
+                      onClick={() => onDeleteDonation(d.Donation_ID)}
+                      disabled={deleteSavingId === d.Donation_ID}
+                    >
+                      {deleteSavingId === d.Donation_ID ? t('donationsPage.uploading') : t('donationsPage.confirmDelete')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setDeleteFormId(null)}
+                      disabled={deleteSavingId === d.Donation_ID}
+                    >
+                      {t('common.cancel')}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button variant="danger" onClick={() => setDeleteFormId(d.Donation_ID)}>
+                  {t('donationsPage.deleteAction')}
+                </Button>
               )}
             </div>
           )}

@@ -22,6 +22,7 @@ import {
 import { listCollectionPoints } from '../services/collection-points';
 import {
   adminCancelDonation,
+  adminDeleteDonation,
   adminEditDonation,
   adminReplaceDonationPhoto,
   listAllDonationsForAdmin,
@@ -236,6 +237,17 @@ adminRouter.post(
   requireRole('Admin'),
   asyncHandler(async (req, res) => {
     res.json(await adminCancelDonation(req.params.id, req.body?.reason));
+  }),
+);
+
+/** Admin donation delete, 2026-08-28 — real, permanent removal; see adminDeleteDonation's own doc comment for scope. */
+adminRouter.delete(
+  '/admin/donations/:id',
+  requireAuth,
+  requireRole('Admin'),
+  asyncHandler(async (req, res) => {
+    await adminDeleteDonation(req.params.id);
+    res.status(204).send();
   }),
 );
 

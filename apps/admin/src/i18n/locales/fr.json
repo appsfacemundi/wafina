@@ -89,6 +89,11 @@
     "cancelRequired": "Un motif est requis.",
     "cancelSuccess": "Don annulé.",
     "cancelError": "Impossible d’annuler le don.",
+    "deleteAction": "Supprimer",
+    "deleteConfirmTitle": "Supprimer définitivement ce don ? Cette action est irréversible.",
+    "confirmDelete": "Confirmer la suppression",
+    "deleteSuccess": "Don supprimé.",
+    "deleteError": "Impossible de supprimer le don.",
     "rejectedBadge": "Rejeté",
     "rejectionReason": "Motif : {{reason}}",
     "card": {

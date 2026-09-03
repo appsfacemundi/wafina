@@ -89,6 +89,11 @@
     "cancelRequired": "Se requiere un motivo.",
     "cancelSuccess": "Donación cancelada.",
     "cancelError": "No se pudo cancelar la donación.",
+    "deleteAction": "Eliminar",
+    "deleteConfirmTitle": "¿Eliminar esta donación permanentemente? Esta acción no se puede deshacer.",
+    "confirmDelete": "Confirmar eliminación",
+    "deleteSuccess": "Donación eliminada.",
+    "deleteError": "No se pudo eliminar la donación.",
     "rejectedBadge": "Rechazada",
     "rejectionReason": "Motivo: {{reason}}",
     "card": {

@@ -16,7 +16,7 @@ import type {
 import { toProxiedUrl } from '../config/photo-storage';
 import { SHEET_TABS } from '../config/sheet-tabs';
 import { fromSheetLatLong, nowIso, parseSheetDate, sequenceSuffix, toSheetLatLong } from '../config/sheet-values';
-import { appendRow, findRow, getRows, updateRow } from '../config/sheets';
+import { appendRow, deleteRow, findRow, getRows, updateRow } from '../config/sheets';
 import { checkAndNotifyMilestone } from './donor-tiers';
 import { EMAIL_BRAND_COLOR, EMAIL_LOGO_HTML, escapeHtml, sendEmail } from './email';
 import { getRegionById } from './geo-regions';
@@ -1148,6 +1148,29 @@ export async function adminCancelDonation(donationId: string, reason: string): P
   });
 
   return updated;
+}
+
+/**
+ * Admin donation delete, 2026-08-28 (stakeholder-scoped) — a real, permanent
+ * row removal, unlike adminCancelDonation above (which only ever sets
+ * Status: 'Cancelled' and keeps the row). Deliberately blocked once
+ * Delivered — that's the one state with a real, linked history (a Success
+ * Story may reference this Donation_ID, plus its place in delivered-count
+ * stats/tier milestones) that would be orphaned by the row vanishing.
+ * Cancelled donations ARE deletable here (unlike adminEditDonation's guard)
+ * — clearing out a mistaken/duplicate entry after the fact is the primary
+ * reason this exists. No reason required (stakeholder decision, 2026-08-28)
+ * and no donor notification is sent — unlike cancel, the donor already knows
+ * about their donation; a silent cleanup of bad data shouldn't re-surface it.
+ */
+export async function adminDeleteDonation(donationId: string): Promise<void> {
+  const existing = await getDonation(donationId);
+  if (!existing) throw new ValidationError('Doação não encontrada');
+  if (existing.Status === 'Delivered') {
+    throw new ValidationError('Não é possível eliminar uma doação já entregue');
+  }
+
+  await deleteRow(SHEET_TABS.donations, 'Donation_ID', donationId);
 }
 
 /**

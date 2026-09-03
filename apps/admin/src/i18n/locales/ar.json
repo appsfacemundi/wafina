@@ -89,6 +89,11 @@
     "cancelRequired": "السبب مطلوب.",
     "cancelSuccess": "تم إلغاء التبرع.",
     "cancelError": "تعذر إلغاء التبرع.",
+    "deleteAction": "حذف",
+    "deleteConfirmTitle": "هل تريد حذف هذا التبرع نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.",
+    "confirmDelete": "تأكيد الحذف",
+    "deleteSuccess": "تم حذف التبرع.",
+    "deleteError": "تعذر حذف التبرع.",
     "rejectedBadge": "مرفوضة",
     "rejectionReason": "السبب: {{reason}}",
     "card": {

@@ -245,3 +245,53 @@ export async function updateRow(
   );
   invalidateTab(tab);
 }
+
+/**
+ * Admin donation delete, 2026-08-28 — the one deliberate exception to
+ * updateRow's own "nothing ever deletes or reorders rows" invariant (see its
+ * doc comment above). Because this shifts every row below it up by one,
+ * a stale cached position for this tab could target the wrong row after a
+ * delete — so, unlike updateRow, this always re-reads the tab fresh
+ * (bypassing rowsCache) to find the row's exact live position, and
+ * invalidates the tab immediately afterward so any updateRow/findRow call
+ * that starts after this one never computes a position against a now-shifted
+ * row set. A concurrent call that already read a cached snapshot in the same
+ * instant this runs could still target the wrong row — an accepted, narrow
+ * trade-off given Sheets has no transactions at all, and this path is
+ * Admin-only, manual, and rare (unlike the high-frequency writes updateRow
+ * serves).
+ */
+export async function deleteRow(tab: string, keyColumn: string, keyValue: string): Promise<void> {
+  const sheets = getClient();
+  const spreadsheetId = env.googleSheets.spreadsheetId!;
+
+  rowsCache.delete(tab); // force a fresh read below — see doc comment.
+  const [rows, header] = await Promise.all([getRows(tab), getHeader(tab)]);
+
+  if (!header.includes(keyColumn)) {
+    throw new Error(`Column "${keyColumn}" not found in "${tab}" header`);
+  }
+
+  const rowIndex = rows.findIndex((row) => row[keyColumn] === keyValue);
+  if (rowIndex === -1) {
+    throw new Error(`No row in "${tab}" where ${keyColumn}=${keyValue}`);
+  }
+
+  const meta = await withRetry(() => sheets.spreadsheets.get({ spreadsheetId }));
+  const sheetId = meta.data.sheets?.find((s) => s.properties?.title === tab)?.properties?.sheetId;
+  if (sheetId === undefined) throw new Error(`Could not resolve sheetId for tab "${tab}"`);
+
+  // +1: 0-based row index for deleteDimension, plus the header row.
+  const targetRow = rowIndex + 1;
+  await withRetry(() =>
+    sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          { deleteDimension: { range: { sheetId, dimension: 'ROWS', startIndex: targetRow, endIndex: targetRow + 1 } } },
+        ],
+      },
+    }),
+  );
+  invalidateTab(tab);
+}

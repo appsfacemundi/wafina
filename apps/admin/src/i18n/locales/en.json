@@ -89,6 +89,11 @@
     "cancelRequired": "A reason is required.",
     "cancelSuccess": "Donation cancelled.",
     "cancelError": "Could not cancel the donation.",
+    "deleteAction": "Delete",
+    "deleteConfirmTitle": "Permanently delete this donation? This cannot be undone.",
+    "confirmDelete": "Confirm delete",
+    "deleteSuccess": "Donation deleted.",
+    "deleteError": "Could not delete the donation.",
     "rejectedBadge": "Rejected",
     "rejectionReason": "Reason: {{reason}}",
     "card": {
