@@ -98,6 +98,10 @@ export default function AdminDonationsPage() {
   // Cancel above. No reason field (stakeholder decision) — just a confirm.
   const [deleteFormId, setDeleteFormId] = useState<string | null>(null);
   const [deleteSavingId, setDeleteSavingId] = useState<string | null>(null);
+  // Bulk delete (2026-08-28 follow-up) — select many, delete at once.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirming, setBulkDeleteConfirming] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   async function load() {
     if (!firebaseUser) return;
@@ -341,6 +345,76 @@ export default function AdminDonationsPage() {
     }
   }
 
+  function toggleSelected(donationId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(donationId)) next.delete(donationId);
+      else next.add(donationId);
+      return next;
+    });
+  }
+
+  // Only Delivered donations are ineligible for delete (matches adminDeleteDonation's
+  // own guard) — everything else in the currently visible/filtered list is selectable.
+  const selectableVisibleIds = useMemo(
+    () => visibleDonations.filter((d) => d.Status !== 'Delivered').map((d) => d.Donation_ID),
+    [visibleDonations],
+  );
+  const allVisibleSelected =
+    selectableVisibleIds.length > 0 && selectableVisibleIds.every((id) => selectedIds.has(id));
+
+  function toggleSelectAllVisible() {
+    setSelectedIds((prev) => {
+      if (allVisibleSelected) {
+        // Deselect just the currently-visible ones — keep any selection made
+        // under a different filter intact, rather than wiping it silently.
+        const next = new Set(prev);
+        selectableVisibleIds.forEach((id) => next.delete(id));
+        return next;
+      }
+      return new Set([...prev, ...selectableVisibleIds]);
+    });
+  }
+
+  /**
+   * Bulk delete (2026-08-28) — sequential, not Promise.all. Each DELETE hits
+   * deleteRow on the same Donations tab; deleteRow shifts every row below the
+   * one it removes, so firing several in parallel could race each other's
+   * row positions (see deleteRow's own doc comment in config/sheets.ts).
+   * Continues past individual failures (e.g. a selected row was Delivered,
+   * or got deleted by someone else a moment ago) so one bad row doesn't
+   * block the rest of a bulk action; reports a combined success/failure count.
+   */
+  async function onBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkDeleting(true);
+    setError('');
+    let succeeded = 0;
+    let failed = 0;
+    try {
+      const idToken = await firebaseUser?.getIdToken();
+      for (const id of ids) {
+        try {
+          await apiFetch(`/admin/donations/${id}`, { method: 'DELETE', idToken });
+          succeeded += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      setSelectedIds(new Set());
+      setBulkDeleteConfirming(false);
+      await load();
+      if (failed === 0) {
+        showToast(t('donationsPage.bulkDeleteSuccess', { count: succeeded }));
+      } else {
+        showToast(t('donationsPage.bulkDeletePartial', { succeeded, failed }), 'error');
+      }
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
   async function onSendToFeed(donationId: string) {
     setError('');
     setSendingToFeedId(donationId);
@@ -450,6 +524,18 @@ export default function AdminDonationsPage() {
     return (
       <Card key={d.Donation_ID} className="stack" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ display: 'flex', gap: 12, padding: 'var(--space-4)' }}>
+          {/* Bulk delete (2026-08-28) — Delivered donations aren't eligible
+              for delete at all (matches adminDeleteDonation's own guard), so
+              no checkbox renders for those; nothing to select there. */}
+          {d.Status !== 'Delivered' && (
+            <input
+              type="checkbox"
+              checked={selectedIds.has(d.Donation_ID)}
+              onChange={() => toggleSelected(d.Donation_ID)}
+              aria-label={t('donationsPage.selectForBulkDelete')}
+              style={{ marginTop: 4, flexShrink: 0, width: 18, height: 18, cursor: 'pointer' }}
+            />
+          )}
           <div className="stack" style={{ gap: 4, flexShrink: 0 }}>
             {/* V2 multi-photo (2026-08-17) — click to open the full gallery; badge only shows once there's more than one photo. */}
             <button
@@ -1125,6 +1211,40 @@ export default function AdminDonationsPage() {
                 </button>
               ))}
             </div>
+            {/* Bulk delete (2026-08-28) — only shown once there's at least
+                one selectable (non-Delivered) donation in the current
+                filter, so the bar doesn't clutter an empty/Delivered-only view. */}
+            {selectableVisibleIds.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleSelectAllVisible}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                  />
+                  {t('donationsPage.selectAllVisible')}
+                </label>
+                {selectedIds.size > 0 &&
+                  (bulkDeleteConfirming ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>
+                        {t('donationsPage.bulkDeleteConfirmTitle', { count: selectedIds.size })}
+                      </span>
+                      <Button variant="danger" onClick={onBulkDelete} disabled={bulkDeleting}>
+                        {bulkDeleting ? t('donationsPage.uploading') : t('donationsPage.confirmDelete')}
+                      </Button>
+                      <Button variant="ghost" onClick={() => setBulkDeleteConfirming(false)} disabled={bulkDeleting}>
+                        {t('common.cancel')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="danger" onClick={() => setBulkDeleteConfirming(true)}>
+                      {t('donationsPage.bulkDeleteAction', { count: selectedIds.size })}
+                    </Button>
+                  ))}
+              </div>
+            )}
             {visibleDonations.length === 0 ? (
               <EmptyState
                 title={t('donationsPage.emptyStatusTitle')}
